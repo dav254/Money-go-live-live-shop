@@ -64,9 +64,21 @@ export const MAX_LIVE_SECONDS = 600;
  */
 export const SELLER_MEDIA_QUOTA_FREE = 80;
 
-/** Listing media kept alongside the one cover image/video. */
+/**
+ * Listing media kept alongside the one cover image/video.
+ *
+ * Photos are the buyer's evidence — the more angles the better — so eight.
+ * Video is capped at ONE clip per listing: it is a hero demonstration, not a
+ * gallery, and the feed plays the first clip anywhere.
+ */
 export const MAX_IMAGES_PER_LISTING = 8;
-export const MAX_VIDEOS_PER_LISTING = 8;
+export const MAX_VIDEOS_PER_LISTING = 1;
+
+/**
+ * Minimum photos on a listing. A listing with no photo is invisible in the
+ * feed and wastes a catalogue slot, so the form will not let one publish.
+ */
+export const MIN_IMAGES_PER_LISTING = 1;
 
 /** Bytes caps. Kept here so the upload form and the API cannot disagree. */
 export const MAX_IMAGE_SIZE_MB = 10;

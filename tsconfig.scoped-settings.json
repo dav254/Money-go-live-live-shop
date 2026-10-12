@@ -1,0 +1,18 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "incremental": false,
+    "types": ["node"]
+  },
+  "include": [
+    "next-env.d.ts",
+    "src/app/dashboard/seller/settings/page.tsx",
+    "src/components/app/seller/social-links-editor.tsx",
+    "src/components/seller/social-link-icons.tsx",
+    "src/lib/media/upload-client.ts",
+    "src/lib/media/limits.ts",
+    "src/lib/types.ts",
+    "src/lib/social-links.ts"
+  ]
+}

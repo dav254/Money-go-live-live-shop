@@ -23,13 +23,16 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Camera, Lock, User, Loader2, ShieldCheck, UploadCloud, File as FileIcon, X, MapPin, RefreshCw, Palette, Sun, Moon, Monitor, LifeBuoy, Store } from 'lucide-react';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useUser, useFirestore, useUserProfile } from '@/firebase';
-import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { uploadMedia } from '@/lib/media/upload-client';
 import { useToast } from '@/hooks/use-toast';
 import { doc, updateDoc } from 'firebase/firestore';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Textarea } from '@/components/ui/textarea';
-import type { UserProfile } from '@/lib/types';
+// The hook hands back ITS `UserProfile` (the one `useUserProfile` declares),
+// not the wider one in `@/lib/types` — the two are separate interfaces and
+// swapping this import back is how this prop started failing to typecheck.
+import type { UserProfile } from '@/firebase/auth/use-user-profile';
 import type { User as FirebaseUser } from 'firebase/auth';
 import { detectLocation, saveLocationToStorage, getLocationFromStorage, type UserLocation } from '@/lib/location-detection';
 import { cn } from '@/lib/utils';
@@ -69,25 +72,20 @@ const SellerVerificationForm = ({ user, userProfile, isLoading: isProfileLoading
     
     const handleFileRemove = (fileName: string) => {
         setFiles(prev => prev.filter(file => file.name !== fileName));
-    };
-
-    const uploadToFirebase = async (file: File): Promise<string> => {
-      const storage = getStorage();
-      const storageRef = ref(storage, `verification/${user?.uid}/${file.name}`);
-      const uploadTask = uploadBytesResumable(storageRef, file);
-
-      return new Promise((resolve, reject) => {
-          uploadTask.on('state_changed', 
-              (snapshot) => {
-                  const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-                  setUploadProgress(prev => ({ ...prev, [file.name]: progress }));
-              }, 
-              (error) => reject(error), 
-              () => {
-                  getDownloadURL(uploadTask.snapshot.ref).then(resolve);
-              }
-          );
-      });
+    };    // Self-hosted media engine: verification files land in
+    // verification/<uid>/ on the VPS disk — never an external bucket.
+    const uploadToVps = async (file: File): Promise<string> => {
+      if (!user) throw new Error('You must be signed in.');
+      const result = await uploadMedia(
+        file,
+        user,
+        (p) => setUploadProgress(prev => ({ ...prev, [file.name]: p.percent })),
+        { folder: `verification/${user.uid}` },
+      );
+      if (result.phase === 'failed' || !result.url) {
+        throw new Error(result.error || 'Upload failed.');
+      }
+      return result.url;
     };
     
     const handleSubmitForVerification = async () => {
@@ -99,7 +97,7 @@ const SellerVerificationForm = ({ user, userProfile, isLoading: isProfileLoading
 
         setIsUploading(true);
         try {
-            await Promise.all(files.map(file => uploadToFirebase(file)));
+            await Promise.all(files.map(file => uploadToVps(file)));
             await updateDoc(doc(firestore, 'userProfiles', user.uid), { verificationStatus: 'pending' });
             toast({ title: 'Submitted!', description: 'Verification request sent.' });
             setFiles([]);
@@ -200,26 +198,44 @@ const AccountSettingsContent = ({ user, userProfile, isLoading: isProfileLoading
         }
     }, [userProfile, profileForm]);
 
+    // Self-hosted media engine: the avatar is transcoded to WebP and stored
+    // in avatars/<uid>/ on the VPS disk.
     const uploadAvatar = async (file: File) => {
-        const storage = getStorage();
-        const storageRef = ref(storage, `avatars/${user?.uid}`);
-        const uploadTask = uploadBytesResumable(storageRef, file);
-
+        if (!user) return;
         setIsUploading(true);
-        uploadTask.on('state_changed', 
-            (snapshot) => setUploadProgress((snapshot.bytesTransferred / snapshot.totalBytes) * 100),
-            (error) => {
-                toast({ variant: 'destructive', title: 'Upload Failed' });
-                setIsUploading(false);
-            },
-            () => {
-                getDownloadURL(uploadTask.snapshot.ref).then((url) => {
-                    setAvatarUrl(url);
-                    setIsUploading(false);
-                    setUploadProgress(0);
-                });
+        try {
+            const result = await uploadMedia(file, user, (p) => setUploadProgress(p.percent), { folder: `avatars/${user.uid}` });
+            if (result.phase === 'failed' || !result.url) {
+                throw new Error(result.error || 'Upload failed.');
             }
-        );
+            setAvatarUrl(result.url);
+            setUploadProgress(0);
+        } catch {
+            toast({ variant: 'destructive', title: 'Upload Failed' });
+        } finally {
+            setIsUploading(false);
+        }
+    };
+
+    const uploadAvatarViaHandle = async (file: File) => {
+        if (!user) return;
+        setIsUploading(true);
+        try {
+            const handle = uploadMedia(file, user, (p) => setUploadProgress(p.percent), { folder: `avatars/${user.uid}` });
+            await handle.promise;
+            const phase = handle.mediaId ? (handle as any).phase : (handle as any).phase;
+            const url = handle.mediaId ? (handle as any).url : (handle as any).url;
+            const error = handle.mediaId ? (handle as any).error : (handle as any).error;
+            if (phase === 'failed' || !url) {
+                throw new Error(error || 'Upload failed.');
+            }
+            setAvatarUrl(url);
+            setUploadProgress(0);
+        } catch {
+            toast({ variant: 'destructive', title: 'Upload Failed' });
+        } finally {
+            setIsUploading(false);
+        }
     };
 
     const handleDetectLocation = async () => {

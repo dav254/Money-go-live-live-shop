@@ -151,22 +151,48 @@ async function fanOutToMatches(requestId: string): Promise<void> {
     })
     .catch(() => undefined);
 
-  const link = appLink(`/requests/${requestId}`);
-  for (const match of matches.slice(0, 20)) {
-    const profileSnap = await db.collection('userProfiles').doc(match.sellerId).get().catch(() => null);
-    const profileData = profileSnap?.data() as { email?: string; fullName?: string } | undefined;
-    if (!profileData?.email) continue;
+  // Where the seller lands when they tap the notification: their own Requests
+  // queue in the app with this brief already expanded (the screen reads
+  // `?open=`). The email keeps pointing at the public brief page, because an
+  // email reader may not be signed in to the app.
+  const deepLink = `/app/seller/requests?open=${requestId}`;
+  const emailLink = appLink(`/requests/${requestId}`);
 
+  // One batched read for every matched seller's profile instead of a serialised
+  // read per seller — on a 20-seller fan-out that was 20 round-trips before the
+  // first notification left the building.
+  const profiles = await db
+    .getAll(...matches.map((m) => db.collection('userProfiles').doc(m.sellerId)))
+    .catch(() => null);
+  const profileById = new Map<string, { email?: string; fullName?: string }>();
+  profiles?.forEach((doc) => {
+    const data = doc.data() as { email?: string; fullName?: string } | undefined;
+    if (data) profileById.set(doc.id, data);
+  });
+
+  for (const match of matches) {
+    const profileData = profileById.get(match.sellerId);
+    const categoryMatch = match.reasons.includes('category');
+
+    // The in-app notification IS the fan-out, and it fires whether or not the
+    // seller ever gave an email address. A missing email used to `continue`
+    // past this call, so a whole class of sellers was silently unreachable.
     await notify({
       db: db as unknown as Firestore,
       userId: match.sellerId,
       type: 'SYSTEM',
-      title: 'New request matches your business',
-      message: `“${request.title}” needs ${request.category}${request.location ? ` in ${request.location}` : ''}.`,
+      title: categoryMatch
+        ? 'A buyer has a request in your category'
+        : 'New request matches your business',
+      message: categoryMatch
+        ? `“${request.title}” needs ${request.category}${request.location ? ` in ${request.location}` : ''} — the same category as your shop, and it needs an answer. ${budgetLabel(request)}.`
+        : `“${request.title}” needs ${request.category}${request.location ? ` in ${request.location}` : ''}. ${budgetLabel(request)}.`,
       entityType: 'REQUEST',
       entityId: requestId,
-      link: `/requests/${requestId}`,
+      link: deepLink,
     }).catch(() => undefined);
+
+    if (!profileData?.email) continue;
 
     await sendTemplateEmail({
       templateKey: 'new-matched-request',
@@ -177,7 +203,7 @@ async function fanOutToMatches(requestId: string): Promise<void> {
         request_category: request.category,
         request_location: request.location || '—',
         budget: budgetLabel(request),
-        request_link: link,
+        request_link: emailLink,
       },
       category: 'business',
       to: profileData.email,

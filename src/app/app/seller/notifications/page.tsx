@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Bell, ChevronRight } from 'lucide-react';
 import { collection, limit, query, where } from 'firebase/firestore';
 import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
+import { sortNotificationsDesc } from '@/lib/notification-sort';
 import { cn } from '@/lib/utils';
 import {
   EmptyState, SellerSectionTitle,
@@ -17,6 +18,17 @@ import {
  * gives it a screen inside the seller section, reading only this user's own
  * notifications — the query is scoped by `userId` so one seller can never page
  * through another's alerts.
+ *
+ * ## Two shapes live in this collection
+ *
+ * The legacy writers (admin actions, the Cloud Functions triggers) store
+ * `status: 'unread'` + `timestamp`; the communication engine (`notify()` in
+ * `src/lib/notifications/engine.ts`) stores `isRead: false` + `createdAt`. The
+ * fan-out that tells a seller "a buyer has a request in your category" goes
+ * through the engine, so a screen that only understood the legacy shape would
+ * show those alerts as already read, with no time, sorted to the bottom.
+ * Both shapes are read here; sorting is delegated to `sortNotificationsDesc`,
+ * which prefers `createdAt` and falls back to `timestamp`.
  */
 
 interface SellerNotification {
@@ -27,6 +39,8 @@ interface SellerNotification {
   link?: string;
   status?: string;
   timestamp?: unknown;
+  isRead?: boolean;
+  createdAt?: unknown;
 }
 
 function relativeTime(value: unknown): string {
@@ -66,19 +80,10 @@ export default function SellerSectionNotifications() {
 
   const { data: rawNotifications, isLoading } = useCollection<SellerNotification>(notificationsQuery);
 
-  const notifications = React.useMemo(() => {
-    const ms = (value: unknown): number => {
-      if (value && typeof value === 'object' && 'toMillis' in (value as { toMillis?: unknown })) {
-        return (value as { toMillis: () => number }).toMillis();
-      }
-      if (value instanceof Date) return value.getTime();
-      if (typeof value === 'number') return value;
-      return 0;
-    };
-    return (rawNotifications ?? [])
-      .slice()
-      .sort((a, b) => ms(b.timestamp) - ms(a.timestamp));
-  }, [rawNotifications]);
+  const notifications = React.useMemo(
+    () => sortNotificationsDesc(rawNotifications ?? []),
+    [rawNotifications],
+  );
 
   return (
     <div className="vn-page-enter space-y-5 pb-2">
@@ -107,7 +112,7 @@ export default function SellerSectionNotifications() {
       ) : (
         <ul className="space-y-2 px-4">
           {notifications.map((item) => {
-            const unread = item.status === 'unread';
+            const unread = item.status === 'unread' || item.isRead === false;
             const body = (
               <div
                 className={cn(
@@ -138,7 +143,7 @@ export default function SellerSectionNotifications() {
                     </span>
                   )}
                   <span className="mt-1.5 block text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
-                    {relativeTime(item.timestamp)}
+                    {relativeTime(item.createdAt ?? item.timestamp)}
                     {item.type ? ` · ${item.type}` : ''}
                   </span>
                 </span>

@@ -53,7 +53,7 @@ export default function BuyerProductPage(props: { params: Promise<{ productId: s
     const { data: sellerShop, isLoading: isSellerShopLoading } = useDoc<SellerShop>(sellerShopRef);
     const { data: sellerProfile, isLoading: isSellerProfileLoading } = useDoc<UserProfile>(sellerProfileRef);
 
-    const [selectedMedia, setSelectedMedia] = useState<{url: string, type: 'video' | 'image'} | null>(null);
+    const [selectedMedia, setSelectedMedia] = useState<{ url: string; type: 'video' | 'image' } | null>(null);
 
     // Reset local state when product ID changes
     useEffect(() => {
@@ -61,9 +61,11 @@ export default function BuyerProductPage(props: { params: Promise<{ productId: s
         setSelectedMedia(null);
     }, [productId]);
 
-    const allMedia = useMemo(() => {
+    type MediaFrame = { url: string; type: 'video' | 'image' };
+
+    const allMedia = useMemo<MediaFrame[]>(() => {
         if (!product) return [];
-        const media: { url: string, type: 'video' | 'image' }[] = [];
+        const media: MediaFrame[] = [];
         
         if (product.videoUrl && product.videoUrl.trim() !== "") media.push({ url: product.videoUrl, type: 'video' });
         if (Array.isArray(product.videoUrls)) {

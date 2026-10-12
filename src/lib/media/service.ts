@@ -53,7 +53,9 @@ export interface MediaRecord {
   /** Private media is served only through authorization-checked delivery. */
   isPrivate?: boolean;
   storageState?: StorageState;
-  type: 'image' | 'video';
+  /** 'audio'/'file' are stored as-is in an owner folder (chat voice notes,
+   *  support/verification documents) — never transcoded. */
+  type: 'image' | 'video' | 'audio' | 'file';
   originalName?: string;
   storedName: string;
   mimeType: string;
@@ -127,6 +129,53 @@ async function drainQueue(): Promise<void> {
   }
 }
 
+/**
+ * After a dev-server restart/HMR cycle the in-memory queue is lost, so media
+ * that was accepted (DB record created) but not yet processed would poll
+ * forever and never reach READY. This is best-effort: if the temp file is gone
+ * we just mark it failed so the client stops polling.
+ */
+async function rehydrateMidflightMedia(): Promise<void> {
+  try {
+    const snap = await db.collection(MEDIA_COLLECTION).where('storageState', '==', 'LOCAL_ONLY').get();
+    const fsp = await import('fs/promises');
+    for (const doc of snap.docs) {
+      const data = doc.data() as MediaRecord;
+      if (data.status !== 'PROCESSING' || !data.storagePath && !data.thumbnailPath) continue;
+      const tmpPath = path.join(MEDIA_TMP_ROOT, `upload-${doc.id}`);
+      let exists = false;
+      try {
+        exists = !!await fsp.stat(tmpPath);
+      } catch {
+        exists = false;
+      }
+      if (!exists) {
+        await doc.ref.update({
+          status: 'FAILED',
+          error: 'Processing was interrupted before it started.',
+        }).catch(() => undefined);
+      } else {
+        queue.push({
+          mediaId: doc.id,
+          tmpPath,
+          type: data.type === 'image' ? 'image' : 'video',
+          declaredMime: data.mimeType,
+          userId: data.userId,
+          originalName: data.originalName ?? 'upload',
+          destDir: undefined,
+          isPrivate: data.isPrivate ?? false,
+        });
+        if (!draining) {
+          draining = true;
+          void drainQueue();
+        }
+      }
+    }
+  } catch {
+    // Best-effort — never let recovery break intake.
+  }
+}
+
 async function processJob(job: QueueJob): Promise<void> {
   const ref = db.collection(MEDIA_COLLECTION).doc(job.mediaId);
   const finalize = (outcome: ProcessOutcome) => {
@@ -145,9 +194,7 @@ async function processJob(job: QueueJob): Promise<void> {
       result = await processImage(job.tmpPath, job.originalName, { destDir: job.destDir });
     } else {
       result = await processVideo(job.tmpPath, { destDir: job.destDir });
-    }
-
-    await ref.update({
+    }  await ref.update({
       status: 'READY' as MediaStatus,
       storagePath: result.storagePath,
       thumbnailPath: result.thumbnailPath,
@@ -165,7 +212,7 @@ async function processJob(job: QueueJob): Promise<void> {
     });
 
     // Original temp file: deleted immediately after successful processing.
-    await fsp.rm(job.tmpPath, { force: true });
+    await fsp.rm(job.tmpPath, { force: true }).catch(() => undefined);
 
     finalize({
       id: job.mediaId,
@@ -231,6 +278,9 @@ export interface IntakeInput {
   requestId?: string;
   /** Attach to a seller offer — routes to requests/offer_<id>/. */
   offerId?: string;
+  /** Store into a named owner folder on the VPS disk — chats/<chatId>,
+   *  support/<uid>, verification/<uid>, avatars/<uid>, products/<uid>. */
+  folder?: string;
   /** Private media requires authorization to view (default true for
    *  request/offer attachments, false for public feeds). */
   isPrivate?: boolean;
@@ -252,25 +302,48 @@ export async function intakeUpload({
   postId,
   requestId,
   offerId,
+  folder,
   isPrivate,
 }: IntakeInput): Promise<IntakeResult> {
   await ensureMediaDirs();
   maybeRunDailyCleanup(); // fire-and-forget daily sweep
 
+  // Dev-server reliability: a running Node process can die and be replaced
+  // under HMR/reload, but the in-memory queue + status watchers are not
+  // rehydrated. Re-drain any media that is mid-flight so the pending upload
+  // in THIS request is not abandoned silently after every reload.
+  rehydrateMidflightMedia();
+
+  // Folder uploads (chat attachments, support files, verification docs,
+  // avatars, studio clips) resolve to a named owner folder first — an invalid
+  // or foreign folder is rejected before a single byte reaches the disk.
+  const destFolder = folder ? await resolveUploadFolder(folder, userId) : undefined;
+  if (folder && !destFolder) {
+    return { accepted: false, reason: 'Invalid upload destination.' };
+  }
+
   const declaredMime = (file.type || '').toLowerCase();
   const isImage = validateImageMime(declaredMime);
   const isVideo = !isImage && ALLOWED_VIDEO_CHECK(declaredMime);
-  if (!isImage && !isVideo) {
+  // Audio and documents are only accepted for a named owner folder, where
+  // they are stored byte-for-byte (voice notes, tickets, verification IDs).
+  const rawKind: 'audio' | 'file' | null = !isImage && !isVideo ? rawFileKind(declaredMime) : null;
+  if (!isImage && !isVideo && !rawKind) {
     return { accepted: false, reason: 'Unsupported file type. Images (JPG/PNG/WebP/GIF) and videos (MP4/WebM/MOV/MKV) only.' };
+  }
+  if (!destFolder && rawKind) {
+    return { accepted: false, reason: 'Unsupported file type here. Images and videos only.' };
   }
 
   // Request/offer media carries its own (tighter, configurable) limits.
   const isMarketplace = !!(requestId || offerId);
   const maxMb = isImage
     ? MEDIA_CONFIG.IMAGE_MAX_UPLOAD_MB
-    : isMarketplace
-      ? MEDIA_CONFIG.REQUEST_VIDEO_MAX_UPLOAD_MB
-      : MEDIA_CONFIG.VIDEO_MAX_UPLOAD_MB;
+    : isVideo
+      ? isMarketplace
+        ? MEDIA_CONFIG.REQUEST_VIDEO_MAX_UPLOAD_MB
+        : MEDIA_CONFIG.VIDEO_MAX_UPLOAD_MB
+      : MEDIA_CONFIG.FILE_MAX_UPLOAD_MB;
   const sizeBytes = file.size;
   if (sizeBytes > maxMb * 1024 * 1024) {
     return { accepted: false, reason: `File is too large. Maximum ${maxMb}MB.` };
@@ -314,7 +387,7 @@ export async function intakeUpload({
       await fsp.rm(tmpPath, { force: true });
       return { accepted: false, reason: v.reason };
     }
-  } else {
+  } else if (isVideo) {
     const v = await validateVideoFile(tmpPath, declaredMime, {
       maxDurationSeconds: isMarketplace ? MEDIA_CONFIG.REQUEST_VIDEO_MAX_DURATION_SECONDS : undefined,
     });
@@ -324,13 +397,47 @@ export async function intakeUpload({
     }
   }
 
-  const destDir = requestId
-    ? requestFolder(requestId)
-    : offerId
-      ? offerFolder(offerId)
-      : undefined;
+  // Audio and documents skip the transcode pipeline entirely: move the bytes
+  // into the owner folder, record them READY, and hand back the mediaId.
+  if (rawKind && destFolder) {
+    const rel = path.posix.join(destFolder, `${mediaId}${rawExtension(declaredMime)}`);
+    const abs = getStorageAdapter().resolve(rel);
+    await getStorageAdapter().moveFile(tmpPath, abs);
+    const storedBytes = (await getStorageAdapter().stat(abs))?.size ?? sizeBytes;
+    await db.collection(MEDIA_COLLECTION).doc(mediaId).set({
+      id: mediaId,
+      userId,
+      postId: postId ?? null,
+      requestId: null,
+      offerId: null,
+      isPrivate: true,
+      storageState: 'SYNCED' as StorageState,
+      type: rawKind,
+      originalName: sanitizeOriginalName(file.name),
+      storedName: mediaId,
+      mimeType: declaredMime || 'application/octet-stream',
+      sizeBytes: storedBytes,
+      storagePath: rel,
+      thumbnailPath: '',
+      status: 'READY' as MediaStatus,
+      createdAt: FieldValue.serverTimestamp(),
+      processedAt: FieldValue.serverTimestamp(),
+    });
+    return { accepted: true, mediaId };
+  }
+
+  const destDir = destFolder
+    ? destFolder
+    : requestId
+      ? requestFolder(requestId)
+      : offerId
+        ? offerFolder(offerId)
+        : undefined;
   const privateMedia = isPrivate ?? isMarketplace; // marketplace attachments are private by default
 
+  // Only transcodeable types enter the async pipeline. Everything else was
+  // either accepted as-is above or rejected at intake.
+  const mediaType: 'image' | 'video' = isImage ? 'image' : 'video';
   await db.collection(MEDIA_COLLECTION).doc(mediaId).set({
     id: mediaId,
     userId,
@@ -339,7 +446,7 @@ export async function intakeUpload({
     offerId: offerId ?? null,
     isPrivate: privateMedia,
     storageState: 'LOCAL_ONLY' as StorageState,
-    type: isImage ? 'image' : 'video',
+    type: mediaType,
     originalName: sanitizeOriginalName(file.name),
     storedName: mediaId,
     mimeType: isImage ? 'image/webp' : 'video/mp4',
@@ -353,7 +460,7 @@ export async function intakeUpload({
   await enqueueAndProcess({
     mediaId,
     tmpPath,
-    type: isImage ? 'image' : 'video',
+    type: mediaType,
     declaredMime,
     userId,
     originalName: file.name,
@@ -405,7 +512,7 @@ export async function listMediaForOwner(
     }
     out.push({
       mediaId: doc.id,
-      type: d.type,
+      type: mapMediaTypeForSummary(d.type),
       originalName: d.originalName,
       durationSeconds: d.durationSeconds ?? undefined,
     });
@@ -437,8 +544,85 @@ async function countMarketplaceMedia(
   return byRequest + byOffer;
 }
 
+function mapMediaTypeForSummary(type: MediaRecord['type']): 'image' | 'video' {
+  // listMediaForOwner returns only the two transcode types to the UI.
+  // Stored-as-is records (audio/file) are intentionally not surfaced here.
+  if (type === 'image' || type === 'video') return type;
+  return 'image';
+}
+
 function ALLOWED_VIDEO_CHECK(mime: string): boolean {
   return ['video/mp4', 'video/webm', 'video/quicktime', 'video/x-matroska'].includes(mime);
+}
+
+const RAW_MEDIA_TYPES: MediaRecord['type'][] = ['audio', 'file'];
+
+/**
+ * Owner folders direct uploads may write into, relative to MEDIA_ROOT.
+ *
+ * Everything else — and every folder that is not the uploader's own — is
+ * rejected at intake, because a folder name is the only thing standing
+ * between a signed-in user and another user's files.
+ */
+const UPLOAD_FOLDER_ROOTS = new Set(['chats', 'support', 'verification', 'avatars', 'products']);
+
+/** Validate + authorize an owner folder. Returns the clean relative path or null. */
+async function resolveUploadFolder(raw: string, userId: string): Promise<string | null> {
+  const clean = raw.trim().replace(/^\/+|\/+$/g, '');
+  if (!/^([A-Za-z0-9_-]{1,64})(\/[A-Za-z0-9_-]{1,64}){0,3}$/.test(clean)) return null;
+  const parts = clean.split('/');
+  const [root, owner] = parts;
+  if (!UPLOAD_FOLDER_ROOTS.has(root)) return null;
+  if (root === 'chats') {
+    if (parts.length !== 2) return null;
+    const chat = await db.collection('chats').doc(owner).get();
+    const ids: unknown = chat.data()?.participantIds;
+    return Array.isArray(ids) && ids.includes(userId) ? clean : null;
+  }
+  // support / verification / avatars / products are private to the uploader.
+  return parts.length === 2 && owner === userId ? clean : null;
+}
+
+const RAW_AUDIO_MIMES = [
+  'audio/webm', 'audio/ogg', 'audio/mpeg', 'audio/mp4',
+  'audio/wav', 'audio/x-wav', 'audio/aac', 'audio/flac',
+];
+const RAW_DOC_MIMES = [
+  'application/pdf',
+  'text/plain',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/zip',
+];
+
+/** What kind a stored-as-is file is, or null when the type is not allowed. */
+function rawFileKind(mime: string): 'audio' | 'file' | null {
+  if (mime.startsWith('audio/')) return RAW_AUDIO_MIMES.includes(mime) ? 'audio' : null;
+  return RAW_DOC_MIMES.includes(mime) ? 'file' : null;
+}
+
+/** Extension for a stored-as-is file — derived from the MIME, never the name. */
+function rawExtension(mime: string): string {
+  const byMime: Record<string, string> = {
+    'audio/webm': '.weba',
+    'audio/ogg': '.ogg',
+    'audio/mpeg': '.mp3',
+    'audio/mp4': '.m4a',
+    'audio/wav': '.wav',
+    'audio/x-wav': '.wav',
+    'audio/aac': '.aac',
+    'audio/flac': '.flac',
+    'application/pdf': '.pdf',
+    'text/plain': '.txt',
+    'application/msword': '.doc',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '.docx',
+    'application/vnd.ms-excel': '.xls',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': '.xlsx',
+    'application/zip': '.zip',
+  };
+  return byMime[mime] || '.bin';
 }
 
 function sanitizeOriginalName(name: string): string {
@@ -489,7 +673,7 @@ export interface CleanupReport {
  */
 export async function runCleanup(): Promise<CleanupReport> {
   const report: CleanupReport = { removedTemp: 0, removedOrphans: 0, reclaimedBytes: 0, errors: [] };
-  const retentionMs = MEDIA_CONFIG.TEMP_RETENTION_HOURS * 3600_000;
+  const retentionMs = MEDIA_CONFIG.TEMP_RETENTION_MINUTES * 60_000;
   const cutoff = Date.now() - retentionMs;
 
   // 1. Temp uploads: anything older than the retention window goes.
@@ -530,13 +714,13 @@ export async function runCleanup(): Promise<CleanupReport> {
       if (data.status === 'DELETED' && (data.storagePath || data.thumbnailPath)) {
         const at = toMs(data.deletedAt) ?? toMs(data.processedAt) ?? toMs(data.createdAt) ?? 0;
         if (Date.now() - at > MEDIA_CONFIG.DELETED_MEDIA_RETENTION_DAYS * 86_400_000) {
-          deletedPending.push({ id: data.id, storagePath: data.storagePath, thumbnailPath: data.thumbnailPath });
+          deletedPending.push({ id: data.id, storagePath: data.storagePath ?? '', thumbnailPath: data.thumbnailPath ?? '' });
         }
       }
     });
 
     for (const item of deletedPending) {
-      await deleteStoredFiles([item.storagePath, item.thumbnailPath]);
+      await deleteStoredFiles([item.storagePath ?? null, item.thumbnailPath ?? null]);
       await db.collection(MEDIA_COLLECTION).doc(item.id).update({ storagePath: '', thumbnailPath: '' });
       report.removedOrphans += 1;
     }
@@ -597,7 +781,7 @@ export async function deleteMediaRecord(mediaId: string): Promise<void> {
   const snap = await ref.get();
   if (!snap.exists) return;
   const data = snap.data() as MediaRecord;
-  await deleteStoredFiles([data.storagePath, data.thumbnailPath]);
+  await deleteStoredFiles([data.storagePath ?? null, data.thumbnailPath ?? null]);
   await ref.update({
     status: 'DELETED' as MediaStatus,
     storagePath: '',

@@ -181,6 +181,32 @@ export async function ensureMediaDirs(): Promise<void> {
   await fsp.mkdir(MEDIA_TMP_ROOT, { recursive: true });
 }
 
+export async function clearTempDir(): Promise<void> {
+  const { MEDIA_TMP_ROOT } = await import('./config');
+  try {
+    const entries = await fsp.readdir(MEDIA_TMP_ROOT);
+    for (const entry of entries) {
+      const full = path.join(MEDIA_TMP_ROOT, entry);
+      try {
+        const st = await fsp.stat(full);
+        // The vid-* work dir is only removed by the pipeline's finally block;
+        // treat unlinked leftovers as abandoned regardless of age.
+        if (entry.startsWith('vid-')) {
+          await fsp.rm(full, { recursive: true, force: true });
+          continue;
+        }
+        if (st.mtimeMs < Date.now() - Number(process.env.VIDNOV_TEMP_RETENTION_MINUTES ?? 20) * 60_000) {
+          await fsp.rm(full, { force: true });
+        }
+      } catch {
+        // best effort
+      }
+    }
+  } catch {
+    // tmp dir may not exist yet
+  }
+}
+
 /** Moves a finished file from tmp into its permanent location atomically. */
 export async function promoteFile(tmpPath: string, destAbsPath: string): Promise<void> {
   await fsp.mkdir(path.dirname(destAbsPath), { recursive: true });

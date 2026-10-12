@@ -4,7 +4,7 @@
 import React, { useMemo } from 'react';
 import { collection, query, where, orderBy } from 'firebase/firestore';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { ResellActivity } from '@/lib/types';
+import { WalletTransaction } from '@/lib/types';
 import { ResellerLayout } from '@/components/layout/reseller-layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -48,7 +48,10 @@ const ResellerCommissionsPage = () => {
     );
   }, [user, firestore]);
 
-  const { data: activities, isLoading: areActivitiesLoading } = useCollection<ResellActivity>(activitiesQuery);
+  // The query is over `walletTransactions` (COMMISSION entries), not
+  // `resellActivities` — typing it as ResellActivity was reading fields that
+  // those documents never had.
+  const { data: activities, isLoading: areActivitiesLoading } = useCollection<WalletTransaction>(activitiesQuery);
   const isLoading = isUserLoading || areActivitiesLoading;
   
   return (

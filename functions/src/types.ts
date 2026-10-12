@@ -50,7 +50,12 @@ export interface ResellActivity {
 }
 
 export interface UserProfile {
-    // ... other user profile fields
+    /** Display name — used in referral notification copy. */
+    fullName?: string;
+    /** UID of the user who invited this one — drives referral commissions. */
+    referredBy?: string;
+    /** One-time marker so the first-order referral bonus pays only once. */
+    referralBonusAwarded?: boolean;
 }
 
 export interface PayoutMethod {

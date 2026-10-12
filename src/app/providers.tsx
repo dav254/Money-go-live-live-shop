@@ -4,6 +4,7 @@ import { ThemeProvider } from '@/components/theme-provider';
 import { FirebaseProvider, initializeFirebase } from '@/firebase';
 import { GlobalErrorBoundary } from '@/components/GlobalErrorBoundary';
 import { GlobalErrorListener } from '@/components/GlobalErrorListener';
+import { DeferredErrorLogger } from '@/components/DeferredErrorLogger';
 import { Toaster } from '@/components/ui/toaster';
 import { Suspense } from 'react';
 import { PageProgressBar } from '@/components/page-progress-bar';
@@ -21,9 +22,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
     >
       <FirebaseProvider firebaseApp={firebaseApp} auth={auth} firestore={firestore} surface={surface}>
           <GlobalErrorBoundary>
+            <DeferredErrorLogger />
             <GlobalErrorListener />
-             <Suspense fallback={null}>
-                <PageProgressBar />
+            <Suspense fallback={null}>
+              <PageProgressBar />
             </Suspense>
             {children}
             <Toaster />

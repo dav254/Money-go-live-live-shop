@@ -3,7 +3,7 @@
 
 import { db } from '@/firebase/server';
 import type { Complaint } from '@/lib/types';
-import { serverTimestamp } from 'firebase-admin/firestore';
+import { FieldValue } from 'firebase-admin/firestore';
 
 interface ComplaintPayload {
     complainantId: string;
@@ -23,13 +23,15 @@ export async function createComplaint(payload: ComplaintPayload): Promise<{ succ
             id: complaintRef.id,
             complainantId: payload.complainantId,
             targetId: payload.targetId,
-            targetType: payload.targetType,
+            // 'system' is how the report form tags a platform bug; the
+            // moderation console groups those under 'other'.
+            targetType: payload.targetType === 'system' ? 'other' : payload.targetType,
             reason: payload.reason,
             description: payload.description,
             orderId: payload.orderId || '',
             // attachments: payload.uploadedFileUrls || [], // Assuming 'attachments' field exists in Complaint type
             status: 'open',
-            createdAt: serverTimestamp(),
+            createdAt: FieldValue.serverTimestamp(),
         };
 
         await complaintRef.set(newComplaint);

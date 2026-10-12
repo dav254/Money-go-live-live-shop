@@ -401,3 +401,120 @@ html[data-vidnov-surface='app']:has(.vn-seller-scope) body {
 html[data-vidnov-surface='app']:has(.vn-buyer-scope) body {
   padding-bottom: 0;
 }
+
+/* ==========================================================================
+   DISCOVERY SECTION
+   The customer-facing marketplace feed at `/buyer/discovery`. It is neither
+   the seller scope nor the buyer scope: it is the one screen a signed-out
+   visitor lands on, so it carries Vidnov's own black / white / lime identity
+   rather than either section's accent family.
+
+   The palette is deliberately fixed rather than driven by `--background` /
+   `--foreground`. The spec for this section is a specific set of six values,
+   and a theme switch silently turning the lime into coral would break the
+   one place the brand is supposed to be unmistakable. Media panels go black;
+   the surface around them goes paper.
+
+   Space Grotesk runs headings and figures, Inter runs body and labels — the
+   pairing the brand fonts were loaded for in the first place.
+   ========================================================================== */
+
+.vn-discovery-scope {
+  --vn-lime: #c8ff00;
+  --vn-lime-deep: #a8d800;
+  --vn-ink: #0a0a0a;
+  --vn-paper: #0a0a0a;
+  --vn-mute: #8a8a8a;
+  --vn-line: rgba(255, 255, 255, 0.12);
+
+  font-family: 'Inter', system-ui, sans-serif;
+  /* Black, always. The section's identity is the dark immersive surface a
+     vertical feed lives on; a light theme would flip the one screen whose
+     whole job is to be media-first. */
+  background: #0a0a0a;
+  color: #ffffff;
+  letter-spacing: -0.005em;
+  color-scheme: dark;
+}
+
+.vn-discovery-scope h1,
+.vn-discovery-scope h2,
+.vn-discovery-scope h3,
+.vn-discovery-scope .font-grotesk {
+  font-family: 'Space Grotesk', sans-serif;
+  letter-spacing: -0.03em;
+}
+
+/* Lime is a highlight colour, never a text colour: at that saturation it fails
+   contrast on white. It is only ever used as a fill under ink, or as a rule. */
+/* Lime is a highlight colour, never a text colour on white: at that
+   saturation it fails contrast. On this black surface it is the accent, and it
+   is always a fill under ink or a rule. */
+.vn-lime-ink {
+  background: var(--vn-lime, #c8ff00);
+  color: #0a0a0a;
+}
+
+.vn-discovery-chip {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.06);
+  transition: color 160ms ease, border-color 160ms ease, background-color 160ms ease;
+}
+.vn-discovery-chip:hover {
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.3);
+}
+.vn-discovery-chip[data-active='true'] {
+  background: var(--vn-lime, #c8ff00);
+  border-color: var(--vn-lime, #c8ff00);
+  color: #0a0a0a;
+}
+
+.vn-discovery-card {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 1.25rem;
+  overflow: hidden;
+  transition: box-shadow 200ms ease, transform 200ms ease, border-color 200ms ease;
+}
+.vn-discovery-card:hover {
+  border-color: rgba(200, 255, 0, 0.4);
+  box-shadow: 0 14px 34px -22px rgba(0, 0, 0, 0.9);
+}
+
+/* Immersive posts snap on a phone so one product is one screen; on a desktop
+   they are a centred 9:16 panel inside the paper surface instead of a
+   full-bleed band, and snapping is turned off so a mouse wheel behaves. */
+/* Mandatory, not proximity: the whole idea of this feed is that a flick lands
+   on exactly one listing. The feed is a dedicated scroller on every screen
+   size, so there is no desktop case where snapping would fight the user. */
+.vn-discovery-snap {
+  scroll-snap-type: y mandatory;
+}
+.vn-discovery-snap > * {
+  scroll-snap-align: start;
+}
+
+/* Inside the buyer and seller app shells Discovery is an immersive route: the
+   shell's own sticky h-12 bar stays (it is the only way out), but the feed
+   still has to own every remaining pixel or a snap lands short. So the section
+   fills its container exactly and the shell's route-independent padding is
+   cancelled while it is on screen. */
+.vn-discovery-in-app {
+  height: 100%;
+}
+html[data-vidnov-surface='app']:has(.vn-discovery-in-app) main {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vn-discovery-scope *,
+  .vn-discovery-scope *::before,
+  .vn-discovery-scope *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}

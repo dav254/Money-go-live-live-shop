@@ -127,7 +127,7 @@ export default function SellerDashboardPage() {
     <SellerLayout>
       <div className="vn-page-enter p-4 sm:p-6 lg:p-10 max-w-6xl mx-auto space-y-12">
         {/* Header */}
-        <div className="space-y-5">
+        <div className="space-y-3">
           <p className="text-[11px] font-semibold uppercase tracking-[0.35em] text-muted-foreground">
             {timeGreeting} — VIDNOV BUSINESS
           </p>

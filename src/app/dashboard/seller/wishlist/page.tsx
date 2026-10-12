@@ -5,7 +5,7 @@ import * as React from 'react';
 import { SellerLayout } from '@/components/layout/seller-layout';
 import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
 import { collection, query, where, collectionGroup, onSnapshot, doc } from 'firebase/firestore';
-import type { Product, WishlistItem } from '@/lib/types';
+import type { Product } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Table,

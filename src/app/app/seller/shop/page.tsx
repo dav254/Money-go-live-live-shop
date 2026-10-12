@@ -3,9 +3,9 @@
 import * as React from 'react';
 import Link from 'next/link';
 import {
-  Award, BadgeCheck, CalendarDays, Clock, Facebook, Globe, Instagram,
-  MapPin, MessageSquare, Package, Radio, Rocket, RotateCcw, Share2,
-  ShieldCheck, Star, Truck, Twitter, Users, Zap,
+  Award, BadgeCheck, CalendarDays, Clock, Globe, MapPin, MessageSquare,
+  Package, QrCode, Radio, Rocket, RotateCcw, Share2, ShieldCheck, Star, Truck,
+  Users, Zap,
 } from 'lucide-react';
 import { doc, collection, query, where } from 'firebase/firestore';
 import {
@@ -17,8 +17,11 @@ import {
 } from '@/firebase';
 import type { LiveSession, Product, SellerShop, UserProfile } from '@/lib/types';
 import { SellerCard, SellerSectionTitle, EmptyState } from '@/components/app/seller/seller-app-shell';
+import { ShopQRDots } from '@/components/shop/ShopQRDots';
 import { ListingThumb } from '@/components/app/seller/listing-thumb';
 import { useToast } from '@/hooks/use-toast';
+import { mergeSocialLinks, socialPlatformFor } from '@/lib/social-links';
+import { SOCIAL_LINK_ICONS } from '@/components/seller/social-link-icons';
 import { cn } from '@/lib/utils';
 
 /**
@@ -122,18 +125,22 @@ export default function AppSellerShopPage() {
     { show: true, label: 'Fast Delivery', icon: Zap, color: 'bg-teal-500' },
   ].filter((b) => b.show);
 
-  const socials = [
-    { href: shop?.facebookUrl, icon: Facebook, hover: 'hover:bg-blue-600' },
-    { href: shop?.instagramUrl, icon: Instagram, hover: 'hover:bg-pink-600' },
-    { href: shop?.twitterUrl, icon: Twitter, hover: 'hover:bg-sky-500' },
-    {
-      href: shop?.contactWhatsapp
-        ? `https://wa.me/${shop.contactWhatsapp.replace(/\D/g, '')}`
-        : undefined,
-      icon: MessageSquare,
-      hover: 'hover:bg-green-600',
-    },
-  ].filter((s) => !!s.href);
+  // Every link the seller has saved, plus the three legacy columns they had
+  // before free-form links existed. `mergeSocialLinks` owns that merge so this
+  // screen and the website storefront can never disagree about it.
+  const socials = mergeSocialLinks(shop).map((link) => ({
+    ...link,
+    icon: SOCIAL_LINK_ICONS[socialPlatformFor(link.url).id],
+    hover: socialPlatformFor(link.url).hover,
+  }));
+
+  // Public storefront origin — resolved on the client so the share link and
+  // the generated QR always encode the same URL the seller actually copies.
+  const [origin, setOrigin] = React.useState('');
+  React.useEffect(() => {
+    setOrigin(window.location.origin);
+  }, []);
+  const shopLink = origin && sellerId ? `${origin}/sellers/${sellerId}` : '';
 
   const share = async () => {
     const url = `${window.location.origin}/sellers/${sellerId}`;
@@ -157,14 +164,20 @@ export default function AppSellerShopPage() {
       <SellerSectionTitle eyebrow="What buyers see" title="My shop" />
 
       {/* ══ Hero — full-bleed banner, circular logo breaking the edge ══════ */}
+      {/* The arrangement is fixed and deliberate: the banner is the *back*
+          layer, full bleed, and the logo sits in front of it, pulled up over
+          its lower edge. An earlier version washed the banner out with a
+          heavy gradient and left the logo sitting beside the image rather
+          than on it, which is why this screen read as broken. */}
       <section className="relative">
-        <div className="relative h-44 w-full overflow-hidden bg-neutral-950">
+        <div className="relative h-56 w-full overflow-hidden bg-neutral-950">
           {shop?.bannerUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={shop.bannerUrl}
               alt=""
               className="h-full w-full object-cover"
+              style={{ zIndex: 0 }}
               onError={(e) => {
                 e.currentTarget.style.display = 'none';
               }}
@@ -172,19 +185,21 @@ export default function AppSellerShopPage() {
           ) : (
             <div className="h-full w-full bg-gradient-to-br from-amber-500 via-orange-500 to-red-500" />
           )}
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/20 to-transparent" />
+          {/* Only the bottom of the banner fades into the page; the top stays
+              legible so the seller's photo is not greyed out. */}
+          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/10 to-transparent" />
 
           {isLive && (
             <span className="absolute right-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-red-600 px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest text-white shadow-lg">
               <Radio className="h-3 w-3" /> Live now
             </span>
           )}
-        </div>
-
-        <div className="px-4">
-          <div className="-mt-14 flex flex-col items-center text-center">
-            {/* Logo — overlaps the banner exactly as the website's avatar does. */}
-            <span className="flex h-28 w-28 shrink-0 items-center justify-center overflow-hidden rounded-full border-4 border-background bg-secondary shadow-2xl">
+        </div>          <div className="px-4">
+          <div className="-mt-16 flex flex-col items-center text-center">
+            {/* Logo — layered above the banner: the wordmark is the first
+                thing a buyer sees, the bottom of the badge fades into the
+                storefront so the shot is still readable. */}
+            <span className="flex h-32 w-32 shrink-0 items-center justify-center overflow-hidden rounded-full border-4 border-background bg-secondary shadow-2xl ring-1 ring-primary/30" style={{ zIndex: 10, position: 'relative' }}>
               {shop?.logoUrl || profile?.profilePictureUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -230,14 +245,15 @@ export default function AppSellerShopPage() {
             </div>
 
             {socials.length > 0 && (
-              <div className="mt-4 flex items-center justify-center gap-2">
-                {socials.map(({ href, icon: Icon, hover }) => (
+              <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+                {socials.map(({ id, url, label, icon: Icon, hover }) => (
                   <a
-                    key={href}
-                    href={href}
+                    key={id}
+                    href={url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    aria-label="Social link"
+                    aria-label={label}
+                    title={label}
                     className={cn(
                       'flex h-9 w-9 items-center justify-center rounded-lg bg-white/5 text-white transition-all',
                       hover,
@@ -254,15 +270,10 @@ export default function AppSellerShopPage() {
           <div className="mt-6 flex flex-wrap items-center justify-center gap-2.5">
             <Link
               href="/app/seller/live"
-              className={cn(
-                'inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-xl px-5 text-[10px] font-bold uppercase tracking-widest transition sm:flex-none',
-                isLive
-                  ? 'bg-red-600 text-white shadow-lg shadow-red-600/25'
-                  : 'bg-primary text-primary-foreground shadow-lg shadow-primary/20',
-              )}
+              className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-xl px-5 text-[10px] font-bold uppercase tracking-widest transition hover:bg-white/10 sm:flex-none"
             >
-              {isLive ? <Radio className="h-3.5 w-3.5" /> : <Award className="h-3.5 w-3.5" />}
-              {isLive ? 'Live control' : 'Start broadcast'}
+              <Radio className="h-3.5 w-3.5" />
+              Live studio
             </Link>
 
             <Link
@@ -283,6 +294,35 @@ export default function AppSellerShopPage() {
             </button>
           </div>
         </div>
+      </section>
+
+      {/* ══ Share — the QR a buyer scans to reach this storefront ═════════ */}
+      <section className="px-4">
+        <SellerCard className="p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-white/50">
+                Share
+              </p>
+              <h3 className="mt-1 text-base font-bold text-white">Shop QR code</h3>
+              <p className="mt-1 text-xs leading-relaxed text-white/60">
+                One scan opens your storefront. Download the image and print it
+                for your counter, packaging or market stall.
+              </p>
+            </div>
+            <QrCode className="h-5 w-5 shrink-0 text-amber-500" />
+          </div>
+          <div className="mt-4 flex justify-center">
+            <ShopQRDots
+              shopId={sellerId ?? 'shop'}
+              shopUrl={shopLink}
+              accentColor="#FF4D2E"
+              size={260}
+              pitchLine="Scan to reach your shop"
+              showDownload
+            />
+          </div>
+        </SellerCard>
       </section>
 
       {/* ══ Tabs — Products · Videos · Live · About ═══════════════════════ */}
@@ -511,6 +551,42 @@ export default function AppSellerShopPage() {
             ))}
           </div>
 
+          {socials.length > 0 && (
+            <SellerCard className="vn-app-card p-4">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+                Find {shopName} on
+              </p>
+              <div className="mt-2.5 space-y-2">
+                {socials.map(({ id, url, label, icon: Icon, hover }) => (
+                  <a
+                    key={id}
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-3 rounded-xl border border-border/70 px-3 py-2.5 transition hover:bg-secondary"
+                  >
+                    <span
+                      className={cn(
+                        'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary transition-colors',
+                        hover,
+                      )}
+                    >
+                      <Icon className="h-4 w-4" />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-semibold text-foreground">
+                        {label}
+                      </span>
+                      <span className="block truncate text-[11px] text-muted-foreground">
+                        {url}
+                      </span>
+                    </span>
+                  </a>
+                ))}
+              </div>
+            </SellerCard>
+          )}
+
           {location && (
             <SellerCard className="vn-app-card flex items-start gap-3 p-3.5">
               <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
@@ -595,7 +671,7 @@ export default function AppSellerShopPage() {
                 Edit your storefront
               </span>
               <span className="block text-[11px] text-muted-foreground">
-                Name, banner, policies and location live in Settings
+                Name, logo, banner, links, policies and location live in Settings
               </span>
             </span>
             <Link

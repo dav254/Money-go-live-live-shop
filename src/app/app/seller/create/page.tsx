@@ -4,14 +4,21 @@ import { Sparkles } from 'lucide-react';
 import { ProductUploadForm } from '@/components/seller/product-upload-form';
 import { SellerSectionTitle } from '@/components/app/seller/seller-app-shell';
 
-/**
- * SELLER APP · CREATE.
+/** SELLER APP · CREATE.
  *
- * The website reaches product creation through a dialog on the dashboard and
- * the `/dashboard/products` tab. In the app it earns its own tab, because
- * listing is the seller's primary job on a phone — but the form itself is the
- * exact same `ProductUploadForm`, so validation, media upload and the write to
- * `products` are identical to the website.
+ * The app surface's own product-creation screen. Taps the "Create" tab in the
+ * seller bottom tab bar, so listing is the seller's primary job on a phone.
+ *
+ * Media: photos (up to 8) and video (up to 8) are attached through the shared
+ * `uploadMedia()` client and the same VPS media engine that powers the feed —
+ * every file is confirmed stored on the seller's own server before it is
+ * written to the listing document. The seller's total is read from
+ * `/api/listings/quota` and re-checked at publish, so no file is ever lost
+ * and no quota is silently exceeded.
+ *
+ * The website keeps its own sibling flow (a dialog on the dashboard +
+ * `/dashboard/products` tab); the two share the exact same `ProductUploadForm`
+ * component so behaviour and the optimized output are identical everywhere.
  */
 export default function SellerSectionCreate() {
   return (

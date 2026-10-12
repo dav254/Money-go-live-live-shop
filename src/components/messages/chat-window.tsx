@@ -38,7 +38,7 @@ import type { Chat, ChatMessage, Product, UserProfile, Order } from '@/lib/types
 import type { User } from 'firebase/auth';
 import { useUser, useFirestore, useCollection, useMemoFirebase, useUserProfile, useDoc } from '@/firebase';
 import { collection, addDoc, serverTimestamp, orderBy, query, where, doc, updateDoc, arrayUnion, getDoc, writeBatch, increment, setDoc } from 'firebase/firestore';
-import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { uploadMedia } from '@/lib/media/upload-client';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogClose, DialogDescription, DialogFooter } from '../ui/dialog';
 import Image from 'next/image';
 import {
@@ -294,7 +294,6 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
   const [newMessage, setNewMessage] = useState('');
   const [optimisticMessages, setOptimisticMessages] = useState<any[]>([]);
   const firestore = useFirestore();
-  const storage = getStorage();
   const { userProfile } = useUserProfile(currentUser?.uid);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
@@ -366,8 +365,10 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
     }
   }, [serverMessages, optimisticMessages]);
 
-  const handleScroll = (event: React.UIEvent<HTMLDivElement>) => {
-    const viewport = event.currentTarget;
+  // Takes the element rather than the event: the caller already unwraps
+  // `e.currentTarget`, and passing that to a function typed for the event was
+  // a type error at every call site.
+  const handleScroll = (viewport: HTMLDivElement) => {
     const isAtBottom = viewport.scrollHeight - viewport.scrollTop <= viewport.clientHeight + 100;
     setShowScrollBottom(!isAtBottom);
   };
@@ -415,34 +416,33 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
     const file = e.target.files?.[0];
     if (!file || !chat || !currentUser) return;
 
-    const path = `chats/${chat.id}/${Date.now()}_${file.name}`;
-    const storageRef = ref(storage, path);
-    const uploadTask = uploadBytesResumable(storageRef, file);
-
-    uploadTask.on('state_changed',
-      (snapshot) => {
-        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-        setUploadProgress(progress);
-      },
-      (error) => {
-        console.error("Upload error:", error);
-        toast({ variant: 'destructive', title: 'Upload Failed' });
-        setUploadProgress(null);
-      },
-      async () => {
-        const url = await getDownloadURL(uploadTask.snapshot.ref);
-        const type = file.type.startsWith('image/') ? 'image' : file.type.startsWith('video/') ? 'video' : 'file';
-        
-        await sendMessage({
-          messageType: type,
-          mediaUrl: url,
-          mediaMetadata: { name: file.name, size: file.size, type: file.type }
-        });
-        
-        setUploadProgress(null);
-        if (fileInputRef.current) fileInputRef.current.value = '';
+    // Self-hosted media engine: the file lands in chats/<chatId>/ on the VPS
+    // disk (images/videos are transcoded; other files are stored as-is).
+    setUploadProgress(0);
+    try {
+      const result = await uploadMedia(
+        file,
+        currentUser,
+        (p) => setUploadProgress(p.percent),
+        { folder: `chats/${chat.id}` },
+      );
+      if (result.phase === 'failed' || !result.url) {
+        throw new Error(result.error || 'Upload failed.');
       }
-    );
+      const type = file.type.startsWith('image/') ? 'image' : file.type.startsWith('video/') ? 'video' : 'file';
+
+      await sendMessage({
+        messageType: type,
+        mediaUrl: result.url,
+        mediaMetadata: { name: file.name, size: file.size, type: file.type }
+      });
+    } catch (error) {
+      console.error("Upload error:", error);
+      toast({ variant: 'destructive', title: 'Upload Failed' });
+    } finally {
+      setUploadProgress(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
   };
 
   const handleShareProduct = useCallback((productId: string) => {
@@ -464,34 +464,38 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
 
       mediaRecorder.ondataavailable = (event) => {
         if (event.data.size > 0) audioChunksRef.current.push(event.data);
-      };
-
-      mediaRecorder.onstop = async () => {
+      };      mediaRecorder.onstop = async () => {
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
         const finalDuration = recordingTime;
         
         if (audioBlob.size > 100) {
-            const path = `chats/${chat!.id}/${Date.now()}_voice_note.webm`;
-            const storageRef = ref(storage, path);
-            const uploadTask = uploadBytesResumable(storageRef, audioBlob);
-            
+            // Voice notes go through the same self-hosted pipeline as every
+            // other upload — stored as-is in chats/<chatId>/.
+            const voiceFile = new globalThis.File([audioBlob], `voice-${Date.now()}.webm`, { type: 'audio/webm' });
             setUploadProgress(1);
-
-            uploadTask.on('state_changed', 
-                (snapshot) => setUploadProgress((snapshot.bytesTransferred / snapshot.totalBytes) * 100),
-                null,
-                async () => {
-                    const url = await getDownloadURL(uploadTask.snapshot.ref);
-                    await sendMessage({
-                        messageType: 'voice',
-                        mediaUrl: url,
-                        mediaMetadata: { name: 'Voice Note', size: audioBlob.size, type: 'audio/webm', duration: finalDuration }
-                    });
-                    setUploadProgress(null);
+            try {
+                const result = await uploadMedia(
+                    voiceFile,
+                    currentUser,
+                    (p) => setUploadProgress(p.percent),
+                    { folder: `chats/${chat!.id}` },
+                );
+                if (result.phase === 'failed' || !result.url) {
+                    throw new Error(result.error || 'Upload failed.');
                 }
-            );
+                await sendMessage({
+                    messageType: 'voice',
+                    mediaUrl: result.url,
+                    mediaMetadata: { name: 'Voice Note', size: audioBlob.size, type: 'audio/webm', duration: finalDuration }
+                });
+            } catch (error) {
+                console.error('Voice note upload failed:', error);
+                toast({ variant: 'destructive', title: 'Upload Failed' });
+            } finally {
+                setUploadProgress(null);
+            }
         }
-        
+
         stream.getTracks().forEach(track => track.stop());
       };
 

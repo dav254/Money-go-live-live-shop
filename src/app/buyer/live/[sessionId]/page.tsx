@@ -63,7 +63,11 @@ export default function BuyerLiveSessionPage(props: { params: Promise<{ sessionI
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      if (!snapshot.empty && activePanel !== 'chat') {
+      // The guard above already returned when the panel IS chat, so this
+      // closure only ever runs for a panel that is not chat — repeating the
+      // comparison here told the compiler it was impossible, because for this
+      // const binding it is.
+      if (!snapshot.empty) {
         setHasUnreadChat(true);
       }
     });

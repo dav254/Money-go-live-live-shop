@@ -61,9 +61,9 @@ const chartConfig = {
 const StatusIndicator = ({ status }: { status: Status }) => {
   const config = {
     checking: { icon: Loader2, color: 'text-muted-foreground', text: 'Pinging...', animate: true },
-    operational: { icon: CheckCircle2, color: 'text-green-500', text: 'Operational' },
-    degraded: { icon: Activity, color: 'text-yellow-500', text: 'Degraded' },
-    outage: { icon: XCircle, color: 'text-destructive', text: 'Offline' },
+    operational: { icon: CheckCircle2, color: 'text-green-500', text: 'Operational', animate: false },
+    degraded: { icon: Activity, color: 'text-yellow-500', text: 'Degraded', animate: false },
+    outage: { icon: XCircle, color: 'text-destructive', text: 'Offline', animate: false },
   };
 
   const current = config[status];

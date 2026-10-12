@@ -18,39 +18,71 @@ import { SellerNavDrawer } from '@/components/app/seller/seller-nav-drawer';
 import { resolveRole } from '@/lib/auth/roles';
 import { cn } from '@/lib/utils';
 
-/**
- * SELLER APP SHELL.
- *
- * ## Why this exists instead of the website chrome
- *
- * The first attempt at the app wrapped the *website* pages in a generic
- * top-bar/tab-bar (`AppSurfaceFrame`) and pointed both sellers and buyers at the
- * same routes. That made the app a skin: seller and buyer shared one homepage,
- * one layout and one visual language, and nothing distinguished a section.
- *
- * The shell inverts it. Each role owns its own section under its own route tree
- * and its own shell:
- *
- *     /app/seller/*   → this file        ember band, Inter body, raised Create
- *     /app/buyer/*    → BuyerAppShell    (never built yet — deliberately separate)
- *     /admin/*        → AdminAppTabBar   admin console chrome
- *
- * They can never collide because they are different directories with different
- * layouts, not different branches in one component. Adding the buyer section
- * cannot change how the seller section looks, because no code is shared.
- *
- * ## The design language (vs. the website's seller pages)
- *
- *   website seller          app seller section
- *   ─────────────────       ────────────────────────────────────────
- *   flat coral `primary`    ember gradient band (amber → coral)
- *   Space Grotesk body      Inter body, Space Grotesk only for figures
- *   sidebar + gap-px grids  elevated rounded cards, tab bar navigation
- *   dense table rows        stacked cards with a status pill
- *
- * The differences are deliberate and visible, so a seller who switches between
- * the website and the app never mistakes one for the other.
- */
+/** SELLER APP SHELL. */
+export function SellerAppShell({ children }: { children: React.ReactNode }) {
+  const { user, isLoading } = useUser();
+  const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
+  const role = resolveRole(userProfile);
+  const allowed = role === 'seller' || role === 'reseller';
+  const [navOpen, setNavOpen] = React.useState(false);
+  const immersive = useImmersiveRoute();
+  const router = useRouter();
+  const pathname = usePathname() ?? '';
+
+  React.useEffect(() => {
+    if (!isLoading && !isProfileLoading && !user) {
+      router.replace(`/login?returnTo=${encodeURIComponent(pathname)}`);
+    }
+  }, [isLoading, isProfileLoading, user, pathname, router]);
+
+  if (isLoading || isProfileLoading || !user) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <Loader2 className="h-7 w-7 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (!allowed) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-5 bg-background px-6 text-center">
+        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-amber-500/10">
+          <Loader2 className="h-6 w-6 animate-spin text-amber-500" />
+        </div>
+        <div className="space-y-2">
+          <h1 className="font-grotesk text-lg font-semibold text-foreground">
+            This part of the app is not open for your account
+          </h1>
+          <p className="mx-auto max-w-xs text-sm text-muted-foreground">
+            This area is only for sellers.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="vn-seller-scope flex min-h-screen flex-col bg-background font-sora">
+      <SellerTopBar onOpenNav={() => setNavOpen(true)} immersive={immersive} />
+
+      {/* No `pb-28` in immersive mode: that padding exists purely to clear the
+          tab bar, and the tab bar is not rendered there. Leaving it would put
+          a finger-sized dead gap under the composer. */}
+      <main
+        className={cn(
+          'mx-auto w-full max-w-md flex-1',
+          immersive ? 'pb-2 pt-0' : 'pb-28 pt-4',
+        )}
+      >
+        {children}
+      </main>
+
+      {!immersive && <SellerTabBar />}
+
+      <SellerNavDrawer open={navOpen} onClose={() => setNavOpen(false)} />
+    </div>
+  );
+}
 
 /* ── Tab bar ─────────────────────────────────────────────────────────────── */
 
@@ -63,15 +95,7 @@ interface SellerTab {
 }
 
 /** The seller section's own navigation — nothing here points outside it. */
-/**
- * The five slots the tab bar can hold.
- *
- * Messages took the slot More used to have. That swap only became possible once
- * Messages was a screen this section owned (`/app/seller/messages`): while it
- * was a link to the website's `/messages`, putting it in the bar would have
- * thrown sellers out of the app every time they tapped it. Account moved to the
- * sidebar in exchange, where the rest of the overflow lives.
- */
+/** The five slots the tab bar can hold. */
 const SELLER_TABS: SellerTab[] = [
   { key: 'home', label: 'Overview', icon: Home, href: '/app/seller' },
   { key: 'products', label: 'Stock', icon: Boxes, href: '/app/seller/products' },
@@ -80,11 +104,7 @@ const SELLER_TABS: SellerTab[] = [
   { key: 'messages', label: 'Messages', icon: MessageSquare, href: '/app/seller/messages' },
 ];
 
-/**
- * Live order count for the badge. The rules only permit listing orders that are
- * filtered by the caller, so the query is always scoped to this seller — a bare
- * collection read is rejected by `firestore.rules`.
- */
+/** Live order count for the badge. */
 function useSellerLiveOrderCount(): number {
   const { user } = useUser();
   const firestore = useFirestore();
@@ -109,9 +129,6 @@ function SellerTabBar() {
   const isActive = (href: string) => {
     if (!pathname) return false;
     if (pathname === href) return true;
-    // The section root is the overview: it must only light up on the exact
-    // path. A prefix test would keep "Overview" active on every sub-page,
-    // because `/app/seller/products` starts with `/app/seller/`.
     if (href === '/app/seller') return false;
     return pathname.startsWith(`${href}/`);
   };
@@ -164,32 +181,7 @@ function SellerTabBar() {
 
 /* ── Top bar ─────────────────────────────────────────────────────────────── */
 
-/**
- * The one route that runs without the section's chrome.
- *
- * A conversation is the only screen in this section where the seller's
- * attention belongs entirely on one thing. The logo, the SELLER pill, the
- * notification bell, the avatar and the sign-out button all sat in a strip
- * that is not part of the conversation, and the tab bar pushed the composer up
- * the screen — on a phone that is the difference between seeing four messages
- * and seeing eight.
- *
- * So on this route the tab bar is not rendered at all and the header drops to
- * the two controls that are genuinely navigation: the menu (which opens the
- * sidebar — the section's full navigation) and back. Nothing is lost, because
- * everything the bar carried is in the sidebar behind the menu button.
- */
-/**
- * Routes that drop the full chrome and keep navigation only.
- *
- * A screen earns a place here when its content is the screen. Messages is a
- * conversation: a h-14 header carrying a logo, a role pill, a bell and an
- * avatar is furniture in front of the thing the seller came to look at, and
- * the tab bar costs a message's worth of height. What stays is a h-12 bar
- * with the menu and back buttons — the drawer is the only way out of the
- * screen once the tab bar is gone, so it must stay.
- */
-const IMMERSIVE_ROUTES = ['/app/seller/messages'];
+const IMMERSIVE_ROUTES = ['/app/seller/messages', '/app/seller/discovery'];
 
 function useImmersiveRoute(): boolean {
   const pathname = usePathname();
@@ -210,8 +202,6 @@ function SellerTopBar({ onOpenNav, immersive = false }: { onOpenNav: () => void;
     .join('')
     .toUpperCase();
 
-  // Immersive: navigation only. The header shrinks from h-14 to h-12 so the
-  // conversation gains another 8px of height as well as the width.
   if (immersive) {
     return (
       <header className="sticky top-0 z-50 border-b border-border/70 bg-background/85 backdrop-blur-xl">
@@ -274,117 +264,7 @@ function SellerTopBar({ onOpenNav, immersive = false }: { onOpenNav: () => void;
   );
 }
 
-/* ── Shell ───────────────────────────────────────────────────────────────── */
-
-/**
- * Role gate for the section itself.
- *
- * `SurfaceBoundary` already keeps buyers and admins off the whole app surface;
- * this is a second, section-level check so that a future `/app/buyer` cannot be
- * reached by simply typing the URL while signed in as a seller. It refuses to
- * render rather than signing out, because the boundary above owns that decision.
- */
-function useSellerSectionAccess() {
-  const { user, isLoading } = useUser();
-  const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
-  const role = resolveRole(userProfile);
-  const allowed = role === 'seller' || role === 'reseller';
-  return {
-    known: !isLoading && !isProfileLoading,
-    signedIn: !!user,
-    allowed: allowed && !!user,
-  };
-}
-
-export function SellerAppShell({ children }: { children: React.ReactNode }) {
-  const { known, signedIn, allowed } = useSellerSectionAccess();
-  // The tab bar is five slots wide and every one is taken, so the rest of the
-  // section lives in this drawer instead of being squeezed into it.
-  const [navOpen, setNavOpen] = React.useState(false);
-  const immersive = useImmersiveRoute();
-  const router = useRouter();
-  const pathname = usePathname() ?? '';
-
-  // Signed out: hand off to the real sign-in page. This section used to render
-  // its own sign-in panel (the `AppSignIn` screen, now deleted) — a second copy
-  // of the same job that could only ever disagree with the actual one. The gate
-  // itself stays: `allowed` already folds in `!!user`, so dropping the branch
-  // without redirecting would render the seller shell to anonymous visitors.
-  //
-  // All hooks sit above the early returns so the hook order does not change
-  // when `known` flips from false to true.
-  React.useEffect(() => {
-    if (known && !signedIn) {
-      router.replace(`/login?returnTo=${encodeURIComponent(pathname)}`);
-    }
-  }, [known, signedIn, pathname, router]);
-
-  // Still resolving the profile: match the page's first paint exactly rather
-  // than flashing a shell the user may not be entitled to (hydration).
-  if (!known) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <Loader2 className="h-7 w-7 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
-
-  // Signed out: the redirect above is in flight. Hold the same neutral spinner
-  // as the unresolved state so the section never flashes its chrome at a
-  // visitor who cannot use it.
-  if (!signedIn) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <Loader2 className="h-7 w-7 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
-
-  if (!allowed) {
-    return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-5 bg-background px-6 text-center">
-        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-amber-500/10">
-          <Loader2 className="h-6 w-6 animate-spin text-amber-500" />
-        </div>
-        <div className="space-y-2">
-          <h1 className="font-grotesk text-lg font-semibold text-foreground">
-            This is the seller section
-          </h1>
-          <p className="mx-auto max-w-xs text-sm text-muted-foreground">
-            The app is split into one section per role with its own layout, so
-            seller, buyer and admin never share a screen. Sign in with a seller
-            account to enter this one.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="vn-seller-scope flex min-h-screen flex-col bg-background font-sora">
-      <SellerTopBar onOpenNav={() => setNavOpen(true)} immersive={immersive} />
-
-      {/* No `pb-28` in immersive mode: that padding exists purely to clear the
-          tab bar, and the tab bar is not rendered there. Leaving it would put
-          a finger-sized dead gap under the composer. */}
-      <main
-        className={cn(
-          'mx-auto w-full max-w-md flex-1',
-          immersive ? 'pb-2 pt-0' : 'pb-28 pt-4',
-        )}
-      >
-        {children}
-      </main>
-
-      {!immersive && <SellerTabBar />}
-
-      <SellerNavDrawer open={navOpen} onClose={() => setNavOpen(false)} />
-    </div>
-  );
-}
-
 /** Small shared pieces used by more than one seller screen. */
-
 export function SellerSectionTitle({
   eyebrow,
   title,
@@ -419,8 +299,6 @@ export function SellerCard({
   return (
     <div
       className={cn(
-        // No horizontal margin here: every screen positions its own cards, so
-        // callers that already pad a grid don't end up with a double gutter.
         'rounded-2xl border border-border/80 bg-card p-4 shadow-sm',
         className,
       )}

@@ -1,45 +1,14 @@
 'use client';
 
-/**
- * COMMENT PEEK — the in-feed comment surface.
- *
- * ## What it replaces
- *
- * The comment bubble used to open `CommentDrawer`, a bottom sheet covering 70%
- * of the screen. Reading who had commented on a product meant leaving the
- * product: the video, the price and the SHOP button all disappeared behind a
- * sheet, and dismissing it dropped you back into the feed having lost your
- * place. For a comment thread that is mostly *reading* — "has anyone said
- * anything about this?" — that was far too much ceremony.
- *
- * ## What it does instead
- *
- * A card that slides in over the lower third of the same video, lists the
- * comments with the author's real name, and takes a reply without the feed ever
- * losing the product. It closes itself: `AUTO_HIDE_MS` after it opens, and
- * immediately on Escape or a tap outside. Dismissal is the default rather than
- * a close button you have to find, because the common case is "glance and get
- * back to shopping".
- *
- * ## Names, not "Anonymous"
- *
- * `resolveCommenterName` resolves displayName → email local part → "Buyer", so
- * a row always names a role or a person. See `lib/comments.ts`.
- */
-
 import * as React from 'react';
 import Image from 'next/image';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Loader2, MessageSquare, Send, X } from 'lucide-react';
-
 import type { Comment } from '@/lib/types';
 import { resolveCommenterName } from '@/lib/comments';
 import { cn } from '@/lib/utils';
 
-/** How long the peek stays up before it takes itself back down. */
 const AUTO_HIDE_MS = 6000;
-
-/** How many comments to show at once. The rest is counted, not hidden. */
 const MAX_VISIBLE = 3;
 
 export function commenterName(comment: Comment): string {
@@ -57,18 +26,10 @@ interface CommentPeekProps {
   onOpenChange: (open: boolean) => void;
   onAddComment: (text: string) => void;
   isLoading: boolean;
-  /** Counts the reply against the rail's badge while the peek is open. */
   className?: string;
 }
 
-export function CommentPeek({
-  comments,
-  isOpen,
-  onOpenChange,
-  onAddComment,
-  isLoading,
-  className,
-}: CommentPeekProps) {
+export function CommentPeek({ comments, isOpen, onOpenChange, onAddComment, isLoading, className }: CommentPeekProps) {
   const [draft, setDraft] = React.useState('');
   const [draftOpen, setDraftOpen] = React.useState(false);
   const inputRef = React.useRef<HTMLInputElement>(null);
@@ -76,13 +37,6 @@ export function CommentPeek({
   const visible = comments.slice(-MAX_VISIBLE);
   const hiddenCount = Math.max(0, comments.length - MAX_VISIBLE);
 
-  /*
-   * Self-dismissing.
-   *
-   * The timer is cleared whenever the peek closes or the comment list changes
-   * identity, so a re-render mid-countdown can never leave it to fire against a
-   * stale state and close something the user has just reopened.
-   */
   React.useEffect(() => {
     if (!isOpen || draftOpen) return;
     const t = setTimeout(() => {
@@ -92,8 +46,6 @@ export function CommentPeek({
     return () => clearTimeout(t);
   }, [isOpen, draftOpen, comments.length, onOpenChange]);
 
-  /* Escape closes it — a keyboard user must not be trapped by a self-closing
-     panel. */
   React.useEffect(() => {
     if (!isOpen) return;
     const onKey = (e: KeyboardEvent) => {
@@ -119,7 +71,6 @@ export function CommentPeek({
     <AnimatePresence>
       {isOpen && (
         <>
-          {/* Tap anywhere else on the card to dismiss. */}
           <button
             type="button"
             aria-label="Close comments"
@@ -170,9 +121,7 @@ export function CommentPeek({
               )}
 
               {!isLoading && comments.length === 0 && (
-                <p className="py-2 text-xs text-white/60">
-                  No comments yet. Be the first to ask about this product.
-                </p>
+                <p className="py-2 text-xs text-white/60">No comments yet. Be the first to ask about this product.</p>
               )}
 
               {visible.map((comment) => {
@@ -181,13 +130,6 @@ export function CommentPeek({
                   <div key={comment.id} className="flex items-start gap-2.5">
                     <div className="relative flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/10">
                       {comment.userAvatar ? (
-                        /*
-                         * `unoptimized` because these avatars are arbitrary
-                         * remote URLs — a Firebase photoURL, or the picsum
-                         * seed fallback — so they cannot all be listed in
-                         * next.config remotePatterns. The optimiser is skipped
-                         * rather than the rule disabled.
-                         */
                         <Image
                           src={comment.userAvatar}
                           alt=""
@@ -197,9 +139,7 @@ export function CommentPeek({
                           className="object-cover"
                         />
                       ) : (
-                        <span className="text-[11px] font-bold text-cyan-300">
-                          {name.charAt(0).toUpperCase()}
-                        </span>
+                        <span className="text-[11px] font-bold text-cyan-300">{name.charAt(0).toUpperCase()}</span>
                       )}
                     </div>
                     <div className="min-w-0 flex-1">
@@ -242,8 +182,6 @@ export function CommentPeek({
                 type="button"
                 onClick={() => {
                   setDraftOpen(true);
-                  // The auto-hide is suspended while the composer is open; see
-                  // the effect above. Refocus once the field exists.
                   setTimeout(() => inputRef.current?.focus(), 0);
                 }}
                 className="flex w-full items-center gap-2 border-t border-white/10 px-3 py-2 text-left text-xs text-white/50 transition hover:bg-white/5 hover:text-white/80"

@@ -108,7 +108,10 @@ const GROUPS: DrawerGroup[] = [
       // The section root is the home screen. Exact-matched, otherwise
       // `/app/buyer/shop` would light "Home" too.
       { key: 'home', label: 'Home', href: '/app/buyer', icon: Home, exact: true },
-      { key: 'discover', label: 'Discover', href: '/app/buyer/shop', icon: Compass, view: 'all' },
+      // The section's OWN Discovery screen — the shared feed in `components/
+      // discovery`, rendered in the app's chrome. It replaced the old Shop
+      // screen, which pointed at a feed component that rendered nothing.
+      { key: 'discover', label: 'Discovery', href: '/app/buyer/discovery', icon: Compass, view: 'all' },
       // Location-scoped discovery. Reads the customer's own saved area, which
       // the browser may have set or they may have typed — either works, and
       // neither requires GPS to be granted.

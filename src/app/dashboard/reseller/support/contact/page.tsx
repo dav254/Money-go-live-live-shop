@@ -39,7 +39,7 @@ function ContactSupportForm() {
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
         defaultValues: {
-            issueType: searchParams.get('issueType') || '',
+            issueType: searchParams?.get('issueType') || '',
             whatsappNumber: '',
             description: '',
         },

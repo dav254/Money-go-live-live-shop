@@ -41,6 +41,9 @@ export async function uploadVideoToTikTok(boost: BoostRequest, accessToken: stri
     if (!accessToken || !openId) {
         return { success: false, message: "Missing TikTok access token or Open ID." };
     }
+    if (!boost.videoUrl) {
+        return { success: false, message: "This boost has no video to upload." };
+    }
 
     try {
         // Step 1: Initiate video upload to get an upload URL

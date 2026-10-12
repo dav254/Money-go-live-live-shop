@@ -8,8 +8,13 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import { googleAI } from '@genkit-ai/google-genai';
-import { db, bucket } from '@/firebase/server';
+import { db } from '@/firebase/server';
 import { FieldValue } from 'firebase-admin/firestore';
+import { MEDIA_ROOT } from '@/lib/media/config';
+import { generateMediaId } from '@/lib/media/image';
+import { getStorageAdapter } from '@/lib/media/storage-adapter';
+import * as fs from 'fs';
+import * as path from 'path';
 
 const GenerateVideoFromImageInputSchema = z.object({
   productId: z.string().optional().describe('The ID of the product to associate the image with (optional).'),
@@ -22,19 +27,16 @@ const GenerateVideoFromImageOutputSchema = z.object({
 });
 export type GenerateVideoFromImageOutput = z.infer<typeof GenerateVideoFromImageOutputSchema>;
 
-async function uploadToFirebase(imageDataUri: string, productId: string): Promise<string> {
-    const filename = `products/${productId}/gen_img_${Date.now()}.png`;
-    const file = bucket.file(filename);
-    
+async function uploadToLocal(imageDataUri: string, productId: string): Promise<string> {
+    const filename = `products/${productId}/image_${generateMediaId()}.png`;
     const base64Data = imageDataUri.split(',')[1];
     const buffer = Buffer.from(base64Data, 'base64');
 
-    await file.save(buffer, {
-        contentType: 'image/png',
-        metadata: { firebaseStorageDownloadTokens: crypto.randomUUID() }
-    });
+    const abs = path.join(MEDIA_ROOT, filename);
+    await getStorageAdapter().ensureDir(path.dirname(abs));
+    await fs.promises.writeFile(abs, buffer);
 
-    return `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(filename)}?alt=media`;
+    return `${process.env.VIDNOV_MEDIA_URL || ''}/api/media/file/${filename}`;
 }
 
 export async function generateVideoFromImage(input: GenerateVideoFromImageInput): Promise<GenerateVideoFromImageOutput> {
@@ -49,7 +51,7 @@ export async function generateVideoFromImage(input: GenerateVideoFromImageInput)
 
   // If a product ID is provided, save it to the gallery
   if (input.productId && input.productId !== 'standalone') {
-      const permanentImageUrl = await uploadToFirebase(media.url, input.productId);
+      const permanentImageUrl = await uploadToLocal(media.url, input.productId);
       
       const productRef = db.collection('products').doc(input.productId);
       await productRef.update({

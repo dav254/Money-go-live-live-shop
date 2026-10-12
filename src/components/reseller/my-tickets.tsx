@@ -76,7 +76,7 @@ export function MyTickets() {
                 ) : (
                     <div className="flex flex-col items-center justify-center rounded-lg border border-dashed p-12 text-center">
                         <p className="text-muted-foreground mb-4">You have no open tickets.</p>
-                        <Link href="#" className={cn(buttonVariants({ variant: 'outline' }))} onClick={(e) => { e.preventDefault(); document.querySelector('textarea[name="description"]')?.focus(); }}>
+                        <Link href="#" className={cn(buttonVariants({ variant: 'outline' }))} onClick={(e) => { e.preventDefault(); document.querySelector<HTMLTextAreaElement>('textarea[name="description"]')?.focus(); }}>
                             Create a New Ticket
                         </Link>
                     </div>

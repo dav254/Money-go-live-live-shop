@@ -90,7 +90,8 @@ export default function AdminReportedProductsPage() {
       }
   };
 
-  const handleProductAction = async (productId: string, action: 'unpublish' | 'delete') => {
+  const handleProductAction = async (productId: string | undefined, action: 'unpublish' | 'delete') => {
+    if (!productId) return;
     // This is a placeholder for the actual logic.
     // 'unpublish' would set a product's status to 'unpublished'.
     // 'delete' would remove the product document.
@@ -139,7 +140,7 @@ export default function AdminReportedProductsPage() {
                         <p className="text-xs text-muted-foreground truncate max-w-[200px]">{c.description ?? c.details}</p>
                     </TableCell>
                     <TableCell>
-                      <UserCell userId={c.complainantId} label="Complainant" />
+                      <UserCell userId={c.complainantId || 'unknown'} label="Complainant" />
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                         {(() => { const ts = c.createdAt as { toDate?: () => Date } | null | undefined; const d = typeof ts?.toDate === 'function' ? ts.toDate() : ts ? new Date(String(ts)) : null; return d ? formatDistanceToNow(d, { addSuffix: true }) : 'N/A'; })()}

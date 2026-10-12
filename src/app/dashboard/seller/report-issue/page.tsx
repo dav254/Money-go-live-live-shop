@@ -14,7 +14,7 @@ import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 import { Progress } from '@/components/ui/progress';
 import { useUser } from '@/firebase';
-import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { uploadMedia } from '@/lib/media/upload-client';
 import { createComplaint } from '@/app/actions/complaint-actions';
 
 function ReportIssueForm() {
@@ -22,7 +22,7 @@ function ReportIssueForm() {
     const { user } = useUser();
     const { toast } = useToast();
     
-    const [issueType, setIssueType] = useState(searchParams.get('type') || 'bug');
+    const [issueType, setIssueType] = useState(searchParams?.get('type') || 'bug');
     const [subject, setSubject] = useState('');
     const [description, setDescription] = useState('');
     const [targetId, setTargetId] = useState('');
@@ -33,23 +33,26 @@ function ReportIssueForm() {
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        if (event.target.files) {
-            setFiles(prev => [...prev, ...Array.from(event.target.files)]);
+        const picked = event.target.files;
+        if (picked) {
+            setFiles(prev => [...prev, ...Array.from(picked)]);
         }
     };
     
-    const uploadToFirebase = (file: File): Promise<string> => {
-        return new Promise((resolve, reject) => {
-            const storage = getStorage();
-            const storageRef = ref(storage, `support/${user?.uid}/${Date.now()}_${file.name}`);
-            const uploadTask = uploadBytesResumable(storageRef, file);
-
-            uploadTask.on('state_changed', 
-                (snapshot) => setUploadProgress(prev => ({ ...prev, [file.name]: (snapshot.bytesTransferred / snapshot.totalBytes) * 100 })),
-                (error) => reject(error),
-                () => getDownloadURL(uploadTask.snapshot.ref).then(resolve)
-            );
-        });
+    // Self-hosted media engine: attachments land in support/<uid>/ on the VPS
+    // disk — images/videos are transcoded, documents are stored as-is.
+    const uploadToVps = async (file: File): Promise<string> => {
+        if (!user) throw new Error('You must be signed in.');
+        const result = await uploadMedia(
+            file,
+            user,
+            (p) => setUploadProgress(prev => ({ ...prev, [file.name]: p.percent })),
+            { folder: `support/${user.uid}` },
+        );
+        if (result.phase === 'failed' || !result.url) {
+            throw new Error(result.error || 'Upload failed.');
+        }
+        return result.url;
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -58,7 +61,7 @@ function ReportIssueForm() {
 
         setIsSubmitting(true);
         try {
-            const urls = await Promise.all(files.map(file => uploadToFirebase(file)));
+            const urls = await Promise.all(files.map(file => uploadToVps(file)));
             await createComplaint({ complainantId: user.uid, targetId: issueType === 'bug' ? 'system' : targetId, targetType: issueType === 'bug' ? 'system' : (issueType === 'order' ? 'product' : 'user'), reason: subject, description, orderId: issueType === 'order' ? targetId : undefined, uploadedFileUrls: urls } as any);
             toast({ title: 'Report Submitted' });
             setFiles([]); setSubject(''); setDescription('');

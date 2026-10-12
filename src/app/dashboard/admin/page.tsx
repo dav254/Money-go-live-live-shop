@@ -360,6 +360,7 @@ export default function AdminDashboardPage() {
               links: [
                 { label: 'Complaints', href: '/dashboard/admin/support/complaints' },
                 { label: 'Reported products', href: '/dashboard/admin/products/reported' },
+                { label: 'Seller & Buyer Issues', href: '/dashboard/admin/support/seller-buyer-issues' },
               ],
             },
           ].map((panel) => (

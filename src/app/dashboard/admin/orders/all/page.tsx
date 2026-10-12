@@ -98,14 +98,17 @@ const getStatusBadge = (status: Order['orderStatus']) => {
         delivered: { label: 'Delivered', className: 'bg-green-600/80 hover:bg-green-600/70' },
         shipped: { label: 'Shipped', className: 'bg-indigo-500/80 hover:bg-indigo-500/70' },
         processing: { label: 'Processing', className: 'bg-blue-500/80 hover:bg-blue-500/70' },
+        packed: { label: 'Packed', className: 'bg-purple-500/80 hover:bg-purple-500/70' },
+        delivery: { label: 'Out for Delivery', className: 'bg-teal-500/80 hover:bg-teal-500/70' },
         pending: { label: 'Pending', className: 'bg-yellow-500/80 hover:bg-yellow-500/70' },
-        cancelled: { label: 'Cancelled', variant: 'destructive' as 'destructive' },
-        disputed: { label: 'Disputed', variant: 'destructive' as 'destructive', className: 'bg-orange-500/80' },
-        refunded: { label: 'Refunded', variant: 'destructive' as 'destructive', className: 'bg-gray-500/80' },
+        paid: { label: 'Paid', className: 'bg-emerald-500/80 hover:bg-emerald-500/70' },
+        cancelled: { label: 'Cancelled', className: 'bg-red-500/80 hover:bg-red-500/70' },
+        disputed: { label: 'Disputed', className: 'bg-orange-500/80 hover:bg-orange-500/70' },
+        refunded: { label: 'Refunded', className: 'bg-gray-500/80 hover:bg-gray-500/70' },
     };
-    const currentConfig = config[status] || { label: 'Unknown', className: 'bg-gray-400' };
+    const currentConfig = (config[status] ?? { label: 'Unknown', className: 'bg-gray-400' }) as { label: string; className?: string };
 
-    return <Badge variant={currentConfig.variant || 'default'} className={`capitalize ${currentConfig.className}`}>{currentConfig.label}</Badge>;
+    return <Badge className={`capitalize ${currentConfig.className ?? ''}`}>{currentConfig.label}</Badge>;
 }
 
 const OrderDetailsDialog = ({ order, isOpen, onOpenChange }: { order: Order | null; isOpen: boolean; onOpenChange: (open: boolean) => void }) => {

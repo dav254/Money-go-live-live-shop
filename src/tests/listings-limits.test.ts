@@ -15,6 +15,7 @@ const {
   SELLER_MEDIA_QUOTA_FREE,
   MAX_IMAGES_PER_LISTING,
   MAX_VIDEOS_PER_LISTING,
+  MIN_IMAGES_PER_LISTING,
   SERVICE_CATEGORIES,
   PRICE_MODES,
   BONUS_TIERS,
@@ -46,11 +47,17 @@ test('a seller gets 80 media items free', () => {
   assert.equal(SELLER_MEDIA_QUOTA_FREE, 80);
 });
 
-test('per-listing media caps are generous', () => {
-  // Neither kind should be rationed into being the reason a seller cannot show
-  // their work.
+test('per-listing media caps follow the product rules', () => {
+  // CHANGED deliberately with the product rules: a listing carries up to
+  // EIGHT photos (the buyer's evidence — the more angles the better) and ONE
+  // hero video, and cannot publish without at least one photo. If a refactor
+  // silently raises the video cap or drops the photo minimum, the copy in the
+  // upload form starts lying and a seller gets rejected by rules they cannot
+  // see — which is exactly what this file exists to prevent.
   assert.ok(MAX_IMAGES_PER_LISTING >= 8, 'too few photos per listing');
-  assert.ok(MAX_VIDEOS_PER_LISTING >= 8, 'too few clips per listing');
+  assert.equal(MAX_VIDEOS_PER_LISTING, 1, 'a listing carries exactly one hero video');
+  assert.equal(MIN_IMAGES_PER_LISTING, 1, 'a listing needs at least one photo');
+  assert.ok(MIN_IMAGES_PER_LISTING <= MAX_IMAGES_PER_LISTING, 'the photo window must be reachable');
 });
 
 test('service categories end with an open door', () => {
@@ -62,9 +69,12 @@ test('service categories end with an open door', () => {
 });
 
 test('every service has a price mode, and one of them is a quote', () => {
-  assert.ok(PRICE_MODES.some((m) => m.key === 'quote'));
-  assert.ok(PRICE_MODES.some((m) => m.key === 'hourly'));
-  assert.ok(PRICE_MODES.some((m) => m.key === 'fixed'));
+  const found = PRICE_MODES.some((m: { key: string }) => m.key === 'quote');
+  assert.ok(found);
+  const hasHourly = PRICE_MODES.some((m: { key: string }) => m.key === 'hourly');
+  assert.ok(hasHourly);
+  const hasFixed = PRICE_MODES.some((m: { key: string }) => m.key === 'fixed');
+  assert.ok(hasFixed);
 });
 
 test('unknown categories and price modes fall back instead of rendering blank', () => {
@@ -105,7 +115,8 @@ test('views alone do not qualify — likes are required too', () => {
 test('the top tier is the ceiling', () => {
   const { points, nextTier } = bonusForListing(10_000_000, 1_000_000);
   assert.equal(nextTier, null);
-  assert.equal(points, BONUS_TIERS.reduce((s, t) => s + t.points, 0));
+  const total = BONUS_TIERS.reduce((s: number, t: { points: number }) => s + t.points, 0);
+  assert.equal(points, total);
 });
 
 test('nonsense totals do not crash or pay', () => {

@@ -4,7 +4,9 @@ import type { Seller } from '@/lib/types';
 import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Share2, Facebook, Instagram, Twitter, MessageCircle, MessageSquare, Verified } from 'lucide-react';
+import { Share2, MessageSquare, Verified } from 'lucide-react';
+import { mergeSocialLinks, socialPlatformFor } from '@/lib/social-links';
+import { SOCIAL_LINK_ICONS } from '@/components/seller/social-link-icons';
 import { SellerBadges } from './seller-badges';
 import { ShopStoryHighlights } from './shop-story-highlights';
 import { useUser, useFirestore, useUserProfile } from '@/firebase';
@@ -16,6 +18,24 @@ import { cn } from '@/lib/utils';
 
 interface SellerHeaderProps {
   seller: Seller;
+}
+
+/**
+ * Every link this shop publishes, in one list.
+ *
+ * The seller fills in a free-form `socialLinks` list in the app; the three
+ * legacy Facebook/Instagram/Twitter columns are folded in by `mergeSocialLinks`
+ * so a shop set up before free-form links existed keeps its icons. Icons come
+ * from the hostname, and an unknown one gets a globe rather than being hidden.
+ */
+function shopLinks(seller: Seller) {
+  return mergeSocialLinks({
+    socialLinks: seller.socialLinks,
+    facebookUrl: seller.facebookUrl,
+    instagramUrl: seller.instagramUrl,
+    twitterUrl: seller.twitterUrl,
+    contactWhatsapp: seller.contactWhatsapp,
+  }).map((link) => ({ ...link, icon: SOCIAL_LINK_ICONS[socialPlatformFor(link.url).id] }));
 }
 
 export function SellerHeader({ seller }: SellerHeaderProps) {
@@ -164,26 +184,22 @@ export function SellerHeader({ seller }: SellerHeaderProps) {
             <SellerBadges seller={seller} />
             
             <div className="flex items-center justify-center md:justify-start gap-3 mt-4">
-                {seller.facebookUrl && (
-                    <a href={seller.facebookUrl} target="_blank" rel="noopener noreferrer" className="p-2 bg-white/5 hover:bg-blue-600 rounded-lg text-white transition-all">
-                        <Facebook className="h-4 w-4" />
+                {shopLinks(seller).map(({ id, url, label, icon: Icon }) => (
+                    <a
+                        key={id}
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title={label}
+                        aria-label={label}
+                        className={cn(
+                            'p-2 bg-white/5 rounded-lg text-white transition-all',
+                            socialPlatformFor(url).hover,
+                        )}
+                    >
+                        <Icon className="h-4 w-4" />
                     </a>
-                )}
-                {seller.instagramUrl && (
-                    <a href={seller.instagramUrl} target="_blank" rel="noopener noreferrer" className="p-2 bg-white/5 hover:bg-pink-600 rounded-lg text-white transition-all">
-                        <Instagram className="h-4 w-4" />
-                    </a>
-                )}
-                {seller.twitterUrl && (
-                    <a href={seller.twitterUrl} target="_blank" rel="noopener noreferrer" className="p-2 bg-white/5 hover:bg-sky-500 rounded-lg text-white transition-all">
-                        <Twitter className="h-4 w-4" />
-                    </a>
-                )}
-                {seller.contactWhatsapp && (
-                    <a href={`https://wa.me/${seller.contactWhatsapp.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="p-2 bg-white/5 hover:bg-green-600 rounded-lg text-white transition-all">
-                        <MessageCircle className="h-4 w-4" />
-                    </a>
-                )}
+                ))}
             </div>
           </div>
         </div>

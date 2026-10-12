@@ -2,7 +2,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/firebase/server';
 import { db } from '@/firebase/server';
-import { collection, getDocs, query, where } from 'firebase-admin/firestore';
 
 // This is a placeholder for your actual data fetching logic.
 // You would replace this with your database queries.

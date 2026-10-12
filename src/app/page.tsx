@@ -1,12 +1,26 @@
+'use client';
+
 import Link from 'next/link';
+import Image from 'next/image';
 import {
   ArrowRight, ArrowUpRight, Check, Sparkles, Video, Wallet, Truck,
-  ShieldCheck, BarChart3, Megaphone, Store, Package, Boxes, Radio,
+  ShieldCheck, BarChart3, Megaphone, Store, Package, Boxes,
   Smartphone, Clock, Lock, Globe, ChevronRight, Quote, Zap, Layers,
   MessageSquare, Repeat, CreditCard, Camera, MapPin, Home,
+  Users, Image as ImageIcon, Lightbulb, Target,
+  Radio, CirclePlay,
+  Sun, Menu, Play,
 } from 'lucide-react';
+import { useState } from 'react';
+
 import { LandingLayout } from '@/components/layout/landing-layout';
 import { Button } from '@/components/ui/button';
+import { InstalledProducts } from '@/components/brand/installed-products';
+import { VendorMeetsBuyer } from '@/components/brand/vendor-meets-buyer';
+import { FeaturedMaker } from '@/components/brand/featured-maker';
+import { ProductLaunchMoment } from '@/components/brand/product-launch-moment';
+import { GalleryStrip } from '@/components/brand/gallery-strip';
+import { OrderOnTheTable } from '@/components/brand/order-on-the-table';
 import { LogoMark } from '@/components/logo';
 import { InstallAppButton } from '@/components/install-app-button';
 import { TierBadge } from '@/components/trust/tier-badge';
@@ -128,11 +142,11 @@ const BENTO = [
  * A 100.00 listing becomes a 116.00 charge; every peso of it is accounted for.
  */
 const SPLIT = [
-  { label: 'You', value: 79, color: 'hsl(var(--primary))', note: 'Net, after all fees' },
-  { label: 'Vidnov', value: 10, color: 'hsl(var(--accent))', note: 'Platform fee' },
+  { label: 'You', value: 87, color: 'hsl(var(--primary))', note: 'Net, after all fees' },
+  { label: 'Vidnov', value: 3, color: 'hsl(var(--accent))', note: 'Platform fee' },
   { label: 'Reseller', value: 10, color: 'hsl(var(--vn-violet))', note: 'Optional commission' },
   { label: 'Referrer', value: 1, color: 'hsl(var(--vn-amber))', note: 'One-off bonus' },
-  { label: 'VAT', value: 16, color: 'hsl(var(--muted-foreground))', note: 'Collected for the state' },
+  // VAT removed - no longer collected
 ] as const;
 
 const MARQUEE = [
@@ -164,10 +178,127 @@ const VOICES = [
   },
 ] as const;
 
+const FEATURED_STUDIO = {
+  id: 1,
+  src: 'https://images.unsplash.com/photo-1550254478-ead40cc4e0c0?w=720&h=480&fit=crop',
+  alt: 'Shopper on a phone among shelves of brightly coloured goods',
+  badge: 'Featured studio',
+  name: 'Karibu Craft Shop',
+};
+
+const SHOPGRID_GALLERY = [
+  {
+    id: 1,
+    src: 'https://images.unsplash.com/photo-1542211705-64120d1d2c5a?w=480&h=480&fit=crop',
+    alt: 'Colourful sneakers displayed on a runner',
+    name: 'Golden Step Footwear',
+    tag: 'New',
+  },
+  {
+    id: 2,
+    src: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=480&h=480&fit=crop',
+    alt: 'Mobile phone displayed against a warm product backdrop',
+    name: 'M-Kopa Tech',
+    tag: 'Verified',
+  },
+  {
+    id: 3,
+    src: 'https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=480&h=480&fit=crop',
+    alt: 'Beautifully arranged ceramic tableware',
+    name: 'Hekima Ceramics',
+    tag: 'Top rated',
+  },
+  {
+    id: 4,
+    src: 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=480&h=480&fit=crop',
+    alt: 'Handbag styled on a plain studio background',
+    name: 'Nia Leather Works',
+    tag: 'New',
+  },
+] as const;
+
+const SHOPGRID_COVER = [
+  {
+    id: 1,
+    src: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=480&h=480&fit=crop',
+    alt: 'Buyer discovering products on a phone',
+    name: 'Buyer side of Vidnov',
+  },
+  {
+    id: 2,
+    src: 'https://images.unsplash.com/photo-1554142159-360a58e5e301?w=480&h=480&fit=crop',
+    alt: 'Seller checking orders on a mobile device',
+    name: 'Seller side of Vidnov',
+  },
+] as const;
+
+const LIVESTREAM_PHOTOS = [
+  {
+    id: 1,
+    src: 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=600&h=400&fit=crop',
+    alt: 'Live shopping event with hosts presenting products',
+    caption: 'Live selling session',
+    viewers: 234,
+  },
+  {
+    id: 2,
+    src: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=600&h=400&fit=crop',
+    alt: 'Product demonstration during livestream',
+    caption: 'Product demo live',
+    viewers: 189,
+  },
+  {
+    id: 3,
+    src: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=600&h=400&fit=crop',
+    alt: 'Interactive shopping experience with viewers',
+    caption: 'Community shopping',
+    viewers: 312,
+  },
+] as const;
+
+const PRODUCT_REVEAL = {
+  id: 1,
+  src: 'https://images.unsplash.com/photo-1542211705-64120d1d2c5a?w=720&h=480&fit=crop',
+  alt: 'A single colorful sneaker displayed against a clean studio background',
+  name: 'Golden Step Footwear',
+  tag: 'Just listed',
+};
+
+const REQUEST_IDEAS = [
+  {
+    id: 1,
+    title: 'Eco-friendly packaging',
+    description: 'Buyers are looking for sustainable packaging options for their orders.',
+    category: 'Sustainability',
+    bids: 12,
+  },
+  {
+    id: 2,
+    title: 'Local delivery service',
+    description: 'People want faster delivery from local sellers in their area.',
+    category: 'Logistics',
+    bids: 8,
+  },
+  {
+    id: 3,
+    title: 'Custom branding options',
+    description: 'Small businesses need affordable custom branding for their products.',
+    category: 'Services',
+    bids: 15,
+  },
+] as const;
+
+const NICE_STUDIO_ILLUSTRATION = {
+  id: 1,
+  src: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=560&h=360&fit=crop',
+  alt: 'Seller reviewing a product listing on a mobile device',
+  label: 'The AI Studio, in one screen',
+};
+
 const FAQS = [
   {
     q: 'What does it cost to start?',
-    a: 'Opening a business and listing your first product is free. You are only charged when you actually make a sale, and the fee is a flat 10% of the product price, shown to you on every order before the buyer pays.',
+    a: 'Opening a business and listing your first product is free. You are only charged when you actually make a sale, and the fee is a flat 3% of the product price, shown to you on every order before the buyer pays.',
   },
   {
     q: 'When do I actually get my money?',
@@ -175,7 +306,7 @@ const FAQS = [
   },
   {
     q: 'Do I need a reseller?',
-    a: 'No. Resellers are entirely optional. If you want other people to sell for you, you switch it on and they earn 10% of each order they bring, deducted automatically and itemised on your statement.',
+    a: 'No. Resellers are entirely optional. If you want other people to sell for you, you switch it on and they earn 10% of each order they bring, deducted automatically and itemised on your statement. The platform fee is just 3%.',
   },
   {
     q: 'What is the Request Marketplace?',
@@ -283,6 +414,166 @@ const REVIEW_RULES = [
   },
 ] as const;
 
+function ComposerScreen() {
+  const [idea, setIdea] = useState('');
+
+  return (
+    <div className="relative mx-auto max-w-md">
+      <div
+        className="absolute -inset-8 rounded-[2.5rem] bg-gradient-to-br from-primary/20 via-accent/10 to-transparent blur-3xl"
+        aria-hidden
+      />
+
+      <div className="vn-shadow relative rounded-3xl border border-border bg-card/85 p-2 backdrop-blur-xl">
+        {/* top bar */}
+        <div className="flex items-center justify-between px-3 py-2.5">
+          <div className="flex items-center gap-2">
+            <span className="rounded-sm bg-border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              3:32
+            </span>
+            <div className="flex items-center gap-1">
+              <span className="flex items-center gap-0.5 rounded-full bg-ember-green/15 px-2 py-0.5 text-[10px] font-semibold text-ember-green">
+                <span className="h-1 w-1 rounded-full bg-ember-green" />
+                4G
+              </span>
+              <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-600">
+                76%
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1">
+              <Sun className="h-4 w-4 text-muted-foreground" />
+              <span className="text-[10px] font-semibold text-muted-foreground">Light</span>
+            </div>
+            <Menu className="h-4 w-4 text-muted-foreground" />
+          </div>
+        </div>
+
+        {/* header */}
+        <div className="flex items-center gap-2 border-b border-border/60 px-3 py-2.5">
+          <LogoMark className="h-5 w-5 text-foreground" />
+          <span className="font-grotesk text-sm font-semibold tracking-tight text-foreground">
+            Vidnov
+          </span>
+          <div className="ml-auto flex items-center gap-2">
+            <span className="flex items-center gap-1 rounded-full border border-border/60 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              <Check className="h-3 w-3 text-ember-green" />
+              No listing fee
+            </span>
+            <span className="flex items-center gap-1 rounded-full border border-border/60 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              <Check className="h-3 w-3 text-ember-green" />
+              3% only when you sell
+            </span>
+            <span className="flex items-center gap-1 rounded-full border border-border/60 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              <Check className="h-3 w-3 text-ember-green" />
+              Cancel anytime
+            </span>
+          </div>
+        </div>
+
+        {/* window chrome */}
+        <div className="mx-3 flex items-center gap-2">
+          <div className="flex gap-1.5">
+            <span className="h-2.5 w-2.5 rounded-full bg-destructive/70" />
+            <span className="h-2.5 w-2.5 rounded-full bg-ember-amber/70" />
+            <span className="h-2.5 w-2.5 rounded-full bg-ember-green/70" />
+          </div>
+          <span className="ml-2 text-[11px] font-medium text-muted-foreground">
+            AI Studio · new product
+          </span>
+          <span className="ml-auto rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest text-primary">
+            Draft
+          </span>
+        </div>
+
+        {/* idea input */}
+        <div className="mx-3 mt-3 flex items-start gap-2 rounded-xl bg-background/60 p-3">
+          <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
+          <div className="flex-1">
+            <textarea
+              value={idea}
+              onChange={(e) => setIdea(e.target.value)}
+              placeholder="Add your video idea — e.g. “Summer dress, beach sunset, golden hour”"
+              className="h-12 w-full resize-none resize-none rounded-lg border-0 bg-transparent px-1.5 py-1 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
+            />
+            <div className="mt-2 flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full bg-ember-green/60" />
+              <span className="h-2 w-2 rounded-full bg-ember-green/60" />
+              <span className="h-2 w-2 rounded-full bg-amber-500/60" />
+              <span className="ml-2 text-[10px] text-muted-foreground">
+                AI is preparing your scene
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* preview canvas */}
+        <div className="mx-3 overflow-hidden rounded-2xl bg-gradient-to-br from-ember-navy via-ember-navy to-accent-dark p-5">
+          <div className="absolute inset-0 vn-aurora opacity-80" aria-hidden />
+          <div className="absolute -inset-20 opacity-30 blur-3xl" aria-hidden />
+          <div className="relative space-y-3">
+            <div className="flex aspect-video items-center justify-center overflow-hidden rounded-xl border border-white/10 bg-black/40 shadow-2xl">
+              <div className="relative flex items-center justify-center">
+                <div className="absolute inset-0 rounded-full bg-primary/20 blur-2xl" aria-hidden />
+                <div className="absolute -inset-10 rounded-full bg-primary/10 blur-3xl" aria-hidden />
+                <div className="relative flex h-20 w-20 items-center justify-center rounded-full bg-primary/90 shadow-2xl shadow-primary/40">
+                  <Play className="h-7 w-7 ml-0.5 mt-0.5 text-primary-foreground" />
+                </div>
+                <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-accent/80 px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-primary-foreground shadow-lg">
+                  3D Scene
+                </div>
+              </div>
+            </div>
+            <div className="h-2.5 w-3/4 rounded-full bg-white/25" />
+            <div className="h-2.5 w-1/2 rounded-full bg-white/15" />
+            <div className="flex gap-2 pt-1">
+              {['9:16', '1:1', '16:9'].map((r, i) => (
+                <span
+                  key={r}
+                  className={`rounded-md px-2 py-1 text-[10px] font-semibold ${
+                    i === 0 ? 'bg-primary text-white' : 'bg-white/10 text-white/70'
+                  }`}
+                >
+                  {r}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* job rows */}
+        <div className="mx-3 space-y-1.5">
+          {[
+            { icon: Video, label: 'Product video', state: 'Ready', tone: 'text-ember-green' },
+            { icon: MessageSquare, label: 'Caption & hashtags', state: 'Ready', tone: 'text-ember-green' },
+            { icon: Megaphone, label: 'Paid ad variant', state: 'Rendering', tone: 'text-accent' },
+          ].map((row) => (
+            <div
+              key={row.label}
+              className="flex items-center gap-3 rounded-xl border border-border/70 bg-background/60 px-3 py-2.5"
+            >
+              {typeof row.icon === 'function' ? <row.icon className="h-4 w-4 shrink-0 text-muted-foreground" /> : null}
+              <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
+                {row.label}
+              </span>
+              <span className={`text-[11px] font-semibold ${row.tone}`}>
+                {row.state}
+              </span>
+            </div>
+          ))}
+        </div>
+
+        <div className="mx-3 mt-1 overflow-hidden rounded-xl bg-primary p-0">
+          <div className="flex h-12 items-center justify-center rounded-xl bg-primary text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/25">
+            Publish listing
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SectionHeading({
   eyebrow,
   title,
@@ -379,7 +670,7 @@ export default function VidnovHomePage() {
               </div>
 
               <p className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-muted-foreground">
-                {['No listing fee', '10% only when you sell', 'Cancel anytime'].map((t) => (
+                {['No listing fee', '3% only when you sell', 'Cancel anytime'].map((t) => (
                   <span key={t} className="inline-flex items-center gap-1.5">
                     <Check className="h-3.5 w-3.5 text-primary" />
                     {t}
@@ -390,104 +681,7 @@ export default function VidnovHomePage() {
 
             {/* Composer mock — the product's defining screen */}
             <div className="lg:col-span-6">
-              <div className="relative mx-auto max-w-md">
-                <div
-                  className="absolute -inset-8 rounded-[2.5rem] bg-gradient-to-br from-primary/20 via-accent/10 to-transparent blur-3xl"
-                  aria-hidden
-                />
-
-                <div className="vn-shadow relative rounded-3xl border border-border bg-card/85 p-2 backdrop-blur-xl">
-                  {/* window chrome */}
-                  <div className="flex items-center gap-2 px-3 py-2.5">
-                    <div className="flex gap-1.5">
-                      <span className="h-2.5 w-2.5 rounded-full bg-destructive/70" />
-                      <span className="h-2.5 w-2.5 rounded-full bg-ember-amber/70" />
-                      <span className="h-2.5 w-2.5 rounded-full bg-ember-green/70" />
-                    </div>
-                    <span className="ml-2 text-[11px] font-medium text-muted-foreground">
-                      AI Studio · new product
-                    </span>
-                    <span className="ml-auto rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest text-primary">
-                      Draft
-                    </span>
-                  </div>
-
-                  {/* preview canvas */}
-                  <div className="relative mx-2 overflow-hidden rounded-2xl bg-gradient-to-br from-ember-navy to-ember-navy p-5">
-                    <div className="absolute inset-0 vn-aurora opacity-70" aria-hidden />
-                    <div className="relative space-y-3">
-                      <div className="flex aspect-video items-center justify-center rounded-xl border border-white/10 bg-black/25">
-                        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/90 shadow-lg shadow-primary/30">
-                          <Video className="h-6 w-6 text-white" />
-                        </div>
-                      </div>
-                      <div className="h-2.5 w-3/4 rounded-full bg-white/25" />
-                      <div className="h-2.5 w-1/2 rounded-full bg-white/15" />
-                      <div className="flex gap-2 pt-1">
-                        {['9:16', '1:1', '16:9'].map((r, i) => (
-                          <span
-                            key={r}
-                            className={`rounded-md px-2 py-1 text-[10px] font-semibold ${
-                              i === 0 ? 'bg-primary text-white' : 'bg-white/10 text-white/70'
-                            }`}
-                          >
-                            {r}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* job rows */}
-                  <div className="space-y-1.5 p-2.5">
-                    {[
-                      { icon: Video, label: 'Product video', state: 'Ready', tone: 'text-ember-green' },
-                      { icon: MessageSquare, label: 'Caption & hashtags', state: 'Ready', tone: 'text-ember-green' },
-                      { icon: Megaphone, label: 'Paid ad variant', state: 'Rendering', tone: 'text-accent' },
-                    ].map((row) => (
-                      <div
-                        key={row.label}
-                        className="flex items-center gap-3 rounded-xl border border-border/70 bg-background/60 px-3 py-2.5"
-                      >
-                        <row.icon className="h-4 w-4 shrink-0 text-muted-foreground" />
-                        <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
-                          {row.label}
-                        </span>
-                        <span className={`text-[11px] font-semibold ${row.tone}`}>
-                          {row.state}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="px-2.5 pb-2.5">
-                    <div className="flex h-11 items-center justify-center rounded-xl bg-primary text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/25">
-                      Publish listing
-                    </div>
-                  </div>
-                </div>
-
-                {/* floating order chip */}
-                <div className="vn-float absolute -bottom-6 -left-4 hidden w-52 rounded-2xl border border-border bg-card/95 p-3.5 shadow-xl backdrop-blur sm:block">
-                  <div className="flex items-center gap-2.5">
-                    <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-ember-green/15 text-ember-green">
-                      <Wallet className="h-4 w-4" />
-                    </span>
-                    <div className="min-w-0">
-                      <p className="truncate text-xs font-semibold text-foreground">
-                        Order #4F2A paid
-                      </p>
-                      <p className="text-[11px] text-muted-foreground">just now</p>
-                    </div>
-                  </div>
-                  <div className="mt-2.5 flex items-baseline justify-between border-t border-border pt-2.5">
-                    <span className="text-[11px] text-muted-foreground">Your cut</span>
-                    <span className="font-grotesk text-sm font-bold text-ember-green">
-                      79.00
-                    </span>
-                  </div>
-                </div>
-              </div>
+              <ComposerScreen />
             </div>
           </div>
         </div>
@@ -496,8 +690,8 @@ export default function VidnovHomePage() {
         <div className="relative border-y border-border bg-card/40 backdrop-blur">
           <dl className="mx-auto grid max-w-7xl grid-cols-2 divide-x divide-border px-4 lg:grid-cols-4 lg:px-8">
             {[
-              ['10%', 'flat platform fee'],
-              ['79%', 'of a 100.00 sale is yours'],
+              ['3%', 'flat platform fee'],
+              ['87%', 'of a 100.00 sale is yours'],
               ['0', 'listing or monthly fees'],
               ['24/7', 'your storefront is open'],
             ].map(([big, small]) => (
@@ -553,7 +747,7 @@ export default function VidnovHomePage() {
             {STEPS.map((step) => (
               <li key={step.n} className="relative flex gap-5 lg:block">
                 <div className="relative z-10 flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-border bg-card font-grotesk text-lg font-bold text-primary vn-shadow">
-                  <step.icon className="h-6 w-6" />
+                  {typeof step.icon === 'function' ? <step.icon className="h-6 w-6" /> : null}
                   <span className="absolute -right-1.5 -top-1.5 rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-bold text-primary-foreground">
                     {step.n}
                   </span>
@@ -599,7 +793,7 @@ export default function VidnovHomePage() {
                 accounted for.
               </h2>
               <p className="mt-5 text-pretty leading-relaxed text-muted-foreground">
-                A 100.00 listing becomes a 116.00 charge including VAT. Here is
+                A 100.00 listing becomes a 103.00 charge. Here is
                 exactly where all of it goes — computed live by the same function
                 that settles your payouts, not by a marketing page.
               </p>
@@ -638,7 +832,7 @@ export default function VidnovHomePage() {
                 </div>
                 <div className="text-right">
                   <p className="text-xs text-muted-foreground">Charged</p>
-                  <p className="font-grotesk text-2xl font-bold text-foreground">116.00</p>
+                  <p className="font-grotesk text-2xl font-bold text-foreground">103.00</p>
                 </div>
               </div>
 
@@ -676,7 +870,7 @@ export default function VidnovHomePage() {
                         <div
                           className="h-full rounded-full"
                           style={{
-                            width: `${(row.value / 116) * 100}%`,
+                            width: `${(row.value / 103) * 100}%`,
                             backgroundColor: row.color,
                           }}
                         />
@@ -691,7 +885,7 @@ export default function VidnovHomePage() {
 
               <p className="mt-6 rounded-xl border border-dashed border-border bg-muted/40 px-4 py-3 text-xs leading-relaxed text-muted-foreground">
                 Reseller and referrer rows apply only if you use those features.
-                Turn both off and the full 90.00 lands with you.
+                Turn both off and the full 87.00 lands with you.
               </p>
             </div>
           </div>
@@ -706,6 +900,36 @@ export default function VidnovHomePage() {
           lede="Not a feature list. These are the screens you will actually open every day, and they are built to replace three other apps."
         />
 
+        {/* ── Visual: installed stores ── */}
+        <div className="mt-14">
+          <InstalledProducts />
+        </div>
+
+        {/* ── Visual: vendor meets buyer ── */}
+        <div className="mt-14">
+          <VendorMeetsBuyer />
+        </div>
+
+        {/* ── Visual: featured maker ── */}
+        <div className="mt-14">
+          <FeaturedMaker cover={FEATURED_STUDIO} name={FEATURED_STUDIO.name} city="Nairobi, Kenya" />
+        </div>
+
+        {/* ── Visual: featured shop grid ── */}
+        <div className="mt-14">
+          <GalleryStrip items={SHOPGRID_GALLERY} layout="grid" />
+        </div>
+
+        {/* ── Visual: product launch moment ── */}
+        <div className="mt-14">
+          <ProductLaunchMoment />
+        </div>
+
+        {/* ── Visual: order on the table ── */}
+        <div className="mt-14">
+          <OrderOnTheTable />
+        </div>
+
         <div className="mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {BENTO.map((card) => (
             <article
@@ -719,7 +943,7 @@ export default function VidnovHomePage() {
               <span
                 className={`relative flex h-11 w-11 items-center justify-center rounded-xl text-white ${card.grad}`}
               >
-                <card.icon className="h-5 w-5" />
+                {typeof card.icon === 'function' ? <card.icon className="h-5 w-5" /> : null}
               </span>
 
               <h3 className="relative mt-5 font-grotesk text-lg font-semibold tracking-tight text-foreground">
@@ -771,7 +995,7 @@ export default function VidnovHomePage() {
                 />
                 <div className="relative flex items-center gap-3">
                   <span className={`flex h-11 w-11 items-center justify-center rounded-xl text-white ${mark.grad}`}>
-                    <mark.icon className="h-5 w-5" />
+                    {typeof mark.icon === 'function' ? <mark.icon className="h-5 w-5" /> : null}
                   </span>
                   <span className="rounded-full border border-border px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
                     Earned by {mark.who.toLowerCase()}
@@ -857,6 +1081,7 @@ export default function VidnovHomePage() {
                 title="Built like infrastructure, not a prototype"
                 lede="The unglamorous parts are the parts that decide whether a business can depend on you."
               />
+
               <Button asChild variant="outline" className="mt-8 h-12 rounded-xl">
                 <Link href="/how-it-works">
                   See how it works
@@ -1002,6 +1227,180 @@ export default function VidnovHomePage() {
               </figcaption>
             </figure>
           ))}
+        </div>
+      </section>
+
+      {/* ══════════════════════ LIVESTREAM PHOTOS ══════════════════════ */}
+      <section className="mx-auto max-w-7xl px-4 py-20 md:py-28 lg:px-8">
+        <SectionHeading
+          eyebrow="Live now"
+          title="See sellers in action"
+          lede="Real people, real products, real-time. Tune into a livestream and shop directly from the host."
+        />
+
+        <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {LIVESTREAM_PHOTOS.map((photo) => (
+            <article
+              key={photo.id}
+              className="group relative overflow-hidden rounded-2xl border border-border bg-card vn-shadow"
+            >
+              <div className="relative aspect-video overflow-hidden">
+                <Image
+                  src={photo.src}
+                  alt={photo.alt}
+                  fill
+                  className="object-cover transition-transform duration-500 group-hover:scale-105"
+                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
+                      <CirclePlay className="h-3.5 w-3.5" />
+                    </span>
+                    <span className="text-xs font-semibold text-white">{photo.viewers} watching</span>
+                  </div>
+                  <Megaphone className="h-5 w-5 text-white/80" />
+                </div>
+              </div>
+              <div className="p-4">
+                <p className="text-sm font-semibold text-foreground">{photo.caption}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{photo.alt}</p>
+              </div>
+            </article>
+          ))}
+        </div>
+
+        <div className="mt-8 text-center">
+          <Button asChild size="lg" className="h-12 rounded-xl px-8 text-sm font-semibold">
+            <Link href="/live">
+              Browse live streams
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Link>
+          </Button>
+        </div>
+      </section>
+
+      {/* ══════════════════════ REQUEST IDEAS ══════════════════════ */}
+      <section className="relative overflow-hidden border-y border-border bg-card/40">
+        <div className="vn-aurora pointer-events-none absolute inset-0 opacity-70" aria-hidden />
+        <div className="relative mx-auto max-w-7xl px-4 py-20 md:py-28 lg:px-8">
+          <div className="grid items-center gap-14 lg:grid-cols-2 lg:gap-16">
+            <div>
+              <span className="vn-phase text-primary">Get ideas</span>
+              <h2 className="vn-display mt-4 text-balance text-4xl text-foreground sm:text-5xl">
+                What are people
+                <br />
+                asking for?
+              </h2>
+
+              {/* ── Visual: product reveal ── */}
+              {PRODUCT_REVEAL && (
+                <div className="mt-12">
+                  <ProductLaunchMoment />
+                </div>
+              )}
+              <p className="mt-5 text-pretty leading-relaxed text-muted-foreground">
+                Browse real requests from buyers in your area. See what products
+                are in demand, what features people want, and where the opportunities
+                are for sellers like you.
+              </p>
+
+              <div className="mt-8 space-y-4">
+                {REQUEST_IDEAS.map((idea) => (
+                  <div
+                    key={idea.id}
+                    className="flex items-start gap-4 rounded-xl border border-border bg-background p-4"
+                  >
+                    <Lightbulb className="h-5 w-5 shrink-0 text-accent" />
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">{idea.title}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">{idea.description}</p>
+                      <div className="mt-2 flex items-center gap-2 text-[10px] font-medium text-muted-foreground">
+                        <Target className="h-3 w-3" />
+                        {idea.category}
+                        <span className="mx-1">·</span>
+                        {idea.bids} bids
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <Button asChild variant="outline" className="mt-8 h-12 rounded-xl">
+                <Link href="/requests">
+                  View all requests
+                  <ArrowUpRight className="ml-2 h-4 w-4" />
+                </Link>
+              </Button>
+            </div>
+
+            {/* Visual side */}
+            <div className="relative">
+              <div className="vn-shadow rounded-3xl border border-border bg-card p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                    <ImageIcon className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">Trending requests</p>
+                    <p className="text-xs text-muted-foreground">Based on recent activity</p>
+                  </div>
+                </div>
+
+                {/* illustration strip */}
+                <div className="mt-4">
+                  <div className="relative aspect-video overflow-hidden rounded-xl border border-border bg-muted/30">
+                    <Image
+                      src={NICE_STUDIO_ILLUSTRATION.src}
+                      alt={NICE_STUDIO_ILLUSTRATION.alt}
+                      fill
+                      className="object-cover transition-transform duration-500 group-hover:scale-105"
+                      sizes="(max-width: 640px) 100vw, 50vw"
+                    />
+                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+                    <div className="absolute bottom-3 left-3">
+                      <p className="text-xs font-semibold text-white">{NICE_STUDIO_ILLUSTRATION.label}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-4">
+                  <p className="text-xs font-semibold text-foreground">Visual tip</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Add a real product photo, a behind-the-scenes shot or a short loop.
+                    Anything with a face and a product tends to outperform a plain white background.
+                  </p>
+                </div>
+                <div className="space-y-3">
+                  {[1, 2, 3].map((i) => (
+                    <div
+                      key={i}
+                      className="flex items-center gap-3 rounded-xl bg-muted/50 p-3"
+                    >
+                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/20">
+                        <Target className="h-5 w-5 text-primary" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-foreground">
+                          {['Eco-friendly packaging', 'Local delivery', 'Custom branding'][i - 1]}
+                        </p>
+                        <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                          <div
+                            className="h-full rounded-full bg-primary"
+                            style={{ width: `${60 + i * 10}%` }}
+                          />
+                        </div>
+                      </div>
+                      <span className="text-xs font-semibold text-muted-foreground">
+                        {['High', 'Medium', 'Growing'][i - 1]}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 

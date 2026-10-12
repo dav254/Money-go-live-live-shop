@@ -2,14 +2,13 @@
 
 import * as React from 'react';
 import {
-  BadgeCheck, Clock, Loader2, LogOut, Mail, MapPin, Plus, RotateCcw, Save,
-  ShieldCheck, Store, Target, Truck, UploadCloud, User as UserIcon, X,
+  BadgeCheck, Loader2, LogOut, Mail, MapPin, Plus, Save,
+  ShieldCheck, Store, Target, User as UserIcon, X,
 } from 'lucide-react';
 
 import { collection, doc, increment, query, setDoc, where, writeBatch } from 'firebase/firestore';
-import { getDownloadURL, ref, uploadBytesResumable } from 'firebase/storage';
 import {
-  useAuth, useCollection, useDoc, useFirestore, useMemoFirebase, useStorage,
+  useAuth, useCollection, useDoc, useFirestore, useMemoFirebase,
   useUser, useUserProfile,
 } from '@/firebase';
 import type { Order, SellerShop, UserProfile } from '@/lib/types';
@@ -18,6 +17,10 @@ import { SecurityAndSessions } from '@/components/account/security-and-sessions'
 import { useSignOutToHome } from '@/lib/auth/sign-out-to-home';
 import { useToast } from '@/hooks/use-toast';
 import { SellerCard, SellerSectionTitle } from '@/components/app/seller/seller-app-shell';
+import { ShopBrandingSection } from '@/components/app/seller/shop-branding-section';
+import { SellerFilesSection } from '@/components/app/seller/seller-files-section';
+import { SocialLinksEditor, linksFromShop } from '@/components/app/seller/social-links-editor';
+import type { SocialLink } from '@/lib/social-links';
 import { cn } from '@/lib/utils';
 
 /**
@@ -40,9 +43,11 @@ import { cn } from '@/lib/utils';
  * that loaded before the network answered.
  *
  *   You        name, phone, bio            — who buyers are dealing with
- *   Your shop  name, description, category, logo, banner
- *                                         — what this business is, and how
- *                                           it looks in the storefront
+ *   Your shop  name, description, category— what this business is
+ *   Shop branding  logo, banner           — how it looks in the storefront;
+ *                                           each image saves the moment it
+ *                                           finishes uploading
+ *   Your links  any platform, any count  — where buyers can reach you
  *   Where you work  country → area, WhatsApp, target markets
  *                                         — drives request matching AND
  *                                           shipping cost expectations
@@ -152,9 +157,6 @@ export default function SellerSectionAccount() {
   const firestore = useFirestore();
   const { user } = useUser();
   const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
-  // Surface-bound storage — bare `getStorage()` asks for the `[DEFAULT]` app,
-  // which this project never creates, and throws `app/no-app` on tap.
-  const storage = useStorage();
   const { toast } = useToast();
 
   const shopRef = useMemoFirebase(() => {
@@ -186,7 +188,6 @@ export default function SellerSectionAccount() {
   const [bannerUrl, setBannerUrl] = React.useState('');
   const [shopSeeded, setShopSeeded] = React.useState(false);
   const [savingShop, setSavingShop] = React.useState(false);
-  const [uploading, setUploading] = React.useState<'logo' | 'banner' | null>(null);
 
   /* Location + reach */
   const [country, setCountry] = React.useState('');
@@ -265,6 +266,31 @@ export default function SellerSectionAccount() {
       toast({ variant: 'destructive', title: 'Could not save your details' });
     } finally {
       setSavingIdentity(false);
+    }
+  };
+
+  /* ── Save: your links ─────────────────────────────────────────────────── */
+
+  /**
+   * Links are their own section with their own save, for the same reason every
+   * other section is: a seller adding a TikTok must not be able to overwrite
+   * the delivery policy with a stale value from before the network answered.
+   */
+  const saveLinks = async (socialLinks: SocialLink[]) => {
+    if (!user || !firestore) return;
+    try {
+      await setDoc(
+        doc(firestore, 'sellerShops', user.uid),
+        { socialLinks },
+        { merge: true },
+      );
+      toast({
+        title: 'Links saved',
+        description: 'They are on your shop now.',
+      });
+    } catch {
+      toast({ variant: 'destructive', title: 'Could not save your links' });
+      throw new Error('save failed');
     }
   };
 
@@ -388,25 +414,6 @@ export default function SellerSectionAccount() {
       toast({ variant: 'destructive', title: 'Could not save your policies' });
     } finally {
       setSavingTrust(false);
-    }
-  };
-
-  /* ── Image upload (same Storage convention as the website) ─────────────── */
-
-  const uploadImage = async (file: File, kind: 'logo' | 'banner') => {
-    if (!user) return null;
-    try {
-      const storageRef = ref(storage, `shops/${user.uid}/${kind}_${Date.now()}`);
-      const task = uploadBytesResumable(storageRef, file);
-      setUploading(kind);
-      await task;
-      const url = await getDownloadURL(task.snapshot.ref);
-      return url;
-    } catch {
-      toast({ variant: 'destructive', title: 'Upload failed', description: 'Try a smaller image.' });
-      return null;
-    } finally {
-      setUploading(null);
     }
   };
 
@@ -550,39 +557,6 @@ export default function SellerSectionAccount() {
           />
         </Field>
 
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-              Logo
-            </span>
-            <LogoPicker
-              src={logoUrl}
-              busy={uploading === 'logo'}
-              onPick={(file) =>
-                uploadImage(file, 'logo').then((url) => {
-                  if (url) setLogoUrl(url);
-                })
-              }
-              onClear={() => setLogoUrl('')}
-            />
-          </div>
-          <div>
-            <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-              Banner
-            </span>
-            <BannerPicker
-              src={bannerUrl}
-              busy={uploading === 'banner'}
-              onPick={(file) =>
-                uploadImage(file, 'banner').then((url) => {
-                  if (url) setBannerUrl(url);
-                })
-              }
-              onClear={() => setBannerUrl('')}
-            />
-          </div>
-        </div>
-
         <Field label="Category" hint="Decides which customer briefs reach you. The single most valuable setting on this screen.">
           <select className={inputClass} value={category} onChange={(e) => setCategory(e.target.value)}>
             <option value="">Choose…</option>
@@ -606,6 +580,34 @@ export default function SellerSectionAccount() {
 
         <SaveButton saving={savingShop} onClick={saveShop} label="Save shop" />
       </SectionCard>
+
+      {/* ── Shop branding ──────────────────────────────────────────────────── */}
+      {/* Own section, own save-on-upload: the images are the most visual part of
+          the storefront and the only ones a seller judges by looking rather
+          than reading. See `ShopBrandingSection`. */}
+      {user && (
+        <ShopBrandingSection
+          user={user}
+          firestore={firestore}
+          logoUrl={logoUrl}
+          bannerUrl={bannerUrl}
+          onChange={(patch) => {
+            if (patch.logoUrl !== undefined) setLogoUrl(patch.logoUrl);
+            if (patch.bannerUrl !== undefined) setBannerUrl(patch.bannerUrl);
+          }}
+        />
+      )}
+
+      {/* ── Your files ─────────────────────────────────────────────────────── */}
+      {/* Everything this seller has uploaded, read from our own media index.
+          Uploads go to the VPS disk, not Firebase Storage. */}
+      <SellerFilesSection user={user ?? null} />
+
+      {/* ── Your links ─────────────────────────────────────────────────────── */}
+      <SocialLinksEditor
+        initialLinks={linksFromShop(shop)}
+        onSave={saveLinks}
+      />
 
       {/* ── Where you work ────────────────────────────────────────────────── */}
       <SectionCard
@@ -774,116 +776,3 @@ export default function SellerSectionAccount() {
   );
 }
 
-/* ── Image pickers ───────────────────────────────────────────────────────── */
-
-function LogoPicker({
-  src,
-  busy,
-  onPick,
-  onClear,
-}: {
-  src: string;
-  busy: boolean;
-  onPick: (file: File) => void;
-  onClear: () => void;
-}) {
-  const inputRef = React.useRef<HTMLInputElement>(null);
-  return (
-    <div className="mt-1.5">
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file) onPick(file);
-          e.target.value = '';
-        }}
-      />
-      {src ? (
-        <div className="group relative h-24 w-24 overflow-hidden rounded-2xl border border-border">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={src} alt="" className="h-full w-full object-cover" />
-          <button
-            type="button"
-            onClick={onClear}
-            aria-label="Remove logo"
-            className="absolute right-1 top-1 rounded-full bg-black/70 p-1 text-white transition hover:bg-destructive"
-          >
-            <X className="h-3 w-3" />
-          </button>
-        </div>
-      ) : (
-        <button
-          type="button"
-          onClick={() => inputRef.current?.click()}
-          disabled={busy}
-          className="flex h-24 w-24 items-center justify-center rounded-2xl border border-dashed border-border text-muted-foreground transition hover:border-primary hover:text-primary disabled:opacity-60"
-        >
-          {busy ? (
-            <Loader2 className="h-5 w-5 animate-spin" />
-          ) : (
-            <UploadCloud className="h-5 w-5" />
-          )}
-        </button>
-      )}
-    </div>
-  );
-}
-
-function BannerPicker({
-  src,
-  busy,
-  onPick,
-  onClear,
-}: {
-  src: string;
-  busy: boolean;
-  onPick: (file: File) => void;
-  onClear: () => void;
-}) {
-  const inputRef = React.useRef<HTMLInputElement>(null);
-  return (
-    <div className="mt-1.5">
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file) onPick(file);
-          e.target.value = '';
-        }}
-      />
-      {src ? (
-        <div className="group relative aspect-video w-full overflow-hidden rounded-xl border border-border">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={src} alt="" className="h-full w-full object-cover" />
-          <button
-            type="button"
-            onClick={onClear}
-            aria-label="Remove banner"
-            className="absolute right-1 top-1 rounded-full bg-black/70 p-1 text-white transition hover:bg-destructive"
-          >
-            <X className="h-3 w-3" />
-          </button>
-        </div>
-      ) : (
-        <button
-          type="button"
-          onClick={() => inputRef.current?.click()}
-          disabled={busy}
-          className="flex aspect-video w-full items-center justify-center rounded-xl border border-dashed border-border text-muted-foreground transition hover:border-primary hover:text-primary disabled:opacity-60"
-        >
-          {busy ? (
-            <Loader2 className="h-5 w-5 animate-spin" />
-          ) : (
-            <UploadCloud className="h-5 w-5" />
-          )}
-        </button>
-      )}
-    </div>
-  );
-}

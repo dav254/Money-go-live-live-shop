@@ -28,7 +28,7 @@ export function ResellerSidebar() {
   const pathname = usePathname();
   const { user } = useUser();
   const { userProfile } = useUserProfile(user?.uid);
-  const isActive = (path: string) => pathname.startsWith(path);
+  const isActive = (path: string) => !!pathname && pathname.startsWith(path);
   
   return (
     <>

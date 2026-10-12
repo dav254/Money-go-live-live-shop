@@ -7,33 +7,14 @@ import { doc, updateDoc, arrayUnion, serverTimestamp } from 'firebase/firestore'
 import { useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { get as idbGet } from '@/lib/idb';
-import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { uploadMedia } from '@/lib/media/upload-client';
 
 export default function PublishButton() {
   const router = useRouter();
   const { toast } = useToast();
   const { user } = useUser();
   const firestore = useFirestore();
-  const storage = getStorage();
   const [isPublishing, setIsPublishing] = useState(false);
-
-  async function uploadToFirebase(blob: Blob): Promise<string> {
-    if (!user) throw new Error('User not found.');
-    const filename = `products/${user.uid}/studio_${Date.now()}.webm`;
-    const storageRef = ref(storage, filename);
-    const uploadTask = uploadBytesResumable(storageRef, blob);
-
-    return new Promise((resolve, reject) => {
-      uploadTask.on('state_changed',
-        null,
-        (error) => reject(error),
-        async () => {
-          const url = await getDownloadURL(uploadTask.snapshot.ref);
-          resolve(url);
-        }
-      );
-    });
-  }
 
   async function handlePublish() {
     if (!user || !firestore) {
@@ -59,8 +40,16 @@ export default function PublishButton() {
           throw new Error('Could not find the recorded video to upload.');
       }
 
-      // Upload to Firebase Storage
-      const permanentUrl = await uploadToFirebase(videoBlob);
+      // Self-hosted media engine: the clip is transcoded to H.264 and stored
+      // in products/<uid>/ on the VPS disk — never an external bucket.
+      const videoFile = new File([videoBlob], `studio_${Date.now()}.webm`, {
+        type: videoBlob.type || 'video/webm',
+      });
+      const uploaded = await uploadMedia(videoFile, user, undefined, { folder: `products/${user.uid}` }).promise;
+      if (uploaded.phase === 'failed' || !uploaded.url) {
+        throw new Error(uploaded.error || 'Media processing failed.');
+      }
+      const permanentUrl = uploaded.url;
 
       // Update the product document in Firestore
       const productRef = doc(firestore, 'products', productId);

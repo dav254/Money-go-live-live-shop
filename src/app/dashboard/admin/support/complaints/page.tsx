@@ -2,6 +2,7 @@
 'use client';
 
 import * as React from 'react';
+import { firestoreDate } from '@/lib/firestore-date';
 import { AdminLayout } from '@/components/layout/admin-layout';
 import {
   Table,
@@ -22,7 +23,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { DotsHorizontalIcon } from '@radix-ui/react-icons';
-import { useCollection, useFirestore, useMemoFirebase, useDoc } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase, useDoc, useUser, useUserProfile } from '@/firebase';
 import { collection, query, doc, updateDoc, orderBy } from 'firebase/firestore';
 import type { Complaint, UserProfile } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -62,11 +63,17 @@ const DataTableSkeleton = () => (
 
 export default function AdminComplaintsPage() {
   const firestore = useFirestore();
+  const { user } = useUser();
+  const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
   const { toast } = useToast();
+  const adminReady = !!user && !isProfileLoading &&
+    (userProfile?.userRole === 'admin' || userProfile?.role === 'admin');
+
 
   const complaintsQuery = useMemoFirebase(() => {
+    if (!firestore || !adminReady) return null;
     return query(collection(firestore, 'complaints'), orderBy('createdAt', 'desc'));
-  }, [firestore]);
+  }, [firestore, adminReady]);
 
   const { data: complaints, isLoading } = useCollection<Complaint>(complaintsQuery);
 
@@ -103,15 +110,15 @@ export default function AdminComplaintsPage() {
                 {complaints && complaints.length > 0 ? (
                   complaints.map((c) => (
                     <TableRow key={c.id}>
-                      <TableCell><UserCell userId={c.complainantId} /></TableCell>
-                      <TableCell><UserCell userId={c.targetId} /></TableCell>
+                      <TableCell><UserCell userId={c.complainantId || 'unknown'} /></TableCell>
+                      <TableCell><UserCell userId={c.targetId || 'unknown'} /></TableCell>
                       <TableCell><Badge variant="secondary">{c.reason}</Badge></TableCell>
                       <TableCell>
                         <Badge variant={c.status === 'resolved' ? 'default' : 'outline'} className={`capitalize ${c.status === 'resolved' ? 'bg-green-600/80' : ''}`}>
                           {c.status}
                         </Badge>
                       </TableCell>
-                      <TableCell>{c.createdAt?.toDate().toLocaleDateString()}</TableCell>
+                      <TableCell>{firestoreDate(c.createdAt)?.toLocaleDateString() ?? '—'}</TableCell>
                       <TableCell className="text-right">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>

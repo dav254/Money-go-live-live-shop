@@ -183,7 +183,7 @@ export default function AdminResellersPage() {
     return resellersData.map(profile => ({
       id: profile.id,
       name: profile.fullName,
-      email: profile.email,
+      email: profile.email || '',
       phone: profile.phoneNumber,
       totalCommissions: 0,
       payoutsCompleted: 0,

@@ -31,7 +31,7 @@ const PageSkeleton = () => (
 
 export default function EnhanceVideoPage() {
     const params = useParams();
-    const productId = params.productId as string;
+    const productId = (params?.productId as string) || '';
     const firestore = useFirestore();
     const { toast } = useToast();
     const router = useRouter();

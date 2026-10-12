@@ -1,37 +1,90 @@
-'use client';
+'use client'
 
-import type { User } from 'firebase/auth';
-
-/**
- * Client-side upload flow for the Vidnov media system:
- *  1. POST the file to /api/media/upload (Bearer ID token).
- *  2. Poll /api/media/status?id=... until READY or FAILED.
- *
- * Keeps the UI responsive: progress is reported while the file uploads,
- * then a friendly PROCESSING phase while the server compresses.
- */
+import type { User } from 'firebase/auth'
 
 export interface UploadProgress {
-  phase: 'uploading' | 'processing' | 'ready' | 'failed';
-  percent: number; // 0-100 during upload phase
-  url?: string;
-  thumbnailUrl?: string;
-  error?: string;
+  phase: 'uploading' | 'ready' | 'failed'
+  percent: number
+  url?: string
+  thumbnailUrl?: string
+  error?: string
 }
 
 export interface UploadHandle {
-  /** Populated as soon as the server accepts the upload (before READY). */
-  mediaId: string;
-  promise: Promise<UploadProgress>;
+  mediaId: string
+  promise: Promise<UploadProgress>
+  phase?: UploadProgress['phase']
+  url?: string
+  thumbnailUrl?: string
+  error?: string
 }
 
 export interface UploadOwnership {
-  /** Attach to a customer request → requests/request_<id>/ (private). */
-  requestId?: string;
-  /** Attach to a seller offer → requests/offer_<id>/ (private). */
-  offerId?: string;
-  /** Attach to a feed post. */
-  postId?: string;
+  requestId?: string
+  offerId?: string
+  postId?: string
+  folder?: string
+}
+
+/**
+ * Polls /api/media/status until the background processor reports READY or
+ * FAILED. The upload endpoint returns a mediaId right away (the heavy WebP /
+ * H.264 work happens off the request), so without this poll the client would
+ * resolve with no URL and the form would report "Media processing failed".
+ */
+async function pollUntilReady(
+  mediaId: string,
+  token: string,
+  report: (p: UploadProgress) => void,
+): Promise<UploadProgress> {
+  const MAX_ATTEMPTS = 120 // ~2 min ceiling for slow transcodes
+  const INTERVAL_MS = 1000
+
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+    await new Promise((r) => setTimeout(r, INTERVAL_MS))
+
+    let status: {
+      status?: string
+      url?: string
+      thumbnailUrl?: string
+      error?: string
+      retryable?: boolean
+    } = {}
+    try {
+      const res = await fetch(`/api/media/status?id=${encodeURIComponent(mediaId)}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (res.status === 503) continue // transient backend load — back off and retry
+      status = (await res.json()) as typeof status
+    } catch {
+      continue // network blip — keep polling
+    }
+
+    if (status.status === 'READY' && status.url) {
+      return {
+        phase: 'ready',
+        percent: 100,
+        url: status.url,
+        thumbnailUrl: status.thumbnailUrl,
+      }
+    }
+    if (status.status === 'FAILED') {
+      return {
+        phase: 'failed',
+        percent: 100,
+        error: status.error || 'Media processing failed.',
+      }
+    }
+
+    // Still UPLOADING / PROCESSING — show indeterminate progress and keep waiting.
+    report({ phase: 'uploading', percent: 95 })
+  }
+
+  return {
+    phase: 'failed',
+    percent: 100,
+    error: 'Media processing timed out. Please try again.',
+  }
 }
 
 export function uploadMedia(
@@ -40,97 +93,113 @@ export function uploadMedia(
   onProgress?: (p: UploadProgress) => void,
   ownership?: UploadOwnership,
 ): UploadHandle {
-  const report = (p: UploadProgress) => onProgress?.(p);
+  const report = (p: UploadProgress) => onProgress?.(p)
 
-  // Resolve before the promise so callers that inspect the handle
-  // immediately (or after await) see the real id.
-  const handle: UploadHandle = { mediaId: '', promise: null as unknown as Promise<UploadProgress> };
+  const handle: UploadHandle = {
+    mediaId: '',
+    promise: Promise.resolve({ phase: 'ready', percent: 100 } as UploadProgress),
+    phase: 'uploading',
+  }
 
-  handle.promise = new Promise<UploadProgress>((resolve, reject) => {
-    (async () => {
+  const fail = (
+    resolve: (p: UploadProgress) => void,
+    message: string,
+  ) => {
+    const error: UploadProgress = { phase: 'failed', percent: 100, error: message }
+    report(error)
+    handle.phase = 'failed'
+    handle.error = message
+    resolve(error)
+  }
+
+  handle.promise = new Promise<UploadProgress>((resolve) => {
+    ;(async () => {
       try {
         if (!user) {
-          throw new Error('You must be signed in to upload media.');
+          fail(resolve, 'You must be signed in to upload media.')
+          return
         }
-        const token = await user.getIdToken();
 
-        // 1. Upload with progress.
-        const mediaId = await new Promise<string>((res, rej) => {
-          const xhr = new XMLHttpRequest();
-          xhr.open('POST', '/api/media/upload');
-          xhr.setRequestHeader('Authorization', `Bearer ${token}`);
-          xhr.upload.onprogress = (e) => {
-            if (e.lengthComputable) {
-              report({ phase: 'uploading', percent: Math.round((e.loaded / e.total) * 100) });
-            }
-          };
-          xhr.onload = () => {
-            try {
-              const body = JSON.parse(xhr.responseText || '{}');
-              if (xhr.status >= 200 && xhr.status < 300 && body.mediaId) res(body.mediaId);
-              else rej(new Error(body.error || `Upload rejected (${xhr.status}).`));
-            } catch {
-              rej(new Error('Upload failed (invalid server response).'));
-            }
-          };
-          xhr.onerror = () => rej(new Error('Network error during upload.'));
-          xhr.ontimeout = () => rej(new Error('Upload timed out.'));
-          const form = new FormData();
-          form.append('file', file);
-          if (ownership?.postId) form.append('postId', ownership.postId);
-          if (ownership?.requestId) form.append('requestId', ownership.requestId);
-          if (ownership?.offerId) form.append('offerId', ownership.offerId);
-          xhr.send(form);
-        });
-
-        // Surface the id immediately — callers may need it before READY.
-        handle.mediaId = mediaId;
-
-        // 2. Poll processing status.
-        report({ phase: 'processing', percent: 100 });
-        const started = Date.now();
-        const timeoutMs = 5 * 60_000; // videos may take a while on a small VPS
-        while (Date.now() - started < timeoutMs) {
-          await new Promise((r) => setTimeout(r, 1500));
-          const res = await fetch(`/api/media/status?id=${encodeURIComponent(mediaId)}`);
-          if (!res.ok) continue; // transient — keep polling
-          const data = await res.json();
-          if (data.status === 'READY') {
-            const done: UploadProgress = {
-              phase: 'ready',
-              percent: 100,
-              url: data.url,
-              thumbnailUrl: data.thumbnailUrl,
-            };
-            report(done);
-            resolve(done);
-            return;
-          }
-          if (data.status === 'FAILED') {
-            const failed: UploadProgress = {
-              phase: 'failed',
-              percent: 100,
-              error: data.error || 'Processing failed.',
-            };
-            report(failed);
-            resolve(failed);
-            return;
-          }
+        const token = await user.getIdToken()
+        if (!token) {
+          fail(resolve, 'You must be signed in to upload media.')
+          return
         }
-        const timedOut: UploadProgress = { phase: 'failed', percent: 100, error: 'Processing timed out.' };
-        report(timedOut);
-        resolve(timedOut);
+
+        const mediaId = crypto.randomUUID()
+        handle.mediaId = mediaId
+        report({ phase: 'uploading', percent: 0 })
+
+        const form = new FormData()
+        form.append('file', file)
+        if (ownership?.postId) form.append('postId', ownership.postId)
+        if (ownership?.requestId) form.append('requestId', ownership.requestId)
+        if (ownership?.offerId) form.append('offerId', ownership.offerId)
+        if (ownership?.folder) form.append('folder', ownership.folder)
+
+        const res = await fetch('/api/media/upload', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+          body: form,
+        })
+
+        let data: {
+          mediaId?: string
+          url?: string
+          thumbnailUrl?: string
+          error?: string
+          message?: string
+        } = {}
+        try {
+          data = (await res.json()) as typeof data
+        } catch {
+          /* ignore non-JSON body */
+        }
+
+        if (!res.ok || !data.mediaId) {
+          const detail =
+            typeof data?.error === 'string'
+              ? data.error
+              : typeof data?.message === 'string'
+                ? data.message
+                : `Server rejected the upload (${res.status}).`
+          throw new Error(detail || 'Server rejected the upload.')
+        }
+
+        handle.mediaId = data.mediaId
+        report({ phase: 'uploading', percent: 90 })
+
+        // Images and raw files are processed synchronously and come back with a
+        // final URL already — resolve immediately, no polling. Only videos are
+        // transcoded in the background (no url yet), so only those poll.
+        if (data.url) {
+          const done: UploadProgress = {
+            phase: 'ready',
+            percent: 100,
+            url: data.url,
+            thumbnailUrl: data.thumbnailUrl,
+          }
+          report(done)
+          handle.phase = done.phase
+          handle.url = done.url
+          handle.thumbnailUrl = done.thumbnailUrl
+          resolve(done)
+          return
+        }
+
+        // Async video: poll the disk-backed status endpoint until READY.
+        const final = await pollUntilReady(data.mediaId, token, report)
+        report(final)
+        handle.phase = final.phase
+        handle.url = final.url
+        handle.thumbnailUrl = final.thumbnailUrl
+        if (final.phase === 'failed') handle.error = final.error
+        resolve(final)
       } catch (err) {
-        const failed: UploadProgress = {
-          phase: 'failed',
-          percent: 100,
-          error: err instanceof Error ? err.message : 'Upload failed.',
-        };
-        report(failed);
-        reject(err);
+        fail(resolve, err instanceof Error ? err.message : 'Upload failed.')
       }
-    })();
-  });
+    })()
+  })
 
-  return handle;
+  return handle
 }

@@ -70,6 +70,11 @@ export const MEDIA_CONFIG = {
   REQUEST_MAX_VIDEOS: num(process.env.VIDNOV_MAX_REQUEST_VIDEOS, 8),
   OFFER_MAX_IMAGES: num(process.env.VIDNOV_MAX_OFFER_IMAGES, 5),
   OFFER_MAX_VIDEOS: num(process.env.VIDNOV_MAX_OFFER_VIDEOS, 2),
+
+  // Generic FILE uploads stored as-is into a user folder (chat attachments,
+  // support tickets, verification documents). Not transcoded — kept byte for
+  // byte, so the cap stays small on purpose.
+  FILE_MAX_UPLOAD_MB: num(process.env.VIDNOV_MAX_FILE_UPLOAD_MB, 25),
   // Deleted request media retention before hard deletion (days, spec §33/34).
   DELETED_MEDIA_RETENTION_DAYS: num(process.env.VIDNOV_DELETED_MEDIA_RETENTION_DAYS, 7),
 
@@ -79,8 +84,20 @@ export const MEDIA_CONFIG = {
   STORAGE_CRITICAL_PERCENT: num(process.env.VIDNOV_STORAGE_CRITICAL_PERCENT, 90),
   STORAGE_EMERGENCY_PERCENT: num(process.env.VIDNOV_STORAGE_EMERGENCY_PERCENT, 95),
 
-  // Temp file retention (hours) before cleanup removes abandoned uploads
-  TEMP_RETENTION_HOURS: num(process.env.VIDNOV_TEMP_RETENTION_HOURS, 6),
+  // Temp file retention (minutes) before the cleanup sweeper removes
+  // abandoned uploads. Uploads in a vid-* work dir are removed by the
+  // pipeline's finally block, so that is not what this setting protects.
+  TEMP_RETENTION_MINUTES: num(process.env.VIDNOV_TEMP_RETENTION_MINUTES, 20),
+  // Maximum open uploads the cron loop may sweep per invocation (0 = unlimited).
+  // Crew use 0/1 when they run it by hand; CI use 1 so a sweep of a full disk
+  // cannot bounce a build for minutes.
+  MAX_TEMP_BEFORE_CRON: num(process.env.VIDNOV_MAX_TEMP_BEFORE_CRON, 1),
+  /**
+   * Enables the cron entry point. Off by default — a build can only consume
+   * the temp directory while it is actively being filled, so it is safe to
+   * disable for CI and local runs.
+   */
+  CRON_ENABLED: bool(process.env.VIDNOV_CRON_ENABLED, false),
 } as const;
 
 /** Root for all permanent (processed) media. */

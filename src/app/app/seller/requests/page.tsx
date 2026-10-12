@@ -3,9 +3,10 @@
 import * as React from 'react';
 import Link from 'next/link';
 import {
-  CalendarDays, CheckCircle2, ChevronDown, Eye, Handshake, Loader2, MapPin,
+  Bell, CalendarDays, CheckCircle2, ChevronDown, Eye, Handshake, Loader2, MapPin,
   MessageSquareText, Send, Sparkles, Store, Truck, Users,
 } from 'lucide-react';
+import { doc, getDoc } from 'firebase/firestore';
 import { useFirestore, useUser } from '@/firebase';
 import {
   createOfferDraft,
@@ -77,6 +78,7 @@ type Tab = 'open' | 'won';
 
 export default function AppSellerRequestsPage() {
   const { user, isLoading: authLoading } = useUser();
+  const firestore = useFirestore();
 
   const [tab, setTab] = React.useState<Tab>('open');
   const [open, setOpen] = React.useState<MarketplaceRequest[] | null>(null);
@@ -84,6 +86,35 @@ export default function AppSellerRequestsPage() {
   const [offers, setOffers] = React.useState<OfferWithMedia[] | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [expanded, setExpanded] = React.useState<string | null>(null);
+  // The shop's own category — this screen's whole promise is that a buyer's
+  // brief in THIS category is visibly the seller's to answer.
+  const [myCategory, setMyCategory] = React.useState('');
+
+  React.useEffect(() => {
+    if (!user || !firestore) return;
+    let alive = true;
+    getDoc(doc(firestore, 'sellerShops', user.uid))
+      .then((snap) => {
+        if (!alive) return;
+        const data = snap.data() as { category?: string } | undefined;
+        setMyCategory((data?.category ?? '').trim());
+      })
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [user, firestore]);
+
+  // Notification deep link: a same-category alert arrives as
+  // `/app/seller/requests?open=<id>` (see request-service fanOutToMatches), so
+  // the seller lands on the screen with that brief already expanded. Read from
+  // `window` rather than `useSearchParams` to keep the route prerenderable.
+  React.useEffect(() => {
+    const openId = new URLSearchParams(window.location.search).get('open');
+    if (!openId) return;
+    setTab('open');
+    setExpanded(openId);
+  }, []);
 
   // Each queue is an independent failure. One that fails must not blank the
   // others — a seller can still win work off "Open briefs" if "My deals" 500s.
@@ -145,6 +176,18 @@ export default function AppSellerRequestsPage() {
     [offers],
   );
 
+  const sameCategory = React.useCallback(
+    (request: MarketplaceRequest) =>
+      Boolean(myCategory) &&
+      (request.category ?? '').trim().toLowerCase() === myCategory.toLowerCase(),
+    [myCategory],
+  );
+
+  const categoryMatchCount = React.useMemo(
+    () => (open ?? []).filter((request) => sameCategory(request)).length,
+    [open, sameCategory],
+  );
+
   const loading = authLoading || (!open && !won);
 
   const stats = [
@@ -181,6 +224,24 @@ export default function AppSellerRequestsPage() {
           </div>
         ))}
       </section>
+
+      {/* ── Same category as the shop? Say so out loud ───────────────── */}
+      {tab === 'open' && categoryMatchCount > 0 && (
+        <Link
+          href="/app/seller/notifications"
+          className="mx-4 flex items-start gap-2.5 rounded-2xl border border-primary/40 bg-primary/10 px-3.5 py-3 transition hover:border-primary"
+        >
+          <Bell className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+          <span className="text-xs leading-relaxed">
+            <span className="font-semibold text-foreground">
+              {categoryMatchCount} open brief {categoryMatchCount === 1 ? 'is' : 'are'} in {myCategory}
+            </span>{' '}
+            <span className="text-muted-foreground">
+              — the same category as your shop. You were notified the moment each one was posted.
+            </span>
+          </span>
+        </Link>
+      )}
 
       {/* ── Two queues ─────────────────────────────────────────────────── */}
       <section className="px-4">
@@ -277,6 +338,11 @@ export default function AppSellerRequestsPage() {
                       <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-primary">
                         {request.requestNumber || request.category}
                       </p>
+                      {sameCategory(request) && (
+                        <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-primary">
+                          <Sparkles className="h-2.5 w-2.5" /> Your category
+                        </span>
+                      )}
                       <h2 className="mt-1 truncate text-base font-semibold leading-snug text-foreground">
                         {request.title}
                       </h2>

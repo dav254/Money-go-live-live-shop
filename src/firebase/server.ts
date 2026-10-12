@@ -2,7 +2,6 @@
 import { initializeApp, getApps, App, cert } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { getAuth } from 'firebase-admin/auth';
-import { getStorage } from 'firebase-admin/storage';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -55,8 +54,7 @@ function initializeAdminApp(): App {
 
   const { credential, usingAdc } = loadCredential();
   const options: Parameters<typeof initializeApp>[0] = {
-    storageBucket: "studio-1725493862-5cb95.firebasestorage.app"
-  };
+    };
 
   if (!usingAdc && credential) {
     options.credential = credential;
@@ -74,6 +72,6 @@ function initializeAdminApp(): App {
 const app = initializeAdminApp();
 const db = getFirestore(app);
 const auth = getAuth(app);
-const bucket = getStorage(app).bucket();
+const bucket = undefined;
 
-export { db, auth, bucket };
+export { db, auth };

@@ -47,7 +47,7 @@ function InvoiceSkeleton() {
 
 export default function InvoiceViewPage() {
     const params = useParams();
-    const orderId = params.orderId as string;
+    const orderId = (params?.orderId as string) || '';
     const firestore = useFirestore();
 
     const orderRef = useMemoFirebase(() => doc(firestore, 'orders', orderId), [firestore, orderId]);

@@ -29,7 +29,7 @@ const PageSkeleton = () => (
 
 export default function GenerateImagePage() {
     const params = useParams();
-    const productId = params.productId as string;
+    const productId = (params?.productId as string) || '';
     const firestore = useFirestore();
     const { toast } = useToast();
     const router = useRouter();
@@ -58,8 +58,6 @@ export default function GenerateImagePage() {
             // Note: The flow is misnamed, but we are calling it as intended.
             const result = await generateVideoFromImage({
                 productId: product.id,
-                // imageDataUri is not used by the updated flow, but we pass an empty string to satisfy the type.
-                imageDataUri: '', 
                 prompt: prompt
             });
             setGeneratedImageUrl(result.videoUrl); // The flow returns the URL in a 'videoUrl' field

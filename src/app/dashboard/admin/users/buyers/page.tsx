@@ -193,7 +193,7 @@ export default function AdminBuyersPage() {
     return buyersData.map(profile => ({
       id: profile.id,
       name: profile.fullName,
-      email: profile.email,
+      email: profile.email || '',
       phone: profile.phoneNumber,
       ordersCount: 0,
       walletBalance: 0.00,

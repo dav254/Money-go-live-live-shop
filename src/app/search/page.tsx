@@ -18,7 +18,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 function SearchResults() {
     const searchParams = useSearchParams();
-    const queryTerm = searchParams.get('q')?.toLowerCase() || '';
+    const queryTerm = searchParams?.get('q')?.toLowerCase() || '';
     const firestore = useFirestore();
 
     // Fetch all products to filter locally (Firestore doesn't do substring search well)

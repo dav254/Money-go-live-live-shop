@@ -85,11 +85,19 @@ export function ProductCard({ product }: ProductCardProps) {
     });
   };
   
-  const hasVideo = product.videoUrl || (product.videoUrls && product.videoUrls.length > 0);
-  const mediaUrl = hasVideo ? (product.videoUrl || product.videoUrls![0]) : product.imageUrl;
-  // Vidnov feed optimization: cards/thumbnails use the lightweight 400px
-  // preview; the full video is only fetched when the user actually plays it.
-  const thumbnailUrl = product.thumbnailUrls?.[0] || product.imageUrl;
+  const imageUrls = product.imageUrls && product.imageUrls.length ? product.imageUrls : product.imageUrl ? [product.imageUrl] : [];
+  const videoUrls = product.videoUrls && product.videoUrls.length ? product.videoUrls : product.videoUrl ? [product.videoUrl] : [];
+  const thumbnailUrls = product.thumbnailUrls && product.thumbnailUrls.length ? product.thumbnailUrls : imageUrls;
+
+  const hasImage = imageUrls.length > 0;
+  const hasVideo = videoUrls.length > 0;
+
+  const coverUrl = imageUrls[0] || '';
+  const thumbnailUrl = thumbnailUrls[0] || coverUrl || '';
+
+  // Discovery media: show the newest available non-empty image/video as the
+  // card media, the same way the upload form writes images then videos.
+  const mediaUrl = hasVideo ? videoUrls.find(Boolean) || '' : coverUrl;
 
 
   return (

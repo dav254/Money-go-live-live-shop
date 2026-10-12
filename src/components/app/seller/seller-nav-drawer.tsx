@@ -8,6 +8,8 @@ import {
   Bell,
   BellRing,
   ChevronRight,
+  Coins,
+  Compass,
   CreditCard,
   Gift,
   Headphones,
@@ -15,6 +17,7 @@ import {
   Inbox,
   MapPin,
   MessageSquare,
+  QrCode,
   Radio,
   Sparkles,
   Store,
@@ -114,6 +117,10 @@ const GROUPS: DrawerGroup[] = [
     label: 'Create & broadcast',
     items: [
       { key: 'live', label: 'Live studio', href: '/app/seller/live', icon: Radio, tone: 'live' },
+      // The seller's own Discovery screen — the shared feed from
+      // `components/discovery`, rendered in this section's chrome. A seller
+      // and a buyer looking at Discovery are looking at the same list.
+      { key: 'discovery', label: 'Discovery', href: '/app/seller/discovery', icon: Compass },
       {
         key: 'ai-studio',
         label: 'AI Studio',
@@ -136,6 +143,15 @@ const GROUPS: DrawerGroup[] = [
         // `/sellers/{uid}`. Same rule as Messages: the app never links out.
         href: '/app/seller/shop',
         icon: Store,
+      },
+      // The share section: the shop's QR code, its link, and the download.
+      // Sitting directly under "View my shop" because it answers the question
+      // that comes straight after — "how do I get buyers to it?".
+      {
+        key: 'share',
+        label: 'Share & QR',
+        href: '/app/seller/share',
+        icon: QrCode,
       },
       {
         key: 'business',
@@ -167,6 +183,10 @@ const GROUPS: DrawerGroup[] = [
       // Invite other sellers. A seller who recruits three sellers brings their
       // catalogues and audiences with them, which no buyer-side programme can do.
       { key: 'rewards', label: 'Invite & earn', href: '/app/seller/rewards', icon: Gift },
+      // The points balance — what the seller owns and where to top it up. It
+      // used to be a number buried inside AI Studio, so the section had no
+      // answer to "how many points do I have" at all.
+      { key: 'points', label: 'AI Points', href: '/app/seller/points', icon: Coins },
       // What reaches the seller's phone. Separate from the notifications inbox
       // for the same reason as the buyer's: one is a history, one is a setting.
       {
@@ -275,7 +295,7 @@ export function SellerNavDrawer({
         <nav className="flex-1 overflow-y-auto overscroll-contain px-3 py-4">
           {GROUPS.map((group) => (
             <div key={group.label} className="mb-5 last:mb-0">
-              <p className="px-3 pb-2 text-[9px] font-semibold uppercase tracking-[0.25em] text-muted-foreground/70">
+              <p className="px-3 pb-2 text-[9px] font-semibold uppercase tracking-[0.25em] text-white/60">
                 {group.label}
               </p>
               <ul className="space-y-0.5">
@@ -287,10 +307,9 @@ export function SellerNavDrawer({
                         href={item.href}
                         aria-current={active ? 'page' : undefined}
                         className={cn(
-                          'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition',
-                          active
-                            ? 'bg-gradient-to-r from-amber-500/20 to-red-500/10 text-amber-500 ring-1 ring-inset ring-amber-500/30'
-                            : 'text-foreground/80 hover:bg-white/5 hover:text-foreground',
+                          'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition',                            active
+                              ? 'bg-gradient-to-r from-amber-500/20 to-red-500/10 text-amber-500 ring-1 ring-inset ring-amber-500/30'
+                              : 'text-white hover:bg-white/5 hover:text-white',
                         )}
                       >
                         <span

@@ -1,5 +1,6 @@
 
 import { Timestamp } from 'firebase/firestore';
+import type { SocialLink } from '@/lib/social-links';
 
 export interface UserProfile {
     id: string;
@@ -140,6 +141,19 @@ export interface ChatMessage {
 export interface Product {
     id: string;
     /**
+     * Reseller programme opt-in, toggled from the seller's commission table.
+     */
+    isResellable?: boolean;
+    /**
+     * Share counter shown on the reseller's share button.
+     */
+    clickCount?: number;
+    /**
+     * Stable AI image hint paired with `imageUrl` — read by the feed drawer
+     * so a photo swap keeps its caption.
+     */
+    imageHint?: string;
+    /**
      * A service is the same document as a product, not a parallel universe.
      *
      * A plumber has no stock, but a listing is still a name, a price (or a
@@ -200,6 +214,7 @@ export interface Product {
     uploadDate: any;
     rating?: number;
     shippingCost?: number;
+    vendorLocation?: string;
     salesCount?: number;
     coupon?: {
         code: string;
@@ -208,6 +223,42 @@ export interface Product {
     };
     hasVideo?: boolean;
     updatedAt?: any;
+    /**
+     * Stock-keeping unit for a sized/variant product.
+     *
+     * Additive: a single-size listing just leaves this off and the product
+     * records itself. A listing that publishes `variations` is expected to also
+     * carry a SKU per published style (left optional here, the seller picks
+     * the shape), so nothing older breaks.
+     */
+    SKU?: string;
+    /**
+     * Size / colour style options, when a seller has published any.
+     *
+     * OPTIONAL and currently write-only from Discovery's point of view: the
+     * upload form does not collect variations yet, so most listings have none
+     * and the details panel simply omits the block rather than rendering an
+     * empty one. Adding it to the form is the missing piece — the shape is
+     * declared here so that work does not have to invent a second schema.
+     */
+    variations?: { name: string; options: string[]; SKU?: string }[];
+    /**
+     * Sponsored placement.
+     *
+     * ADDITIVE: a listing is organic until it says otherwise, so nothing about
+     * existing inventory changes. Discovery reads it as "the seller paid for
+     * this slot", renders a visible Sponsored label, and never lets a paid
+     * listing masquerade as an organic recommendation.
+     */
+    sponsored?: boolean;
+    /**
+     * When the paid placement lapses (ISO string or epoch ms). Absent means the
+     * placement never expires — which is what keeps an old campaign from
+     * running forever once the spend cap it was bought with has been retired.
+     */
+    promotedUntil?: any;
+    /** Count of genuine customer reviews, mirrored from `reviews`. */
+    reviewsCount?: number;
 }
 
 export interface SellerShop {
@@ -230,6 +281,12 @@ export interface SellerShop {
     country?: string;
     stateProvince?: string;
     cityTown?: string;
+    /**
+     * Free-form social links. The three fields below are the original,
+     * platform-limited design and are still read as a fallback — see
+     * `mergeSocialLinks` in `src/lib/social-links.ts`. New links go here.
+     */
+    socialLinks?: SocialLink[];
     facebookUrl?: string;
     instagramUrl?: string;
     twitterUrl?: string;
@@ -246,8 +303,8 @@ export type Seller = {
   id: string;
   sellerId: string;
   name: string;
-  avatar: { imageUrl: string; imageHint: string };
-  banner: { imageUrl: string; imageHint: string };
+  avatar: { id?: string; imageUrl: string; description?: string; imageHint: string };
+  banner: { id?: string; imageUrl: string; description?: string; imageHint: string };
   bio: string;
   description: string;
   isVerified: boolean;
@@ -261,14 +318,14 @@ export type Seller = {
   deliveryPolicy?: string;
   storeHours?: string;
   contactWhatsapp?: string;
-  contactPhone?: string;
-  contactEmail?: string;
-  facebookUrl?: string;
-  instagramUrl?: string;
-  twitterUrl?: string;
-  targetLocations?: string[];
-  /**
-   * Drives the "Fast Delivery" badge. Declared optional because the shop page
+  contactPhone?: string;contactEmail?: string;
+    socialLinks?: SocialLink[];
+    facebookUrl?: string;
+    instagramUrl?: string;
+    twitterUrl?: string;
+    targetLocations?: string[];
+    /**
+     * Drives the "Fast Delivery" badge. Declared optional because the shop page
    * sets it from shop data that predates the flag — an absent value means the
    * badge simply does not render, which is the safe reading of unknown.
    */
@@ -305,7 +362,16 @@ export type Comment = {
 
 export type VideoFeedItem = {
   id: string;
-  video: { imageUrl: string; type: 'image' | 'video' };
+  video: {
+    id?: string;
+    imageUrl: string;
+    description?: string;
+    imageHint?: string;
+    /** The discriminator the feed cards were typed against. */
+    type?: 'image' | 'video';
+    /** What the producing page set from the product's video URL. */
+    mediaType?: 'image' | 'video';
+  };
   seller: Seller;
   product: Product;
   viewers: number;
@@ -367,7 +433,7 @@ export interface WalletTransaction {
 export interface Notification {
     id: string;
     userId: string;
-    type: 'order' | 'commission' | 'message' | 'announcement' | 'invoice';
+    type: 'order' | 'commission' | 'message' | 'announcement' | 'invoice' | 'payout';
     title: string;
     message: string;
     link?: string;
@@ -503,9 +569,31 @@ export interface Complaint {
   reason?: string;
   description?: string;
   details?: string;
-  status: 'open' | 'resolved' | 'dismissed';
+  /** The order a report is about, when the reporter filed it against one. */
+  orderId?: string;
+  /** `investigating` is a real state — the violations console filters on it. */
+  status: 'open' | 'investigating' | 'resolved' | 'dismissed';
   createdAt?: unknown;
   resolvedAt?: unknown;
+}
+
+/** A saved buyer payment method (`userProfiles/{uid}/paymentMethods`). */
+export interface PaymentMethod {
+  type: 'card' | 'paypal';
+  /** Human-readable summary, e.g. `Visa **** 1234` or the PayPal email. */
+  details: string;
+  providerToken?: string;
+}
+
+/** A knowledge-base article shown in the role help centres (`helpArticles`). */
+export interface HelpArticle {
+  /** Present on every document read from Firestore (`WithId` adds it too). */
+  id: string;
+  question: string;
+  answer: string;
+  category?: string;
+  /** Which sections the article is served to, e.g. `['buyer', 'seller']`. */
+  audience?: string[];
 }
 
 /** A captured payment/transaction record surfaced in admin finance. */
@@ -620,13 +708,13 @@ export interface BoostRequest {
   postUrl?: string;
   budget?: number;
   currency?: string;
-  status: 'pending' | 'approved' | 'rejected' | 'completed' | 'active';
+  status: 'draft' | 'pending' | 'approved' | 'rejected' | 'completed' | 'active';
   connections?: number;
   createdAt?: unknown;
   reviewedAt?: unknown;
   note?: string;
   rejectionReason?: string;
-  /** Targeting options captured on the request form. */
+  /** Audience targeting captured on the request form. */
   targeting?: {
     age?: string;
     counties?: string[];
@@ -638,7 +726,17 @@ export interface BoostRequest {
   caption?: string;
   pointsPaid?: number;
   durationDays?: number;
-  target?: string;
+  /**
+   * The audience the boost targets — written as an object by the ads form
+   * (`{ age, counties, interests }`) and read as one by both admin consoles.
+   * It was declared `string` here, which made every one of those reads a type
+   * error.
+   */
+  target?: {
+    age?: string;
+    counties?: string[];
+    interests?: string[];
+  };
   updatedAt?: unknown;
   analytics?: {
     views?: number;

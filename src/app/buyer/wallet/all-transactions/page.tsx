@@ -22,6 +22,21 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where, orderBy } from 'firebase/firestore';
 
+/**
+ * `Payment.paymentDate` is `unknown` in the ledger type; at runtime it is a
+ * Firestore Timestamp (or a Date on older docs). Reading `.toDate()` straight
+ * off `unknown` was the type error — this is the one place that knows the
+ * shape, and it returns null for anything unrecognised rather than throwing
+ * in the middle of a table render.
+ */
+const paymentDateOf = (value: unknown): Date | null => {
+    if (!value) return null;
+    if (value instanceof Date) return value;
+    const maybe = value as { toDate?: () => Date };
+    if (typeof maybe.toDate === 'function') return maybe.toDate();
+    return null;
+};
+
 const DownloadReportDialog = ({ payments }: { payments: Payment[] }) => {
     const [date, setDate] = React.useState<DateRange | undefined>({
       from: addDays(new Date(), -30),
@@ -43,8 +58,8 @@ const DownloadReportDialog = ({ payments }: { payments: Payment[] }) => {
             const toDate = date?.to ? format(date.to, 'yyyy-MM-dd') : 'end';
             
             const filteredPayments = payments.filter(tx => {
-                if (!tx.paymentDate) return false;
-                const txDate = tx.paymentDate.toDate();
+                const txDate = paymentDateOf(tx.paymentDate);
+                if (!txDate) return false;
                 const from = date?.from ? new Date(date.from.setHours(0,0,0,0)) : new Date(0);
                 const to = date?.to ? new Date(date.to.setHours(23,59,59,999)) : new Date();
                 return txDate >= from && txDate <= to;
@@ -62,7 +77,7 @@ const DownloadReportDialog = ({ payments }: { payments: Payment[] }) => {
                 const headers = "Date,Type,Description,Status,Amount (USD)";
                 const rows = filteredPayments.map(tx => {
                     const description = tx.orderId ? `Order #${tx.orderId.substring(0,8)}...` : 'AI Points Purchase';
-                    return `${format(tx.paymentDate!.toDate(), 'yyyy-MM-dd')},${tx.transactionType},"${description}",${tx.paymentStatus},${tx.amount}`;
+                    return `${format(paymentDateOf(tx.paymentDate) ?? new Date(0), 'yyyy-MM-dd')},${tx.transactionType},"${description}",${tx.paymentStatus},${tx.amount}`;
                 });
                 const csvContent = [headers, ...rows].join("\n");
                 const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -82,10 +97,10 @@ const DownloadReportDialog = ({ payments }: { payments: Payment[] }) => {
                     startY: 30,
                     head: [['Date', 'Type', 'Description', 'Status', 'Amount (USD)']],
                     body: filteredPayments.map(tx => [
-                        format(tx.paymentDate!.toDate(), 'yyyy-MM-dd'),
-                        tx.transactionType?.replace('-', ' '),
+                        format(paymentDateOf(tx.paymentDate) ?? new Date(0), 'yyyy-MM-dd'),
+                        tx.transactionType?.replace('-', ' ') ?? '',
                         tx.orderId ? `Order #${tx.orderId.substring(0,8)}...` : 'AI Points Purchase',
-                        tx.paymentStatus,
+                        tx.paymentStatus ?? '',
                         `$${tx.amount.toFixed(2)}`
                     ]),
                 });
@@ -216,7 +231,7 @@ export default function AllTransactionsPage() {
                                     {transactions && transactions.length > 0 ? (
                                         transactions.map((tx) => (
                                             <TableRow key={tx.id}>
-                                                <TableCell className="text-muted-foreground">{tx.paymentDate?.toDate().toLocaleDateString('en-us', { year:"numeric", month:"short", day:"numeric"})}</TableCell>
+                                                <TableCell className="text-muted-foreground">{paymentDateOf(tx.paymentDate)?.toLocaleDateString('en-us', { year:"numeric", month:"short", day:"numeric"})}</TableCell>
                                                 <TableCell><Badge variant="outline" className="capitalize">{tx.transactionType?.replace('-', ' ')}</Badge></TableCell>
                                                 <TableCell className="font-medium">
                                                     {tx.orderId ? `Order #${tx.orderId.substring(0,8)}...` : 'AI Points Purchase'}

@@ -102,7 +102,7 @@ export function MyProductsTable() {
     setIsEditDialogOpen(true);
   }, []);
 
-  const columns: ColumnDef<ProductRow>[] = React.useMemo(() => [
+    const columns: ColumnDef<Product>[] = React.useMemo(() => [
     {
       id: 'select',
       header: ({ table }) => (

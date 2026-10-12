@@ -73,6 +73,7 @@ export default function SellerShopPage(props: { params: Promise<{ sellerId: stri
         facebookUrl: shopData.facebookUrl,
         instagramUrl: shopData.instagramUrl,
         twitterUrl: shopData.twitterUrl,
+        socialLinks: shopData.socialLinks,
         contactWhatsapp: shopData.contactWhatsapp,
         contactPhone: shopData.contactPhone,
         contactEmail: shopData.contactEmail,

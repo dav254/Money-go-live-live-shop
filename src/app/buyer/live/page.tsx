@@ -18,7 +18,6 @@ export const dynamic = 'force-dynamic';
 
 function RealtimeVideoCard({ product, isIntersecting, onScroll }: { product: Product; isIntersecting: boolean, onScroll: (direction: 'up' | 'down') => void; }) {
     const firestore = useFirestore();
-    
     const sellerShopRef = useMemoFirebase(() => {
         if (!firestore || !product.sellerId) return null;
         return doc(firestore, 'sellerShops', product.sellerId);
@@ -117,6 +116,7 @@ export default function BuyerLiveFeedPage() {
 
     const { data: products, isLoading: areProductsLoading } = useCollection<Product>(productsQuery);
     const isLoading = isUserLoading || areProductsLoading;
+
 
     const handleScroll = useCallback((direction: 'up' | 'down') => {
         const container = scrollContainerRef.current;

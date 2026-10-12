@@ -11,9 +11,9 @@ import {
   addDoc, arrayUnion, collection, doc, increment,
   orderBy, query, serverTimestamp, updateDoc, where, writeBatch,
 } from 'firebase/firestore';
-import { getDownloadURL, ref, uploadBytesResumable } from 'firebase/storage';
+import { uploadMedia } from '@/lib/media/upload-client';
 import {
-  useCollection, useDoc, useFirestore, useMemoFirebase, useStorage, useUser,
+  useCollection, useDoc, useFirestore, useMemoFirebase, useUser,
 } from '@/firebase';
 import type { Chat, ChatMessage, Order, Product, UserProfile } from '@/lib/types';
 import { ListingThumb } from '@/components/app/seller/listing-thumb';
@@ -82,10 +82,6 @@ export function SellerThread({
   onDeleted: () => void;
 }) {
   const firestore = useFirestore();
-  // Surface-bound storage. Bare `getStorage()` looks for the `[DEFAULT]` app,
-  // which this project never creates, so it threw `app/no-app` the moment the
-  // seller pressed record.
-  const storage = useStorage();
   const { toast } = useToast();
 
   const [draft, setDraft] = React.useState('');
@@ -195,39 +191,37 @@ export function SellerThread({
 
   const upload = React.useCallback(
     (file: File, messageType: 'image' | 'video' | 'file', duration?: number) => {
-    const task = uploadBytesResumable(
-      ref(storage, `chats/${chat.id}/${Date.now()}_${file.name}`),
-      file,
-    );
-    setUploadPct(0);
-    task.on(
-      'state_changed',
-      (s) => setUploadPct((s.bytesTransferred / s.totalBytes) * 100),
-      () => {
-        setUploadPct(null);
-        toast({ variant: 'destructive', title: 'Upload failed' });
-      },
-      async () => {
+      // Self-hosted media engine — the file lands in chats/<chatId>/ on the
+      // VPS disk instead of an external storage bucket.
+      setUploadPct(0);
+      void (async () => {
         try {
-          const mediaUrl = await getDownloadURL(task.snapshot.ref);
+          const result = await uploadMedia(
+            file,
+            currentUser,
+            (p) => setUploadPct(p.percent),
+            { folder: `chats/${chat.id}` },
+          ).promise;
+          if (result.phase === 'failed' || !result.url) {
+            throw new Error(result.error || 'Upload failed.');
+          }
           await send({
             messageType,
-            mediaUrl,
+            mediaUrl: result.url,
             // `duration` is only meaningful for a voice note; the website's
             // player reads it to render the length on the bubble.
             mediaMetadata: { name: file.name, size: file.size, type: file.type, duration },
           });
           setAtBottom(true);
         } catch {
-          toast({ variant: 'destructive', title: 'Could not send the file' });
+          toast({ variant: 'destructive', title: 'Upload failed' });
         } finally {
           setUploadPct(null);
           if (fileRef.current) fileRef.current.value = '';
         }
-      },
-    );
+      })();
     },
-    [storage, chat.id, send],
+    [currentUser, chat.id, send, toast],
   );
 
   const chooseFile = (e: React.ChangeEvent<HTMLInputElement>) => {

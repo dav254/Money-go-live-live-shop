@@ -22,7 +22,7 @@ export function BuyerHeader() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
+  const [searchQuery, setSearchQuery] = useState(searchParams?.get('q') || '');
   const { user, isLoading: isUserLoading } = useUser();
   const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
   const firestore = useFirestore();
@@ -53,7 +53,7 @@ export function BuyerHeader() {
   useEffect(() => {
     const timer = setTimeout(() => {
       const newQuery = searchQuery.trim();
-      const currentQuery = searchParams.get('q');
+      const currentQuery = searchParams?.get('q');
       
       if (newQuery && newQuery !== currentQuery) {
         router.push(`/search?q=${encodeURIComponent(newQuery)}`, { scroll: false });

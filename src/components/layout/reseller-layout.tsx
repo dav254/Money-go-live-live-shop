@@ -15,7 +15,7 @@ import { useUser } from '@/firebase';
 import { useUserProfile } from '@/firebase/auth/use-user-profile';
 import { FirebaseErrorListener } from '../FirebaseErrorListener';
 import { Logo } from '../logo';
-import { ResellerHeader } from '../reseller/reseller-header';
+import { ResellerHeader, type ResellerHeaderUserProfile } from '../reseller/reseller-header';
 import React from 'react';
 import { Loader2 } from 'lucide-react';
 import Link from 'next/link';
@@ -24,7 +24,7 @@ import { ROLE_HOME, canAccessSection, resolveRole } from '@/lib/auth/roles';
 export function ResellerLayout({ children }: { children: React.ReactNode }) {
   const { user, isLoading: isUserLoading } = useUser();
   const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
-  const router = useRouter();
+  const router = useRouter(); // eslint-disable-next-line @typescript-eslint/no-floating-promises
 
   // ROLE LOCK: resellers only. Everyone else goes to their own workspace
   // instead of the public landing page.
@@ -63,7 +63,7 @@ export function ResellerLayout({ children }: { children: React.ReactNode }) {
         </SidebarContent>
       </Sidebar>
       <SidebarInset className="flex flex-col h-screen overflow-hidden">
-        <ResellerHeader userProfile={userProfile} isLoading={isProfileLoading} />
+        <ResellerHeader userProfile={userProfile ?? null} isLoading={isProfileLoading} />
         <main className="flex-1 overflow-y-auto">
           <FirebaseErrorListener />
           {children}

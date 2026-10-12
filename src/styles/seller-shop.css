@@ -1,0 +1,15 @@
+/* ============================================================
+   SELLER SHOP — section styles
+
+   This stylesheet is intentionally small and scoped to the
+   seller shop surface. It complements the app's existing
+   Tailwind/utility setup rather than replacing it.
+
+   Keep any new rules tied to a `.seller-shop-*` namespace
+   so they do not leak into unrelated pages.
+   ============================================================ */
+
+.seller-shop-root {
+  /* Leave this rule as a hook for the seller shop root
+     container if the section ever needs a scoped style layer. */
+}

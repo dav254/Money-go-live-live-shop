@@ -102,17 +102,23 @@ export function ProductCard({ product }: ProductCardProps) {
         <Link href={`/products/${product.id}`} className="cursor-pointer">
             <div className="w-full h-48 bg-black relative">
                 {hasVideo ? (
-                    <video
-                        src={product.videoUrl || product.videoUrls![0]}
-                        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                        poster={mainImage}
-                        onError={handleImageError}
-                        muted
-                        loop
-                        playsInline
-                        onMouseOver={e => e.currentTarget.play()}
-                        onMouseOut={e => e.currentTarget.pause()}
-                    />
+                <video
+                    src={
+                      product.videoUrl && product.videoUrl.trim() !== ""
+                        ? product.videoUrl
+                        : product.videoUrls?.[0] && product.videoUrls[0].trim() !== ""
+                          ? product.videoUrls[0]
+                          : getPlaceholderImage()
+                    }
+                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                    poster={mainImage}
+                    onError={handleImageError}
+                    muted
+                    loop
+                    playsInline
+                    onMouseOver={e => e.currentTarget.play()}
+                    onMouseOut={e => e.currentTarget.pause()}
+                />
                 ) : (
                      <img
                         src={mainImage}

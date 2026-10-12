@@ -175,7 +175,8 @@ const ReviewDialog = ({ boost, isOpen, onOpenChange, onActionComplete }: {
 const ActiveCampaignsTable = ({ data, onRefresh }: { data: BoostRequest[], onRefresh: (boostId: string) => Promise<void> }) => {
     const [refreshingId, setRefreshingId] = React.useState<string | null>(null);
 
-    const handleRefresh = async (boostId: string) => {
+    const handleRefresh = async (boostId: string | undefined) => {
+        if (!boostId) return;
         setRefreshingId(boostId);
         try {
             await onRefresh(boostId);
@@ -336,7 +337,8 @@ export default function AdminBoostsPage() {
         setIsReviewDialogOpen(true);
     };
 
-    const handleGenericAction = async (boostId: string, action: 'post_to_tiktok' | 're-queue') => {
+    const handleGenericAction = async (boostId: string | undefined, action: 'post_to_tiktok' | 're-queue') => {
+        if (!boostId) return;
         toast({ title: 'Processing your request...', description: 'This may take a moment.' });
         try {
             if (!user) throw new Error("Authentication error.");
@@ -370,7 +372,7 @@ export default function AdminBoostsPage() {
         boosts.forEach(b => {
             if (b.status === 'active') {
                 const updatedAt = new Date(b.updatedAt as any);
-                const endDate = addDays(updatedAt, b.durationDays);
+                const endDate = addDays(updatedAt, b.durationDays ?? 3);
                 if (isPast(endDate)) {
                     completed.push(b);
                 } else {
@@ -460,7 +462,7 @@ export default function AdminBoostsPage() {
                         )
                     }
                     if (status === 'completed') {
-                         return <Badge variant={'secondary'} className={cn(status === 'active' && 'bg-green-600/80')}>Campaign Ended</Badge>
+                         return <Badge variant={'secondary'} className="bg-green-600/80">Campaign Ended</Badge>
                     }
                     return null;
                 },

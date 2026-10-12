@@ -10,7 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { useState, useEffect, useMemo, use } from 'react';
-import { Loader2, ShieldCheck, CreditCard, ChevronRight, PackageCheck, Tag } from 'lucide-react';
+import { Loader2, ShieldCheck, CreditCard, ChevronRight, PackageCheck, Tag, Lock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
 import Link from 'next/link';
@@ -249,8 +249,24 @@ export default function CheckoutPage(props: { params: Promise<{ orderId: string 
                         <div className="p-4 rounded-2xl bg-neutral-900/50 border border-white/5 flex items-center gap-3">
                             <ShieldCheck className="h-5 w-5 text-green-500" />
                             <p className="text-[9px] font-bold uppercase tracking-widest text-neutral-400 leading-tight">
-                                Your payment is protected. Funds are held in escrow until delivery is confirmed.
+                                Your payment is protected by industry-standard encryption. Funds are held in escrow until delivery is confirmed. 256-bit SSL secured.
                             </p>
+                        </div>
+                        
+                        {/* Security badges */}
+                        <div className="grid grid-cols-3 gap-2">
+                            <div className="flex flex-col items-center gap-1 p-3 rounded-xl bg-neutral-900/30 border border-white/5">
+                                <ShieldCheck className="h-5 w-5 text-green-500" />
+                                <span className="text-[8px] font-bold uppercase tracking-widest text-neutral-500">SSL Secured</span>
+                            </div>
+                            <div className="flex flex-col items-center gap-1 p-3 rounded-xl bg-neutral-900/30 border border-white/5">
+                                <CreditCard className="h-5 w-5 text-green-500" />
+                                <span className="text-[8px] font-bold uppercase tracking-widest text-neutral-500">PCI Compliant</span>
+                            </div>
+                            <div className="flex flex-col items-center gap-1 p-3 rounded-xl bg-neutral-900/30 border border-white/5">
+                                <Lock className="h-5 w-5 text-green-500" />
+                                <span className="text-[8px] font-bold uppercase tracking-widest text-neutral-500">Encrypted</span>
+                            </div>
                         </div>
                     </div>
                 </div>

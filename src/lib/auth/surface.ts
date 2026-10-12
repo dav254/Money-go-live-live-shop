@@ -91,7 +91,10 @@ export const ADMIN_SURFACE_PREFIXES = ['/admin'] as const;
 /** The real app's root. `/app-preview` still resolves here (it redirects). */
 export const APP_PATH = '/app';
 
-/** Where the installed app launches, and where "open the app" goes. */
+/**
+ * Where the installed app launches, and where "open the app" goes.
+ * This is the mobile seller workspace surface context for "Let the fonts be seen when seller uses light theme".
+ */
 export const APP_LAUNCH_PATH = APP_PATH;
 
 /** Where the admin console lives and launches. */

@@ -2,14 +2,9 @@
 
 import React, { useRef, useEffect, useMemo } from 'react';
 import { MeetingProvider, MeetingConsumer, useMeeting, useParticipant } from '@videosdk.live/react-sdk';
-import { VideoOff, Loader2, AlertCircle } from 'lucide-react';
+import { Loader2, AlertCircle } from 'lucide-react';
 import { useUser, useUserProfile } from '@/firebase';
 
-/**
- * Optimized Viewer for Buyers.
- * Streams start playing the second the first packet is received.
- * Video fits screen with object-cover for immersive feel.
- */
 const ParticipantView = ({ participantId }: { participantId: string }) => {
   const { webcamStream, micStream } = useParticipant(participantId);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -20,9 +15,8 @@ const ParticipantView = ({ participantId }: { participantId: string }) => {
       const mediaStream = new MediaStream();
       mediaStream.addTrack(webcamStream.track);
       videoRef.current.srcObject = mediaStream;
-      // High-velocity play with error suppression for instant-on behavior
-      videoRef.current.play().catch(err => {
-          if (err.name !== 'AbortError') console.warn("[Live Sync] Video attachment delayed:", err);
+      videoRef.current.play().catch((err) => {
+        if (err.name !== 'AbortError') console.warn('[Live Sync] Video attachment delayed:', err);
       });
     }
   }, [webcamStream]);
@@ -38,19 +32,15 @@ const ParticipantView = ({ participantId }: { participantId: string }) => {
 
   return (
     <div className="relative h-full w-full bg-black overflow-hidden">
-      <video 
-        ref={videoRef} 
-        autoPlay 
-        playsInline 
-        muted={false} 
-        className="h-full w-full object-cover"
-      />
+      <video ref={videoRef} autoPlay playsInline muted={false} className="h-full w-full object-cover" />
       <audio ref={audioRef} autoPlay playsInline />
-      
+
       {!webcamStream && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-neutral-950/80 backdrop-blur-sm z-50">
           <Loader2 className="h-8 w-8 animate-spin text-primary opacity-20" />
-          <p className="text-neutral-500 mt-4 text-[10px] font-black uppercase tracking-widest">Optimizing Data Stream...</p>
+          <p className="text-neutral-500 mt-4 text-[10px] font-black uppercase tracking-widest">
+            Optimizing Data Stream...
+          </p>
         </div>
       )}
     </div>
@@ -58,21 +48,19 @@ const ParticipantView = ({ participantId }: { participantId: string }) => {
 };
 
 const ViewerMeetingView = () => {
-  const { join, participants, isMeetingJoined } = useMeeting();
+  const { join, participants } = useMeeting();
   const hasAttemptedJoin = useRef(false);
-  
+
   useEffect(() => {
-    // Aggressive join: trigger as soon as meeting context is ready
-    if (!isMeetingJoined && !hasAttemptedJoin.current) {
+    if (!hasAttemptedJoin.current) {
       hasAttemptedJoin.current = true;
       join();
     }
-  }, [join, isMeetingJoined]);
+  }, [join]);
 
-  // Find host participant (usually the only non-local participant in a show)
   const host = useMemo(() => {
     const participantsArray = Array.from(participants.values());
-    return participantsArray.find(p => !p.local) || null;
+    return participantsArray.find((p) => !p.local) || null;
   }, [participants]);
 
   return (
@@ -81,11 +69,13 @@ const ViewerMeetingView = () => {
         <ParticipantView participantId={host.id} />
       ) : (
         <div className="h-full w-full flex flex-col items-center justify-center bg-black">
-           <div className="relative mb-6">
-                <div className="absolute inset-0 bg-primary/20 rounded-full animate-ping" />
-                <Loader2 className="h-10 w-10 animate-spin text-primary relative z-10" />
-           </div>
-           <p className="text-white/40 text-[9px] font-black uppercase tracking-[0.3em] text-center px-8">Establishing Real-Time Signal...</p>
+          <div className="relative mb-6">
+            <div className="absolute inset-0 bg-primary/20 rounded-full animate-ping" />
+            <Loader2 className="h-10 w-10 animate-spin text-primary relative z-10" />
+          </div>
+          <p className="text-white/40 text-[9px] font-black uppercase tracking-[0.3em] text-center px-8">
+            Establishing Real-Time Signal...
+          </p>
         </div>
       )}
     </div>
@@ -97,8 +87,8 @@ export default function VideoSDKViewer({ meetingId }: { meetingId: string }) {
   const [error, setError] = React.useState<string | null>(null);
   const { user } = useUser();
   const { userProfile } = useUserProfile(user?.uid);
-  
-  const displayName = userProfile?.fullName || userProfile?.username || user?.displayName || "Global Buyer";
+
+  const displayName = userProfile?.fullName || userProfile?.username || user?.displayName || 'Global Buyer';
 
   useEffect(() => {
     const fetchToken = async () => {
@@ -108,7 +98,7 @@ export default function VideoSDKViewer({ meetingId }: { meetingId: string }) {
         if (!res.ok) throw new Error(data.message || 'Handshake failed');
         if (data.token) setToken(data.token);
       } catch (err: any) {
-        console.error("[Signal Token] fetch failed:", err);
+        console.error('[Signal Token] fetch failed:', err);
         setError(err.message);
       }
     };
@@ -119,7 +109,9 @@ export default function VideoSDKViewer({ meetingId }: { meetingId: string }) {
     return (
       <div className="h-full w-full flex flex-col items-center justify-center bg-black text-center p-12">
         <AlertCircle className="h-8 w-8 text-red-500/50 mb-4" />
-        <p className="text-neutral-500 text-[10px] font-black uppercase tracking-widest">Signal Handshake Failed</p>
+        <p className="text-neutral-500 text-[10px] font-black uppercase tracking-widest">
+          Signal Handshake Failed
+        </p>
       </div>
     );
   }
@@ -132,22 +124,18 @@ export default function VideoSDKViewer({ meetingId }: { meetingId: string }) {
     );
   }
 
+  const meetingConfig = {
+    meetingId,
+    micEnabled: false,
+    webcamEnabled: false,
+    name: displayName,
+    mode: 'CONFERENCE' as const,
+    multiStream: false,
+    debugMode: false,
+  };
+
   return (
-    <MeetingProvider
-      token={token}
-      config={{
-        meetingId,
-        micEnabled: false,
-        webcamEnabled: false,
-        name: displayName,
-        mode: "CONFERENCE",
-        multiStream: false,
-        // SPEED OPTIMIZATION: Disabled full stream subscription to allow the SDK 
-        // to intelligently manage low-latency data packets for an "instant" feel.
-        subscribeFullStream: false,
-        adaptiveStream: true,
-      }}
-    >
+    <MeetingProvider token={token} config={meetingConfig}>
       <MeetingConsumer>
         {() => <ViewerMeetingView />}
       </MeetingConsumer>

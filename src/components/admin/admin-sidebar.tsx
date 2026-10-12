@@ -349,6 +349,7 @@ export function AdminSidebar() {
             { href: 'tickets', label: 'Support Tickets', badge: supportStats.tickets },
             { href: 'chat-logs', label: 'Chat Logs' },
             { href: 'complaints', label: 'Resolve Complaints', badge: supportStats.complaints },
+            { href: 'seller-buyer-issues', label: 'Seller & Buyer Issues' },
           ]}
         />
 

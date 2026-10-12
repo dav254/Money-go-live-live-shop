@@ -47,6 +47,14 @@ export const APP_SECTIONS: AppSection[] = [
       '/products',
       '/sellers',
       '/buyer/discovery',
+      // The buyer app's own Discovery screen — the same shared feed in the
+      // app's chrome. Listed here so the Marketplace toggle governs it too;
+      // otherwise the toggle would look like it worked while the app kept
+      // selling.
+      '/app/buyer/discovery',
+      // The seller app's own Discovery screen — the same shared feed seen from
+      // the seller workspace, so a seller can check what buyers see.
+      '/app/seller/discovery',
       '/dashboard/seller/live-feed',
       '/app/buyer/product',
     ],

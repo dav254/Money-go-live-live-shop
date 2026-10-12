@@ -46,6 +46,34 @@ export interface UserProfile {
    * with a default, so no profile has to be rewritten to satisfy the type.
    */
   status?: 'active' | 'suspended';
+  /**
+   * Contact details, read by the seller settings screen and the account pages.
+   *
+   * Declared here for the same reason as `status`: this is a second, narrower
+   * `UserProfile` that shadows the one in `@/lib/types`, and the fields the
+   * screens genuinely read were missing from it — so the compiler called real
+   * reads a missing property. Optional, matching the canonical type.
+   */
+  phoneNumber?: string;
+  /** Spendable AI balance; spent by the AI tools, refunded by referrals. */
+  aiPoints?: number;
+  /**
+   * Referral programme and verification fields, mirrored from the canonical
+   * `UserProfile` in `@/lib/types`.
+   *
+   * This interface shadows that one, and these seven were read by real code
+   * while missing here — so the compiler called genuine reads a missing
+   * property, one of which (`shopName`, in the seller header) blocked a clean
+   * typecheck of the seller settings screen. Optional, matching the canonical
+   * type exactly; the two must not drift again.
+   */
+  referralPoints?: number;
+  referralSlug?: string;
+  deliveryCredits?: number;
+  verificationStatus?: 'pending' | 'verified' | 'rejected';
+  shopName?: string;
+  referredBy?: string;
+  freePointsAwardedAt?: string;
   wishlist?: string[]; // Array of product IDs
   /** Sellers this user follows. Read by the shop page's follow button. */
   following?: string[];

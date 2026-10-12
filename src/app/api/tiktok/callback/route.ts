@@ -2,7 +2,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db, auth as adminAuth } from '@/firebase/server';
 import axios from 'axios';
-import { doc, updateDoc } from 'firebase-admin/firestore';
 
 /**
  * Handles the OAuth callback from TikTok.
@@ -54,8 +53,8 @@ export async function GET(request: NextRequest) {
     const expiresAt = new Date(Date.now() + expires_in * 1000);
 
     // Save the credentials to the user's profile in Firestore
-    const userProfileRef = doc(db, 'userProfiles', userId);
-    await updateDoc(userProfileRef, {
+    const userProfileRef = db.doc(`userProfiles/${userId}`);
+    await userProfileRef.update({
       'connections.tiktok': {
         openId: open_id,
         accessToken: access_token,

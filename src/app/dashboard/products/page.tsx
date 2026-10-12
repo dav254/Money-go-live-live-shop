@@ -16,7 +16,7 @@ import Link from 'next/link';
 
 function ProductsPageContent() {
   const searchParams = useSearchParams();
-  const defaultTab = searchParams.get('tab') || 'my-products';
+  const defaultTab = searchParams?.get('tab') || 'my-products';
 
   return (
     <SellerLayout>

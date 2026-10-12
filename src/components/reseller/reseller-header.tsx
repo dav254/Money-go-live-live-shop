@@ -2,12 +2,16 @@
 
 import { UserNav } from '../layout/user-nav';
 import { SidebarTrigger } from '../ui/sidebar';
+import { useUserProfile } from '@/firebase';
 import type { UserProfile } from '@/lib/types';
 import { Logo } from '../logo';
 import Link from 'next/link';
+import type { WithId } from '@/firebase/firestore/use-collection';
+
+export type ResellerHeaderUserProfile = NonNullable<ReturnType<typeof useUserProfile>['userProfile']>;
 
 interface ResellerHeaderProps {
-    userProfile: UserProfile | null;
+    userProfile: ResellerHeaderUserProfile | null;
     isLoading: boolean;
 }
 

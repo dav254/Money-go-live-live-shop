@@ -18,8 +18,8 @@ function SimulationContent() {
     const { toast } = useToast();
     
     const [status, setStatus] = useState<'processing' | 'success' | 'failed'>('processing');
-    const amount = parseFloat(searchParams.get('amount') || '0');
-    const gateway = searchParams.get('gateway') || 'simulated';
+    const amount = parseFloat(searchParams?.get('amount') || '0');
+    const gateway = searchParams?.get('gateway') || 'simulated';
 
     // Points mapping logic: $1 = 100 points
     const pointsToCredit = amount * 100;

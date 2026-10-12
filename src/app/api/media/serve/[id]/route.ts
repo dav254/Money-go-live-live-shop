@@ -69,7 +69,7 @@ export async function GET(
 
     const baseHeaders: Record<string, string> = {
       'Content-Type': mime,
-      'Cache-Control': 'private, max-age=600',
+      'Cache-Control': isPrivate(relPath) ? 'private, max-age=600' : 'public, max-age=31536000, immutable',
       'X-Content-Type-Options': 'nosniff',
       'Accept-Ranges': 'bytes',
       'Content-Disposition': `inline; filename="${encodeURIComponent(downloadName)}"`,
@@ -111,12 +111,16 @@ export async function GET(
   }
 }
 
+function isPrivate(relPath: string): boolean {
+  return relPath.startsWith('requests/');
+}
+
 /**
  * Parse a single-range `Range: bytes=…` header against a known file size.
  * Returns null when there is no usable range (serve the whole file) and
  * `unsatisfiable` when the range is valid but out of bounds.
  */
-function resolveRange(header: string | null, size: number): RangeSpec {
+function resolveRange2(header: string | null, size: number): RangeSpec {
   if (!header) return null;
   const match = /^bytes=(\d*)-(\d*)$/.exec(header.trim());
   if (!match) return null;
@@ -139,6 +143,14 @@ function resolveRange(header: string | null, size: number): RangeSpec {
   const end = rawEnd ? Math.min(Number(rawEnd), size - 1) : size - 1;
   if (!Number.isFinite(end) || end < start) return { kind: 'unsatisfiable' };
   return { kind: 'range', start, end };
+}
+
+/** Parse a single-range `Range: bytes=…` header against a known file size.
+ * Returns null when there is no usable range (serve the whole file) and
+ * `unsatisfiable` when the range is valid but out of bounds.
+ */
+function resolveRange(header: string | null, size: number): RangeSpec {
+  return resolveRange2(header, size);
 }
 
 /** Best-effort view counter for request insights. */

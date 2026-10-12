@@ -237,7 +237,7 @@ export default function RequestsHubPage() {
                     bring you the right briefs.
                   </p>
                   <Button asChild variant="outline" className="mt-2 rounded-xl">
-                    <Link href="/dashboard/seller/shop">Set up your shop profile</Link>
+                    <Link href="/dashboard/account">Set up your shop profile</Link>
                   </Button>
                 </>
               )}

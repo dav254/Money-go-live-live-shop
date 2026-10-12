@@ -288,6 +288,7 @@ const ViewDetailsDialog = ({ boost, isOpen, onOpenChange, onRefresh }: { boost: 
     if (!boost) return null;
 
     const handleRefreshClick = async () => {
+        if (!boost.id) return;
         setIsRefreshing(true);
         try {
             await onRefresh(boost.id);
@@ -501,7 +502,7 @@ export default function SellerAdsPage() {
         accessorKey: 'product',
         header: 'Product',
         cell: ({ row }) => {
-            const product = productsMap.get(row.original.productId);
+            const product = productsMap.get(row.original.productId || '');
             return (
                  <div className="flex items-center gap-3">
                      <div className="w-16 h-16 rounded-md bg-muted flex items-center justify-center overflow-hidden">
@@ -542,7 +543,7 @@ export default function SellerAdsPage() {
     {
         accessorKey: 'pointsPaid',
         header: 'Cost',
-        cell: ({ row }) => `${row.original.pointsPaid.toLocaleString()} pts`,
+        cell: ({ row }) => `${(row.original.pointsPaid ?? 0).toLocaleString()} pts`,
     },
     {
         accessorKey: 'analytics.clicks',
