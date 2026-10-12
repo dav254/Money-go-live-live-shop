@@ -5,7 +5,6 @@ import { useCollection, useDoc, useMemoFirebase, useUserProfile } from '@/fireba
 import { collection, doc, query, orderBy, limit, where, documentId } from 'firebase/firestore';
 import type { Product, Seller, SellerShop, UserProfile, VideoFeedItem, LiveSession } from '@/lib/types';
 import { useFirestore, useUser } from '@/firebase';
-import { getPlaceholderImage } from '@/lib/placeholder-images';
 import { VideoCard } from '@/components/feed/video-card';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -51,13 +50,13 @@ function RealtimeVideoCard({ product, isIntersecting, onScroll }: { product: Pro
         name: sellerName,
         avatar: {
             id: 'avatar',
-            imageUrl: sellerData?.logoUrl || userProfileData?.profilePictureUrl || getPlaceholderImage(),
+            imageUrl: sellerData?.logoUrl || userProfileData?.profilePictureUrl || '',
             description: `${sellerName}'s avatar`,
             imageHint: 'seller avatar'
         },
         banner: {
             id: 'banner',
-            imageUrl: sellerData?.bannerUrl || getPlaceholderImage(),
+            imageUrl: sellerData?.bannerUrl || '',
             description: `${sellerName}'s banner`,
             imageHint: 'store banner'
         },
@@ -78,7 +77,7 @@ function RealtimeVideoCard({ product, isIntersecting, onScroll }: { product: Pro
         seller: seller,
         video: {
           id: product.id,
-          imageUrl: product.imageUrl || getPlaceholderImage(),
+          imageUrl: product.imageUrl || product.imageUrls?.find(Boolean) || product.videoUrl || product.videoUrls?.find(Boolean) || '',
           description: product.name || 'product media',
           imageHint: 'product',
           mediaType: (product.videoUrl && product.videoUrl.trim() !== "") ? 'video' : 'image',
@@ -133,6 +132,14 @@ function LiveFeedContent() {
     }, [firestore, view, userProfile]);
 
     const { data: products, isLoading: areProductsLoading } = useCollection<Product>(productsQuery);
+    const productsWithMedia = (products || []).filter((product) =>
+        Boolean(
+            product.imageUrl?.trim() ||
+            product.imageUrls?.some(Boolean) ||
+            product.videoUrl?.trim() ||
+            product.videoUrls?.some(Boolean)
+        )
+    );
     const isLoading = isUserLoading || areProductsLoading || isProfileLoading;
 
     const handleScroll = useCallback((direction: 'up' | 'down') => {
@@ -231,8 +238,8 @@ function LiveFeedContent() {
                     "scrollbar-hide"
                 )}
             >
-            {products && products.length > 0 ? (
-                products.map((product) => (
+            {productsWithMedia.length > 0 ? (
+                productsWithMedia.map((product) => (
                     <div key={product.id} data-product-id={product.id} className="h-full w-full snap-start flex-shrink-0">
                         <RealtimeVideoCard 
                             product={product} 
