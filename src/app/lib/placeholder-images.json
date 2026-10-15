@@ -2,22 +2,38 @@
   "demoItems": [
     {
       "id": "live-demo-1",
+<<<<<<< HEAD
       "url": "https://placehold.co/600x800/111111/ffffff?text=demo-1",
+=======
+      "url": "https://placehold.co/600x400/111111/111111",
+>>>>>>> a0e3ea43 (feat(media): add server /api/media/upload route (save to public/uploads) and replace picsum placeholders with neutral placeholder)
       "hint": "luxury smartwatch lifestyle"
     },
     {
       "id": "live-demo-2",
+<<<<<<< HEAD
       "url": "https://placehold.co/600x800/111111/ffffff?text=demo-2",
+=======
+      "url": "https://placehold.co/600x400/111111/111111",
+>>>>>>> a0e3ea43 (feat(media): add server /api/media/upload route (save to public/uploads) and replace picsum placeholders with neutral placeholder)
       "hint": "professional studio headphones"
     },
     {
       "id": "live-demo-3",
+<<<<<<< HEAD
       "url": "https://placehold.co/600x800/111111/ffffff?text=demo-3",
+=======
+      "url": "https://placehold.co/600x400/111111/111111",
+>>>>>>> a0e3ea43 (feat(media): add server /api/media/upload route (save to public/uploads) and replace picsum placeholders with neutral placeholder)
       "hint": "urban streetwear backpack"
     },
     {
       "id": "live-demo-4",
+<<<<<<< HEAD
       "url": "https://placehold.co/600x800/111111/ffffff?text=demo-4",
+=======
+      "url": "https://placehold.co/600x400/111111/111111",
+>>>>>>> a0e3ea43 (feat(media): add server /api/media/upload route (save to public/uploads) and replace picsum placeholders with neutral placeholder)
       "hint": "futuristic running sneakers"
     }
   ],

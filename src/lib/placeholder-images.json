@@ -1,10 +1,18 @@
 {
   "placeholderImages": [
+<<<<<<< HEAD
     "https://placehold.co/600x400/111111/ffffff?text=1",
     "https://placehold.co/600x400/111111/ffffff?text=2",
     "https://placehold.co/600x400/111111/ffffff?text=3",
     "https://placehold.co/600x400/111111/ffffff?text=4",
     "https://placehold.co/600x400/111111/ffffff?text=5"
+=======
+    "https://placehold.co/600x400/111111/111111",
+    "https://placehold.co/600x400/111111/111111",
+    "https://placehold.co/600x400/111111/111111",
+    "https://placehold.co/600x400/111111/111111",
+    "https://placehold.co/600x400/111111/111111"
+>>>>>>> a0e3ea43 (feat(media): add server /api/media/upload route (save to public/uploads) and replace picsum placeholders with neutral placeholder)
   ],
   "exchangeRates": {
     "USD": 1,
