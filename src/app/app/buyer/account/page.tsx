@@ -65,7 +65,7 @@ export default function BuyerSectionAccount() {
     { label: 'My requests', hint: 'Briefs you posted', icon: Sparkles, href: '/app/buyer/requests' },
     { label: 'Saved items', hint: 'Your wishlist', icon: Heart, href: '/app/buyer/shop?view=saved' },
     { label: 'Notifications', hint: 'Orders and offers', icon: Bell, href: '/app/buyer/notifications' },
-    { label: 'Help centre', hint: 'Answers and support', icon: HelpCircle, href: '/app/buyer/care' },
+    { label: 'Customer care', hint: 'Contact support, track reports, answers', icon: HelpCircle, href: '/app/buyer/care' },
     { label: 'My sellers', hint: 'Shops you follow', icon: Store, href: '/app/buyer/sellers' },
   ];
 

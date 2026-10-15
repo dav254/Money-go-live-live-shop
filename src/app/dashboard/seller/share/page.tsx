@@ -14,6 +14,7 @@ import { SellerLayout } from '@/components/layout/seller-layout';
 import { useUser } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { ShopQRDots } from '@/components/shop/ShopQRDots';
+import { publicOrigin } from '@/lib/site-url';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -40,12 +41,10 @@ export default function SellerSharePage() {
   const { user } = useUser();
   const { toast } = useToast();
 
-  // Public storefront origin — resolved on the client so the share link and
-  // the generated QR always encode the same URL the seller actually copies.
-  const [origin, setOrigin] = React.useState('');
-  React.useEffect(() => {
-    setOrigin(window.location.origin);
-  }, []);
+  // Canonical public origin (`vidnov.com`) — not `window.location.origin`,
+  // which copies whatever host the app is served from (the preview domain,
+  // localhost, …) into every link this section copies, shares or opens.
+  const origin = publicOrigin();
   const sellerId = user?.uid ?? '';
   const shopLink = origin && sellerId ? `${origin}/sellers/${sellerId}` : '';
 
@@ -71,7 +70,6 @@ export default function SellerSharePage() {
     }
     await copyLink();
   };
-
   const encoded = encodeURIComponent(shopLink);
   const socials = [
     {
@@ -91,6 +89,11 @@ export default function SellerSharePage() {
     },
   ];
 
+  const openShop = () => {
+    if (!shopLink) return;
+    window.open(shopLink, '_blank', 'noopener,noreferrer');
+  };
+
   return (
     <SellerLayout>
       <div className="flex-1 space-y-4 p-8 pt-6">
@@ -109,6 +112,10 @@ export default function SellerSharePage() {
             <Button onClick={shareLink} disabled={!shopLink}>
               <Share2 className="mr-2 h-4 w-4" />
               Share
+            </Button>
+            <Button variant="outline" onClick={openShop} disabled={!shopLink}>
+              <ExternalLink className="mr-2 h-4 w-4" />
+              Open shop
             </Button>
           </div>
         </div>
@@ -153,11 +160,9 @@ export default function SellerSharePage() {
                     <Copy className="mr-2 h-4 w-4" />
                     Copy link
                   </Button>
-                  <Button asChild variant="outline">
-                    <a href={shopLink || undefined} target="_blank" rel="noreferrer">
-                      <ExternalLink className="mr-2 h-4 w-4" />
-                      Open shop
-                    </a>
+                  <Button variant="outline" onClick={openShop} disabled={!shopLink}>
+                    <ExternalLink className="mr-2 h-4 w-4" />
+                    Open shop
                   </Button>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -175,6 +180,11 @@ export default function SellerSharePage() {
                     </Button>
                   ))}
                 </div>
+                {shopLink && (
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/60">
+                    Your shop lives at {shopLink}
+                  </p>
+                )}
               </CardContent>
             </Card>
 

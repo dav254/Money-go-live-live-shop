@@ -8,6 +8,9 @@ const nextConfig = {
     '@google-cloud/firestore',
     'sharp',
     'cloudinary',
+    // WhatsApp alert bridge — native/ws-heavy protocol library; load it
+    // natively at runtime instead of bundling it into the server build.
+    '@whiskeysockets/baileys',
     // Genkit + OpenTelemetry: huge dynamic-require trees that bloat the
     // server bundle and dev memory. Load them natively at runtime instead.
     'genkit',

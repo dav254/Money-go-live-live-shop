@@ -1,60 +1,75 @@
 import { NextResponse } from 'next/server';
-import formidable from 'formidable';
-import fs from 'fs';
-import path from 'path';
+import { intake } from '@/lib/media/engine';
+import { verifyRequestUser } from '@/lib/media/api-auth';
 
-// For Next.js app-router server route: disable default body parsing (if required by your Next config)
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};
+export const runtime = 'nodejs';
+export const maxDuration = 60;
 
-const DEFAULT_UPLOAD_DIR = path.join(process.cwd(), 'public', 'uploads');
-
-function parseForm(req: any, uploadDir: string) {
-  return new Promise<{ fields: any; files: any }>((resolve, reject) => {
-    const form = formidable({
-      uploadDir,
-      keepExtensions: true,
-      maxFileSize: 200 * 1024 * 1024, // 200MB
-      allowEmptyFiles: false,
-    });
-
-    form.parse(req, (err, fields, files) => {
-      if (err) return reject(err);
-      resolve({ fields, files });
-    });
-  });
-}
-
+/**
+ * POST /api/media/upload — multipart upload of one file per request.
+ *
+ * Storage is fully INTERNAL: every byte lands on this server's own disk under
+ * MEDIA_ROOT (local adapter, no third-party object store), and is delivered
+ * back through our own routes (/api/media/file/… for public media,
+ * /api/media/serve/… for private media).
+ *
+ * The route is built around the disk-based engine: images are processed
+ * synchronously and the final URL is returned in THIS response, so the seller
+ * never waits on a status poll. Videos are transcoded in the background and
+ * report only a mediaId here — the client polls /api/media/status (disk-backed)
+ * for those.
+ *
+ * Optional form fields:
+ *  - postId    → attach to a feed post
+ *  - requestId → attach as PRIVATE request media
+ *  - offerId   → attach as PRIVATE offer media
+ *  - folder    → owner folder (chats/<id>, support/<uid>, verification/<uid>,
+ *                avatars/<uid>, products/<uid>) — validated server-side.
+ */
 export async function POST(request: Request) {
   try {
-    const uploadDir = process.env.MEDIA_UPLOAD_DIR || DEFAULT_UPLOAD_DIR;
-    await fs.promises.mkdir(uploadDir, { recursive: true });
+    const user = await verifyRequestUser(request);
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    // formidable expects a Node IncomingMessage; Next.js Request sometimes works when passed directly.
-    const { fields, files } = await parseForm(request as any, uploadDir);
+    const form = await request.formData().catch(() => null);
+    if (!form) return NextResponse.json({ error: 'Invalid multipart form data.' }, { status: 400 });
 
-    // The client sends file under field name "file"
-    const fileField = files.file || files.files || Object.values(files)[0];
-    if (!fileField) {
-      return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
+    const file = form.get('file');
+    if (!(file instanceof File)) return NextResponse.json({ error: 'Missing file field.' }, { status: 400 });
+
+    const postId = typeof form.get('postId') === 'string' ? (form.get('postId') as string) : undefined;
+    const requestId = typeof form.get('requestId') === 'string' ? (form.get('requestId') as string) : undefined;
+    const offerId = typeof form.get('offerId') === 'string' ? (form.get('offerId') as string) : undefined;
+    const folder = typeof form.get('folder') === 'string' ? (form.get('folder') as string) : undefined;
+
+    if (requestId && offerId) {
+      return NextResponse.json({ error: 'Choose either requestId or offerId, not both.' }, { status: 400 });
+    }
+    if (folder && (requestId || offerId)) {
+      return NextResponse.json({ error: 'Choose either folder or request/offer ownership, not both.' }, { status: 400 });
     }
 
-    // formidable returns a File object or an array if multiple files; normalize to single file
-    const file = Array.isArray(fileField) ? fileField[0] : fileField;
-    const savedPath = file.filepath || file.path;
-    const filename = path.basename(savedPath);
+    const result = await intake({
+      file,
+      userId: user.uid,
+      postId,
+      requestId,
+      offerId,
+      folder,
+    });
+    if (!result.accepted) {
+      return NextResponse.json({ error: result.reason }, { status: 415 });
+    }
 
-    // Build public URL for the saved file. Configure MEDIA_BASE_URL for production (https://uploads.example.com)
-    const base = process.env.MEDIA_BASE_URL || process.env.NEXT_PUBLIC_BASE_URL || '';
-    const publicUrl = base ? `${base.replace(/\/$/, '')}/uploads/${filename}` : `/uploads/${filename}`;
-
-    // Return url & thumbnailUrl (backend can add thumbnail creation later)
-    return NextResponse.json({ url: publicUrl, thumbnailUrl: publicUrl });
-  } catch (err: any) {
-    console.error('media/upload error', err);
-    return NextResponse.json({ error: err?.message || String(err) }, { status: 500 });
+    // Images/raw files include the final url + thumbnailUrl here; videos return
+    // only mediaId (async transcode) and are polled via /api/media/status.
+    return NextResponse.json({
+      mediaId: result.mediaId,
+      url: result.url,
+      thumbnailUrl: result.thumbnailUrl,
+    });
+  } catch (error) {
+    console.error('[media/upload]', error);
+    return NextResponse.json({ error: 'Upload failed on the server.' }, { status: 500 });
   }
 }

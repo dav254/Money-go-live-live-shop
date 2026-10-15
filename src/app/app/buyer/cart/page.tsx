@@ -30,7 +30,7 @@ import {
  * sized for a thumb instead of a three-column desktop layout.
  */
 
-const PLACEHOLDER_IMAGE = 'https://picsum.photos/seed/placeholder/200';
+const PLACEHOLDER_IMAGE = '/placeholder-image.svg';
 
 export default function BuyerSectionCart() {
   const { user } = useUser();

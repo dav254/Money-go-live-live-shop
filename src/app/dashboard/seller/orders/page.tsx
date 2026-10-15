@@ -68,23 +68,31 @@ const OrderStatusBadge = ({ status }: { status: Order['orderStatus'] }) => {
 };
 
 const AllOrdersTable = ({ orders, isLoading }: { orders: Order[], isLoading: boolean }) => {
-    const firestore = useFirestore();
     const { toast } = useToast();
     const { user } = useUser();
 
-    const handleDeleteOrder = async (orderId: string) => {
-        if (!firestore || !user) return;
+    const updateOrderStatus = async (
+        orderId: string,
+        status: Order['orderStatus'],
+        description?: string,
+    ) => {
+        if (!user) return;
         try {
             const token = await user.getIdToken();
-            const response = await fetch(`/api/admin/orders/${orderId}/status`, { 
+            // The SELLER route, not the admin one: the admin endpoint rejects
+            // every non-admin caller with a 403, which is why "Cancel order"
+            // silently failed for sellers. This route authorises the caller as
+            // the seller of this order and enforces forward-only transitions.
+            const response = await fetch(`/api/seller/orders/${orderId}/status`, {
                 method: 'PUT',
                 headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify({ status: 'cancelled' })
+                body: JSON.stringify({ status })
             });
-            if (!response.ok) throw new Error('Failed to update order.');
-            toast({ title: 'Order Cancelled' });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(data.error || 'Failed to update the order.');
+            toast({ title: 'Order Updated', description: description || `Order is now "${status}".` });
         } catch (error: any) {
-            toast({ variant: 'destructive', title: 'Error', description: error.message });
+            toast({ variant: 'destructive', title: 'Could not update order', description: error.message });
         }
     };
 
@@ -178,8 +186,22 @@ const AllOrdersTable = ({ orders, isLoading }: { orders: Order[], isLoading: boo
                                                         <MessageSquare className="mr-2 h-4 w-4" />Chat with Buyer
                                                     </Link>
                                                 </DropdownMenuItem>
+                                                {order.orderStatus === 'processing' && (
+                                                    <DropdownMenuItem onSelect={() => updateOrderStatus(order.id, 'shipped', 'Marked as shipped — the buyer has been notified.')} className="font-bold text-xs uppercase tracking-widest focus:bg-primary/10 focus:text-primary">
+                                                        <Truck className="mr-2 h-4 w-4" />
+                                                        MARK AS SHIPPED
+                                                    </DropdownMenuItem>
+                                                )}
+                                                {(order.orderStatus === 'shipped' || order.orderStatus === 'delivery') && (
+                                                    <DropdownMenuItem onSelect={() => updateOrderStatus(order.id, 'delivered', 'Marked as delivered — funds release to your wallet.')} className="font-bold text-xs uppercase tracking-widest focus:bg-primary/10 focus:text-primary">
+                                                        <CheckCircle className="mr-2 h-4 w-4" />
+                                                        MARK AS DELIVERED
+                                                    </DropdownMenuItem>
+                                                )}
+
                                                 <DropdownMenuSeparator className="bg-white/5" />
                                                 
+                                                {(['pending', 'processing'] as Order['orderStatus'][]).includes(order.orderStatus) && (
                                                 <AlertDialog>
                                                     <AlertDialogTrigger asChild>
                                                         <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive font-bold text-xs uppercase tracking-widest focus:text-destructive focus:bg-destructive/10">
@@ -191,17 +213,18 @@ const AllOrdersTable = ({ orders, isLoading }: { orders: Order[], isLoading: boo
                                                         <AlertDialogHeader>
                                                             <AlertDialogTitle className="font-black uppercase tracking-tighter text-white">Cancel Order?</AlertDialogTitle>
                                                             <AlertDialogDescription className="text-xs font-bold text-neutral-500 uppercase tracking-widest leading-relaxed">
-                                                                This will mark order #{order.id.substring(0, 8)}... as cancelled.
+                                                                This will mark order #{order.id.substring(0, 8)}... as cancelled. The buyer is notified, and any payment is refunded.
                                                             </AlertDialogDescription>
                                                         </AlertDialogHeader>
                                                         <AlertDialogFooter>
                                                             <AlertDialogCancel className="rounded-xl font-bold uppercase text-[10px]">Back</AlertDialogCancel>
-                                                            <AlertDialogAction onClick={() => handleDeleteOrder(order.id)} className="bg-red-600 rounded-xl font-black uppercase text-[10px] border-none">
+                                                            <AlertDialogAction onClick={() => updateOrderStatus(order.id, 'cancelled', 'Order cancelled — the buyer has been notified.')} className="bg-red-600 rounded-xl font-black uppercase text-[10px] border-none">
                                                                 CONFIRM CANCEL
                                                             </AlertDialogAction>
                                                         </AlertDialogFooter>
                                                     </AlertDialogContent>
                                                 </AlertDialog>
+                                                )}
                                             </DropdownMenuContent>
                                         </DropdownMenu>
                                     </div>
@@ -260,7 +283,7 @@ export default function SellerOrdersPage() {
                 <Alert className="max-w-sm bg-primary/10 border-primary/20 text-primary rounded-2xl animate-in slide-in-from-top-4 duration-500">
                     <AlertCircle className="h-4 w-4 text-primary" />
                     <AlertTitle className="text-[10px] font-black uppercase tracking-widest">Payment Confirmed</AlertTitle>
-                    <AlertDescription className="text-xs font-bold uppercase tracking-tight">You have {paidOrdersCount} order(s) where payment is verified. Contact Admin to coordinate delivery.</AlertDescription>
+                    <AlertDescription className="text-xs font-bold uppercase tracking-tight">You have {paidOrdersCount} order(s) where payment is verified. Open the order menu to mark one as shipped once it's dispatched — the buyer is notified at every step.</AlertDescription>
                 </Alert>
             )}
         </div>

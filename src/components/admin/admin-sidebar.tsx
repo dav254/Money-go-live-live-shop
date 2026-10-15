@@ -22,7 +22,6 @@ import {
   User,
   Bell,
   Mail,
-  Radio,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -32,8 +31,9 @@ import { cn } from '@/lib/utils';
 import React, { useMemo } from 'react';
 import { useCollection, useFirestore, useMemoFirebase, useUser, useUserProfile } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
-import type { UserProfile, Product, Complaint, Order, Payout, Payment, LiveSession, SupportTicket, ActivityLog, ErrorLog } from '@/lib/types';
+import type { UserProfile, Product, Order, Payout, Payment, LiveSession, SupportTicket, ActivityLog, ErrorLog } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
+import { useAdminComplaintCounts } from '@/hooks/use-admin-complaints';
 
 
 const NavCollapsible = ({
@@ -49,6 +49,10 @@ const NavCollapsible = ({
 }) => {
   const pathname = usePathname();
   const isBaseActive = !!pathname && pathname.startsWith(`/dashboard/admin/${basePath}`);
+  // Absolute hrefs are used as-is (they point outside this group's basePath);
+  // relative ones live under /dashboard/admin/<basePath>/.
+  const resolve = (href: string) =>
+    href.startsWith('/') ? href : `/dashboard/admin/${basePath}${href ? `/${href}` : ''}`;
 
   return (
     <Collapsible defaultOpen={isBaseActive}>
@@ -69,10 +73,10 @@ const NavCollapsible = ({
           {items.map((item) => (
             <Link
               key={item.href}
-              href={`/dashboard/admin/${basePath}${item.href ? `/${item.href}` : ''}`}
+              href={resolve(item.href)}
               className={cn(
                 'flex items-center justify-between rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground',
-                pathname === `/dashboard/admin/${basePath}${item.href ? `/${item.href}` : ''}` && 'bg-accent font-semibold text-accent-foreground'
+                pathname === resolve(item.href) && 'bg-accent font-semibold text-accent-foreground'
               )}
             >
               <span>{item.label}</span>
@@ -117,13 +121,11 @@ export function AdminSidebar() {
   );
   const { data: allProducts } = useCollection<Product>(productsQuery);
 
-  const reportedQuery = useMemoFirebase(() => (
-    adminReady ? query(
-    collection(firestore, 'complaints'),
-    where('targetType', '==', 'product'),
-    where('status', '==', 'open')
-  ) : null), [firestore, adminReady]);
-  const { data: reportedProducts } = useCollection<Complaint>(reportedQuery);
+  // Complaint badges used to be three live Firestore listeners; the deployed
+  // rules deny client `list` on `complaints`, so every admin page was firing
+  // permission-error toasts just to draw a badge. One Admin-SDK count request
+  // replaces all three (badges don't need to be real-time).
+  const { counts: complaintCounts } = useAdminComplaintCounts();
 
   // --- Real-time Order Counts ---
   const ordersQuery = useMemoFirebase(
@@ -153,14 +155,6 @@ export function AdminSidebar() {
   ) : null), [firestore, adminReady]);
   const { data: activeSessions } = useCollection<LiveSession>(activeSessionsQuery);
 
-  const flaggedStreamsQuery = useMemoFirebase(() => (
-    adminReady ? query(
-    collection(firestore, 'complaints'),
-    where('targetType', '==', 'user'),
-    where('status', '==', 'open')
-  ) : null), [firestore, adminReady]);
-  const { data: flaggedStreams } = useCollection<Complaint>(flaggedStreamsQuery);
-
   // --- Real-time Support Counts ---
   const openTicketsQuery = useMemoFirebase(() => (
     adminReady ? query(
@@ -168,13 +162,6 @@ export function AdminSidebar() {
     where('status', '!=', 'closed')
   ) : null), [firestore, adminReady]);
   const { data: openTickets } = useCollection<SupportTicket>(openTicketsQuery);
-
-  const unresolvedComplaintsQuery = useMemoFirebase(() => (
-    adminReady ? query(
-    collection(firestore, 'complaints'),
-    where('status', '==', 'open')
-  ) : null), [firestore, adminReady]);
-  const { data: unresolvedComplaints } = useCollection<Complaint>(unresolvedComplaintsQuery);
 
   // --- Real-time Logs & Analytics Counts ---
   const activityLogsQuery = useMemoFirebase(
@@ -192,8 +179,9 @@ export function AdminSidebar() {
 
   // Memoize counts for performance
   const userStats = useMemo(() => {
-    if (!allUsers) return { buyers: 0, sellers: 0, resellers: 0, verification: 0, suspended: 0 };
+    if (!allUsers) return { admins: 0, buyers: 0, sellers: 0, resellers: 0, verification: 0, suspended: 0 };
     return {
+      admins: allUsers.filter(u => (u.userRole || u.role) === 'admin').length,
       buyers: allUsers.filter(u => (u.userRole || u.role) === 'buyer').length,
       sellers: allUsers.filter(u => (u.userRole || u.role) === 'seller').length,
       resellers: allUsers.filter(u => (u.userRole || u.role) === 'reseller').length,
@@ -204,8 +192,8 @@ export function AdminSidebar() {
 
   const productStats = useMemo(() => ({
     total: allProducts?.length || 0,
-    reported: reportedProducts?.length || 0
-  }), [allProducts, reportedProducts]);
+    reported: complaintCounts.openProducts
+  }), [allProducts, complaintCounts.openProducts]);
 
   const orderStats = useMemo(() => {
     if (!allOrders) return { total: 0, reseller: 0, disputes: 0, tracking: 0 };
@@ -227,13 +215,13 @@ export function AdminSidebar() {
 
   const liveStats = useMemo(() => ({
     active: activeSessions?.length || 0,
-    flagged: flaggedStreams?.length || 0
-  }), [activeSessions, flaggedStreams]);
+    flagged: complaintCounts.openUsers
+  }), [activeSessions, complaintCounts.openUsers]);
 
   const supportStats = useMemo(() => ({
     tickets: openTickets?.length || 0,
-    complaints: unresolvedComplaints?.length || 0
-  }), [openTickets, unresolvedComplaints]);
+    complaints: complaintCounts.open
+  }), [openTickets, complaintCounts.open]);
 
   const logStats = useMemo(() => ({
     activity: allActivityLogs?.length || 0,
@@ -258,13 +246,16 @@ export function AdminSidebar() {
             icon={Users2}
             basePath="users"
             items={[
+                { href: 'admins', label: 'Admins', badge: userStats.admins },
                 { href: 'buyers', label: 'Buyers', badge: userStats.buyers },
                 { href: 'sellers', label: 'Sellers', badge: userStats.sellers },
                 { href: 'resellers', label: 'Resellers', badge: userStats.resellers },
                 { href: 'referrals', label: 'Referrals' },
                 { href: 'suspended', label: 'Suspended', badge: userStats.suspended },
                 { href: 'verification', label: 'Verification', badge: userStats.verification },
-                { href: 'tiers', label: 'Tiers & bonuses' },
+                // Absolute href: the tiers page lives at /dashboard/admin/tiers,
+                // not under users/ — a relative 'tiers' under basePath "users" 404'd.
+                { href: '/dashboard/admin/tiers', label: 'Tiers & bonuses' },
             ]}
         />
 
@@ -300,17 +291,6 @@ export function AdminSidebar() {
             { href: 'approved', label: 'Approved Streams' },
             { href: 'flagged', label: 'Flagged Streams', badge: liveStats.flagged },
             { href: 'analytics', label: 'Live Analytics' },
-          ]}
-        />
-
-        <NavCollapsible
-          title="Vidnov Live"
-          icon={Radio}
-          basePath="live-streams"
-          items={[
-            { href: '', label: 'All Streams' },
-            { href: 'active', label: 'Active', badge: 0 },
-            { href: 'reported', label: 'Reported' },
           ]}
         />
 
@@ -359,6 +339,7 @@ export function AdminSidebar() {
           basePath="system"
           items={[
             { href: 'roles', label: 'Roles & Permissions' },
+            { href: 'whatsapp-alerts', label: 'WhatsApp Alerts' },
             { href: 'security', label: 'Security & 2FA' },
             { href: 'backup', label: 'Backup & Restore' },
             { href: 'server-status', label: 'Server Status' },

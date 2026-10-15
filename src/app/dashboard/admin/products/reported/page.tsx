@@ -21,12 +21,23 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { DotsHorizontalIcon } from '@radix-ui/react-icons';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { AdminLayout } from '@/components/layout/admin-layout';
-import type { Complaint, Product, UserProfile } from '@/lib/types';
-import { useCollection, useDoc, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, query, where, doc, updateDoc } from 'firebase/firestore';
+import type { Product, UserProfile } from '@/lib/types';
+import { useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
+import { doc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
+import { useAdminComplaints } from '@/hooks/use-admin-complaints';
 import { formatDistanceToNow } from 'date-fns';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -69,33 +80,53 @@ const ProductCell = ({ productId }: { productId: string }) => {
 };
 
 export default function AdminReportedProductsPage() {
-  const firestore = useFirestore();
   const { toast } = useToast();
 
-  const complaintsQuery = useMemoFirebase(() => {
-    return query(collection(firestore, 'complaints'), where('targetType', '==', 'product'));
-  }, [firestore]);
+  // Product reports come through the Admin-SDK API: the deployed rules deny
+  // client `list` on `complaints`, which used to throw a permission-denied
+  // error on load. See `hooks/use-admin-complaints.ts`.
+  const { complaints, isLoading, updateStatus } = useAdminComplaints({ targetType: 'product' });
+  const { user } = useUser();
+  const [pendingRemove, setPendingRemove] = React.useState<{ productId: string; complaintId: string } | null>(null);
+  const [removeBusy, setRemoveBusy] = React.useState(false);
 
-  const { data: complaints, isLoading } = useCollection<Complaint>(complaintsQuery);
-  
   const handleStatusUpdate = async (complaintId: string, status: 'resolved' | 'dismissed') => {
-      if (!firestore) return;
-      const complaintRef = doc(firestore, 'complaints', complaintId);
-      try {
-          await updateDoc(complaintRef, { status });
-          toast({ title: 'Success!', description: `The report has been marked as ${status}.` });
-      } catch (error) {
-          console.error("Failed to update complaint status:", error);
-          toast({ variant: 'destructive', title: 'Error', description: 'Could not update the report status.' });
-      }
+    try {
+      await updateStatus(complaintId, status);
+      toast({ title: 'Success!', description: `The report has been marked as ${status}.` });
+    } catch (error) {
+      console.error('Failed to update complaint status:', error);
+      toast({ variant: 'destructive', title: 'Error', description: 'Could not update the report status.' });
+    }
   };
 
-  const handleProductAction = async (productId: string | undefined, action: 'unpublish' | 'delete') => {
-    if (!productId) return;
-    // This is a placeholder for the actual logic.
-    // 'unpublish' would set a product's status to 'unpublished'.
-    // 'delete' would remove the product document.
-    toast({ title: 'Action Required', description: `Logic to ${action} product ${productId} needs to be implemented.` });
+  const handleRemoveListing = async () => {
+    if (!pendingRemove) return;
+    setRemoveBusy(true);
+    try {
+      const token = await user?.getIdToken();
+      const res = await fetch(`/api/admin/products/${encodeURIComponent(pendingRemove.productId)}`, {
+        method: 'DELETE',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) {
+        const body = (await res.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(body?.error || `Request failed (${res.status})`);
+      }
+      // Close the report too, so the queue does not keep a row for a product
+      // that no longer exists.
+      await updateStatus(pendingRemove.complaintId, 'resolved');
+      toast({ title: 'Listing removed', description: 'The product is off the marketplace and the report is resolved.' });
+      setPendingRemove(null);
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Could not remove the listing.',
+      });
+    } finally {
+      setRemoveBusy(false);
+    }
   };
 
 
@@ -162,8 +193,13 @@ export default function AdminReportedProductsPage() {
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem onClick={() => handleStatusUpdate(c.id, 'dismissed')}>Dismiss Report</DropdownMenuItem>
-                            <DropdownMenuItem className="text-yellow-600" onClick={() => handleProductAction(c.targetId, 'unpublish')}>Unpublish Product</DropdownMenuItem>
-                            <DropdownMenuItem className="text-destructive" onClick={() => handleProductAction(c.targetId, 'delete')}>Delete Product</DropdownMenuItem>
+                            {/* Product has no status field to "unpublish" into, so the
+                                honourable moderation action is removal (with confirm),
+                                which also resolves the report. */}
+                            <DropdownMenuItem
+                                className="text-destructive"
+                                onClick={() => c.targetId && setPendingRemove({ productId: c.targetId, complaintId: c.id })}
+                            >Remove Listing</DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                     </TableCell>
@@ -180,6 +216,31 @@ export default function AdminReportedProductsPage() {
           </Table>
         </div>
       </div>
+
+      <AlertDialog open={!!pendingRemove} onOpenChange={(open) => !open && setPendingRemove(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove this listing?</AlertDialogTitle>
+            <AlertDialogDescription>
+              The product will be taken off the marketplace permanently and this
+              report will be marked resolved. Media files are cleaned up
+              automatically afterwards.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={removeBusy}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={removeBusy}
+              onClick={(e) => {
+                e.preventDefault();
+                void handleRemoveListing();
+              }}
+            >
+              {removeBusy ? 'Removing…' : 'Remove Listing'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AdminLayout>
   );
 }

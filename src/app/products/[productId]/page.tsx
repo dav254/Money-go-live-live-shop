@@ -177,7 +177,10 @@ export default function BuyerProductPage(props: { params: Promise<{ productId: s
         <MainLayout>
             <div className="bg-black text-white pb-32 min-h-screen">
                 <div className="relative w-full">
-                    <div className="relative aspect-square md:aspect-[16/10] w-full bg-black group">
+                    {/* max-h so the media never grows past the viewport on
+                        a laptop: object-contain inside already shows the
+                        whole frame on any phone. */}
+                    <div className="relative aspect-square max-h-[75vh] w-full bg-black group md:aspect-[16/10]">
                         {selectedMedia?.type === 'image' ? (
                             <Dialog>
                                 <DialogTrigger asChild>
@@ -204,7 +207,16 @@ export default function BuyerProductPage(props: { params: Promise<{ productId: s
                                 </DialogContent>
                             </Dialog>
                         ) : (
-                            <video src={selectedMedia?.url} className="w-full h-full object-contain" autoPlay muted loop playsInline />
+                            <video
+                                src={selectedMedia?.url}
+                                className="w-full h-full object-contain"
+                                autoPlay
+                                muted
+                                loop
+                                playsInline
+                                controlsList="nodownload"
+                                onContextMenu={(e) => e.preventDefault()}
+                            />
                         )}
                     </div>
                 </div>
@@ -263,11 +275,17 @@ export default function BuyerProductPage(props: { params: Promise<{ productId: s
                                 {sellerShop?.twitterUrl && <a href={sellerShop.twitterUrl} target="_blank" rel="noopener noreferrer" className="h-9 w-9 bg-white/5 hover:bg-sky-500 rounded-xl flex items-center justify-center text-white transition-all"><Twitter className="h-4 w-4" /></a>}
                             </div>
 
-                            {sellerShop?.contactWhatsapp && (
-                                <Button asChild variant="outline" className="w-full h-11 rounded-xl border-green-500/30 bg-green-500/5 text-green-400 hover:bg-green-600 hover:text-white font-black uppercase tracking-widest text-[9px] transition-all">
-                                    <a href={`https://wa.me/${sellerShop.contactWhatsapp.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer">
-                                        <MessageCircle className="h-3.5 w-3.5 mr-2" /> CHAT ON WHATSAPP
-                                    </a>
+                            {/* In-app chat only: the conversation stays attached
+                                to the platform (orders, disputes, receipts all
+                                live here) and no personal number is exposed.
+                                The WhatsApp shortcut was removed on purpose —
+                                it leaked the seller's number publicly and moved
+                                disputes outside the platform. */}
+                            {user?.uid !== product.sellerId && (
+                                <Button asChild variant="outline" className="w-full h-11 rounded-xl border-[#2D9CFF]/30 bg-[#2D9CFF]/5 text-[#2D9CFF] hover:bg-[#2D9CFF] hover:text-white font-black uppercase tracking-widest text-[9px] transition-all">
+                                    <Link href={`/messages?chatWith=${encodeURIComponent(product.sellerId || '')}`}>
+                                        <MessageCircle className="h-3.5 w-3.5 mr-2" /> CHAT WITH SELLER
+                                    </Link>
                                 </Button>
                             )}
                         </div>

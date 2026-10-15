@@ -88,7 +88,7 @@ const ResellerProductCard = ({ product }: { product: Product }) => {
                 <Card className="overflow-hidden h-full flex flex-col">
                     <div className="relative aspect-video">
                         <Image
-                            src={product.imageUrl || 'https://picsum.photos/seed/product/300'}
+                            src={product.imageUrl || '/placeholder-image.svg'}
                             alt={product.name || 'product'}
                             fill
                             className="object-cover group-hover:scale-105 transition-transform duration-300"

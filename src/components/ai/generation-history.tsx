@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { useUser } from '@/firebase';
+
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Loader2, Download, Trash2, RefreshCw, ImageIcon, Film, Clock3 } from 'lucide-react';

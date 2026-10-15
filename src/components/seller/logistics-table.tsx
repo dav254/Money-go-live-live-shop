@@ -53,7 +53,7 @@ function LogisticsTableRow({ product }: { product: Product }) {
         <div className="flex items-center gap-4">
           <div className="relative h-12 w-12 rounded-md overflow-hidden">
             <Image
-              src={product.imageUrl || 'https://picsum.photos/seed/product/150/150'}
+              src={product.imageUrl || '/placeholder-image.svg'}
               alt={product.name || 'Product image'}
               fill
               className="object-cover"

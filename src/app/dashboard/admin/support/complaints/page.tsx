@@ -23,11 +23,12 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { DotsHorizontalIcon } from '@radix-ui/react-icons';
-import { useCollection, useFirestore, useMemoFirebase, useDoc, useUser, useUserProfile } from '@/firebase';
-import { collection, query, doc, updateDoc, orderBy } from 'firebase/firestore';
-import type { Complaint, UserProfile } from '@/lib/types';
+import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
+import { doc } from 'firebase/firestore';
+import type { UserProfile } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
+import { useAdminComplaints } from '@/hooks/use-admin-complaints';
 
 const UserCell = ({ userId }: { userId: string }) => {
   const firestore = useFirestore();
@@ -62,25 +63,16 @@ const DataTableSkeleton = () => (
 );
 
 export default function AdminComplaintsPage() {
-  const firestore = useFirestore();
-  const { user } = useUser();
-  const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
   const { toast } = useToast();
-  const adminReady = !!user && !isProfileLoading &&
-    (userProfile?.userRole === 'admin' || userProfile?.role === 'admin');
 
-
-  const complaintsQuery = useMemoFirebase(() => {
-    if (!firestore || !adminReady) return null;
-    return query(collection(firestore, 'complaints'), orderBy('createdAt', 'desc'));
-  }, [firestore, adminReady]);
-
-  const { data: complaints, isLoading } = useCollection<Complaint>(complaintsQuery);
+  // Complaints come through the Admin-SDK API: the rules deployed to the
+  // live project deny client `list` on this collection, which used to make
+  // this page throw a permission-denied error on load.
+  const { complaints, isLoading, updateStatus } = useAdminComplaints();
 
   const handleStatusUpdate = async (complaintId: string, status: 'investigating' | 'resolved' | 'dismissed') => {
-    const complaintRef = doc(firestore, 'complaints', complaintId);
     try {
-      await updateDoc(complaintRef, { status });
+      await updateStatus(complaintId, status);
       toast({ title: 'Success', description: `Complaint status updated to ${status}.` });
     } catch (error) {
       toast({ variant: 'destructive', title: 'Error', description: 'Failed to update complaint status.' });

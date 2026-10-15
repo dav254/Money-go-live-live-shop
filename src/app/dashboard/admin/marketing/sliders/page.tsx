@@ -76,7 +76,7 @@ const SlideForm = ({ slide, onSave, onCancel }: { slide?: HomepageSlide | null, 
             </div>
             <div className="space-y-2">
                 <Label htmlFor="imageUrl">Image URL</Label>
-                <Input id="imageUrl" value={imageUrl} onChange={e => setImageUrl(e.target.value)} placeholder="https://picsum.photos/seed/slide/1600/700" />
+                <Input id="imageUrl" value={imageUrl} onChange={e => setImageUrl(e.target.value)} placeholder="/uploads/slide.jpg" />
             </div>
              <div className="space-y-2">
                 <Label htmlFor="imageHint">Image Hint (for AI)</Label>

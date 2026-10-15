@@ -31,10 +31,11 @@ import {
 import { DotsHorizontalIcon } from '@radix-ui/react-icons';
 import { formatDistanceToNow } from 'date-fns';
 import { ShieldAlert, Video } from 'lucide-react';
-import { useCollection, useDoc, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, query, where, doc } from 'firebase/firestore';
+import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
+import { doc } from 'firebase/firestore';
 import type { Complaint, UserProfile } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useAdminComplaints } from '@/hooks/use-admin-complaints';
 
 const SellerCell = ({ sellerId }: { sellerId: string }) => {
     const firestore = useFirestore();
@@ -117,16 +118,11 @@ const columns: ColumnDef<Complaint>[] = [
 ];
 
 export default function AdminFlaggedStreamsPage() {
-  const firestore = useFirestore();
-
-  // Querying complaints collection for reports against users, which we'll treat as flagged streams for now.
-  // A more robust system would have a dedicated 'flags' collection for streams.
-  const flaggedQuery = useMemoFirebase(() => {
-    return query(collection(firestore, 'complaints'), where('targetType', '==', 'user'));
-  }, [firestore]);
-
-  const { data: flaggedItems, isLoading } = useCollection<Complaint>(flaggedQuery);
-
+  // Flags are complaints against users, fetched through the Admin-SDK API:
+  // the deployed rules deny client `list` on `complaints`, so the direct
+  // Firestore listener used to throw a permission-denied error on load.
+  // (A more robust system would have a dedicated 'flags' collection.)
+  const { complaints: flaggedItems, isLoading } = useAdminComplaints({ targetType: 'user' });
 
   const table = useReactTable({
       data: flaggedItems || [],

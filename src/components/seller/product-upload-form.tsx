@@ -39,6 +39,21 @@ import { VidnovLogo } from '@/components/logo';
 import { PricingUploadCard } from '@/components/seller/pricing-upload-card';
 import { useQuota } from '@/lib/media/use-quota';
 
+/**
+ * A video's poster must be an image an `<img>` can actually paint.
+ *
+ * Every fallback in this form used to reach for the clip's own URL when the
+ * real thumbnail was not at hand, and that value was then saved into
+ * `videoThumbnailUrls`. In Discovery the poster failed to render, its error
+ * marked the VIDEO as failed (same URL), and the whole post went to a broken
+ * image over black — a video that looked crashed. No fallback may return the
+ * video itself: an empty poster is always safe, a video URL never is.
+ */
+const isUsablePoster = (thumb: string | null | undefined, videoUrl: string): thumb is string => {
+  if (!thumb || thumb.startsWith('blob:') || thumb === videoUrl) return false;
+  return !/\.(mp4|webm|mov|m4v|avi|mkv)(\?|#|$)/i.test(thumb);
+};
+
 /** Rejects anything longer than the platform maximum before a single byte is uploaded. */
 function videoDurationSeconds(file: File): Promise<number> {
   return new Promise((resolve, reject) => {
@@ -142,6 +157,13 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
   const [videoPreviews, setVideoPreviews] = useState<string[]>([]);
   const [existingVideoUrls, setExistingVideoUrls] = useState<string[]>([]);
   const [videoThumbUrls, setVideoThumbUrls] = useState<string[]>([]);
+  /**
+   * Poster recorded per committed video URL. The picker's previews keep the
+   * server URL after an upload, so when the same clip is walked again (step 0
+   * uploads, submit re-runs the loop) the reuse branch must push the REAL
+   * thumbnail for that URL — never the clip's own URL as its poster.
+   */
+  const videoPosterByUrl = useRef<Record<string, string>>({});
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
   const [isUploading, setIsUploading] = useState(false);
 
@@ -156,6 +178,33 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
   const [serviceCategory, setServiceCategory] = useState<string>(productToEdit?.serviceCategory ?? '');
   const [serviceArea, setServiceArea] = useState<string>(productToEdit?.serviceArea ?? '');
   const [priceMode, setPriceMode] = useState<string>(productToEdit?.priceMode ?? 'fixed');
+
+  /*
+   * Edit mode: seed the media picker with the media already attached to the
+   * listing. Without this an edit opens with an empty photo tray and
+   * publishing overwrites imageUrl/videoUrls with nothing.
+   */
+  useEffect(() => {
+    if (!productToEdit) return;
+    const clean = (list: (string | undefined | null)[] | undefined) =>
+      (list ?? []).filter((u): u is string => typeof u === 'string' && u.trim() !== '');
+
+    const images = clean(productToEdit.imageUrls);
+    const primaryImage = productToEdit.imageUrl || images[0] || '';
+    const allImages = (images.length ? images : primaryImage ? [primaryImage] : []).slice(0, MAX_IMAGES);
+    const imageThumbs = clean(productToEdit.thumbnailUrls);
+    setImagePreviews((prev) => prev.map((cur, i) => cur ?? allImages[i] ?? null));
+    setImageThumbUrls((prev) => prev.map((cur, i) => cur ?? imageThumbs[i] ?? allImages[i] ?? null));
+
+    const videos = clean(productToEdit.videoUrls);
+    const primaryVideo = productToEdit.videoUrl || videos[0] || '';
+    const allVideos = (videos.length ? videos : primaryVideo ? [primaryVideo] : []).slice(0, MAX_VIDEOS);
+    const videoThumbs = clean(productToEdit.videoThumbnailUrls);
+    setExistingVideoUrls((prev) => (prev.length ? prev : allVideos));
+    setVideoThumbUrls((prev) =>
+      prev.length ? prev : allVideos.map((url, i) => (isUsablePoster(videoThumbs[i], url) ? videoThumbs[i] : '')),
+    );
+  }, [productToEdit]);
 
   const descriptionValue = form.watch('description');
   const conditionValue = form.watch('condition');
@@ -314,7 +363,6 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
     const pendingFiles = imageSlots.map((slot, index) => (slot instanceof File ? { slot, index } : null)).filter(Boolean) as { slot: File; index: number }[];
     const mediaIds = new Map<number, string>();
     const progressKeys = new Set<string>();
-
     for (const { slot, index } of pendingFiles) {
       const key = `img-${index}`;
       setUploadProgress(prev => ({ ...prev, [key]: 0 }));
@@ -336,6 +384,17 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
     }
 
     for (let i = 0; i < videoFiles.length; i++) {
+      // Already uploaded in a previous step — reuse the stored URL instead of
+      // sending the same bytes to the server twice.
+      const committedPreview = videoPreviews[i];
+      if (committedPreview && !committedPreview.startsWith('blob:')) {
+        uploadedVideoUrls.push(committedPreview);
+        // Reuse the poster recorded when this exact URL was uploaded (empty
+        // string = none) — pushing the clip's own URL here is what used to
+        // save an .mp4 as the listing's poster and crash its feed card.
+        uploadedVideoThumbs.push(videoPosterByUrl.current[committedPreview] ?? '');
+        continue;
+      }
       const file = videoFiles[i];
       const key = `vid-${i}`;
       setUploadProgress(prev => ({ ...prev, [key]: 0 }));
@@ -350,7 +409,10 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
           return next;
         });
         uploadedVideoUrls.push(url);
-        uploadedVideoThumbs.push(thumbnailUrl || url);
+        // A missing thumbnail yields an empty poster (safe) — never the video
+        // URL, which cannot render as an image.
+        videoPosterByUrl.current[url] = thumbnailUrl || '';
+        uploadedVideoThumbs.push(thumbnailUrl || '');
         mediaIds.set(i, '');
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Upload failed.';
@@ -444,15 +506,38 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
     setUploadProgress({});
     try {
       const media = await uploadPendingMedia();
+      /*
+       * Saved media = everything already attached (seeded from the listing in
+       * edit mode, or uploaded on an earlier step) PLUS the files just sent in
+       * this submit. uploadPendingMedia() only reports files that were still
+       * pending in the picker, so building the saved lists from it alone
+       * silently drops every previously attached photo/video.
+       */
       const finalImageUrls: string[] = [];
       const finalImageThumbs: string[] = [];
-      media.imageUrls.forEach((url, i) => {
-        if (!url) return;
+      const pushImage = (url: string, thumb?: string | null) => {
+        if (!url || url.startsWith('blob:') || finalImageUrls.includes(url)) return;
         finalImageUrls.push(url);
-        finalImageThumbs.push(media.imageThumbs[i] || url);
+        finalImageThumbs.push(thumb || url);
+      };
+      imagePreviews.forEach((url, i) => {
+        if (url) pushImage(url, imageThumbUrls[i]);
       });
-      const finalVideoUrls: string[] = [...media.videoUrls];
-      const finalVideoThumbs: string[] = [...media.videoThumbs];
+      media.imageUrls.forEach((url, i) => {
+        if (url) pushImage(url, media.imageThumbs[i]);
+      });
+
+      const finalVideoUrls: string[] = [];
+      const finalVideoThumbs: string[] = [];
+      const pushVideo = (url: string, thumb?: string | null) => {
+        if (!url || url.startsWith('blob:') || finalVideoUrls.includes(url)) return;
+        finalVideoUrls.push(url);
+        // Same rule as everywhere else: the poster is the real thumbnail when
+        // we have one, and '' when we do not — never the video URL itself.
+        finalVideoThumbs.push(isUsablePoster(thumb, url) ? thumb : '');
+      };
+      existingVideoUrls.forEach((url, i) => pushVideo(url, videoThumbUrls[i]));
+      media.videoUrls.forEach((url, i) => pushVideo(url, media.videoThumbs[i]));
 
       const productData: any = {
         ...values,

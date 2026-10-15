@@ -105,7 +105,7 @@ export function SellerTabs({ seller, products, liveSession, trust }: SellerTabsP
                         <div className="flex -space-x-2">
                             {[1,2,3].map(i => (
                                 <div key={i} className="h-8 w-8 rounded-full border-2 border-neutral-950 bg-neutral-800 overflow-hidden">
-                                    <img src={`https://picsum.photos/seed/user-${i}/100`} alt="user" className="h-full w-full object-cover opacity-50" />
+                                    <img src="/placeholder-avatar.svg" alt="user" className="h-full w-full object-cover opacity-50" />
                                 </div>
                             ))}
                         </div>

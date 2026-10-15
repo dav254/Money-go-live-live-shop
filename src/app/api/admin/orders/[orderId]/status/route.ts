@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db, auth } from '@/firebase/server';
 import { FieldValue } from 'firebase-admin/firestore';
+import { awardDeliveryPoints } from '@/lib/points/delivery';
 import type { Order } from '@/lib/types';
 
 /**
@@ -56,6 +57,15 @@ export async function PUT(
         updatedBy: 'admin'
       }),
     });
+
+    // Same reward as the seller route: whoever confirms the delivery, both
+    // sides earn their points. The flag on the order keeps an admin re-set of
+    // the status from paying the same order twice. See lib/points/delivery.ts.
+    if (status === 'delivered') {
+      await awardDeliveryPoints(db, orderSnap.data() as Order, orderId).catch((err) =>
+        console.error(`Delivery points failed for order ${orderId}:`, err),
+      );
+    }
 
     return NextResponse.json({ success: true, message: `Order status updated to ${status}` });
 

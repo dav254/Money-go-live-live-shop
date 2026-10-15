@@ -246,7 +246,7 @@ export default function SellerAnalyticsPage() {
                                     topProducts.map(product => (
                                     <TableRow key={product.id} className="border-white/5 group hover:bg-white/5 transition-colors">
                                         <TableCell className="font-medium flex items-center gap-2 py-3">
-                                            <Image src={product.imageUrl || 'https://picsum.photos/seed/product/40'} alt={product.name || 'product image'} width={40} height={40} className="rounded-lg object-cover border border-white/10" />
+                                            <Image src={product.imageUrl || '/placeholder-image.svg'} alt={product.name || 'product image'} width={40} height={40} className="rounded-lg object-cover border border-white/10" />
                                             <span className="truncate">{product.name}</span>
                                         </TableCell>
                                         <TableCell className="text-right font-black text-primary">${product.price.toLocaleString()}</TableCell>

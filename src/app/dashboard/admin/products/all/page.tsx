@@ -97,7 +97,7 @@ export const columns: ColumnDef<ProductRow>[] = [
         <div className="flex items-center gap-3">
             <div className="relative h-10 w-10 rounded-md overflow-hidden">
                 <Image 
-                    src={row.original.imageUrl || 'https://picsum.photos/seed/product/100'} 
+                    src={row.original.imageUrl || '/placeholder-image.svg'}
                     alt={row.original.name || 'product'}
                     fill
                     className="object-cover"

@@ -112,7 +112,7 @@ const StreamCard = ({ session }: { session: LiveSession }) => (
     <div className="relative aspect-[4/5] overflow-hidden rounded-lg border border-border bg-card vn-shadow vn-transition group-hover:border-foreground/30">
       <div className="absolute inset-0">
         <Image
-          src={`https://picsum.photos/seed/${session.id}/600/750`}
+          src="/placeholder-image.svg"
           alt={session.title || 'Live stream'}
           fill
           className="object-cover vn-mono-img opacity-80 group-hover:opacity-100 group-hover:scale-[1.03] vn-transition"

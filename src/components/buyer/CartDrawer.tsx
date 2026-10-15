@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Button } from "../ui/button";
@@ -21,7 +22,7 @@ export function CartDrawer({ cartItems, onCheckout, onDeleteItem }: { cartItems:
           cartItems.map((item) => (
             <div key={item.productId} className="text-sm flex items-center gap-2">
               <div className="relative h-8 w-8 rounded-sm overflow-hidden shrink-0">
-                  <Image src={item.imageUrl || 'https://placehold.co/80x80/111111/ffffff?text=img'} alt={item.name} fill className="object-cover" />
+                  <Image src={item.imageUrl || '/placeholder-image.svg'} alt={item.name} fill className="object-cover" />
               </div>
               <div className="flex-1 overflow-hidden">
                 <p className="truncate">{item.name} x{item.quantity}</p>

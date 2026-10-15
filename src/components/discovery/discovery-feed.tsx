@@ -42,7 +42,7 @@ import { DiscoveryLiveLane } from './discovery-live';
 import { DiscoveryDetails } from './discovery-details';
 
 const PAGE_SIZE = 60;
-const PLACEHOLDER_AVATAR = 'https://picsum.photos/seed/vn-seller/120/120';
+const PLACEHOLDER_AVATAR = '/placeholder-avatar.svg';
 
 /* ── Loading / empty / error ────────────────────────────────────────────── */
 

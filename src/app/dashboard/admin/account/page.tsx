@@ -110,7 +110,7 @@ export default function AdminAccountSettingsPage() {
               <CardContent className="space-y-6">
                 <div className="flex items-center gap-6">
                     <Avatar className="h-20 w-20">
-                        <AvatarImage src={userProfile?.profilePictureUrl || `https://picsum.photos/seed/${user?.uid}/100/100`} />
+                        <AvatarImage src={userProfile?.profilePictureUrl || '/placeholder-avatar.svg'} />
                         <AvatarFallback>AD</AvatarFallback>
                     </Avatar>
                     <Button variant="outline"><Camera className="mr-2 h-4 w-4" /> Change Picture</Button>

@@ -809,6 +809,12 @@ export interface Order {
     courierName?: string;
     dispatchNote?: string;
     buyerConfirmed?: boolean;
+    /**
+     * Set once the delivery points have been paid (seller + buyer, see
+     * `lib/points/delivery.ts`). Guards every writer against paying the same
+     * order twice when `delivered` is re-set.
+     */
+    deliveryPointsAwarded?: boolean;
     deliveredAt?: any;
     deliveryProof?: string;
     timeline?: { status: string; date: any; updatedBy?: string }[];

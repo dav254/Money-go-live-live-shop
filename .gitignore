@@ -52,3 +52,6 @@ uploads/
 next-env.d.ts
 node_modules
 functions/node_modules/
+
+# WhatsApp alert bridge sessions (per-admin linked-device credentials, server-side only)
+.whatsapp-sessions/

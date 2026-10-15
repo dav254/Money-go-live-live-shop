@@ -427,6 +427,21 @@ html[data-vidnov-surface='app']:has(.vn-buyer-scope) body {
   --vn-mute: #8a8a8a;
   --vn-line: rgba(255, 255, 255, 0.12);
 
+  /*
+   * The accent, referenced BY NAME in every discovery component — the primary
+   * "View product" button, the price, active chips, the follow button, the
+   * feed's spinner, the rail's focus rings (50+ usages across
+   * `components/discovery/*`). It was never declared anywhere, so every one of
+   * those resolved to an unset variable: transparent backgrounds under
+   * `text-[#0A0A0A]`, i.e. invisible buttons.
+   *
+   * Lime, because this section's identity is black / white / lime (see the
+   * note above) — and lime is the one value here that works both ways: as a
+   * fill under ink (#0A0A0A text on it) and as text on the black surface.
+   */
+  --vn-discovery-accent: #c8ff00;
+  --vn-discovery-accent-hover: var(--vn-lime-deep);
+
   font-family: 'Inter', system-ui, sans-serif;
   /* Black, always. The section's identity is the dark immersive surface a
      vertical feed lives on; a light theme would flip the one screen whose

@@ -12,6 +12,7 @@ import {
   orderBy, query, serverTimestamp, updateDoc, where, writeBatch,
 } from 'firebase/firestore';
 import { uploadMedia } from '@/lib/media/upload-client';
+import { blobToDataUrl, compressImageForChat, MAX_CHAT_EMBED_BYTES } from '@/lib/chat/device-media';
 import {
   useCollection, useDoc, useFirestore, useMemoFirebase, useUser,
 } from '@/firebase';
@@ -191,11 +192,34 @@ export function SellerThread({
 
   const upload = React.useCallback(
     (file: File, messageType: 'image' | 'video' | 'file', duration?: number) => {
-      // Self-hosted media engine — the file lands in chats/<chatId>/ on the
-      // VPS disk instead of an external storage bucket.
+      // Device-only first: images are compressed and small attachments are
+      // embedded straight into the message document, so private conversation
+      // media never lands in platform storage. Only videos/large files that
+      // physically cannot fit in a 1 MB Firestore document fall back to the
+      // upload pipeline.
       setUploadPct(0);
       void (async () => {
         try {
+          if (messageType === 'image') {
+            const { dataUrl, bytes } = await compressImageForChat(file);
+            await send({
+              messageType: 'image',
+              mediaUrl: dataUrl,
+              mediaMetadata: { name: file.name, size: bytes, type: 'image/jpeg', duration },
+            });
+            setAtBottom(true);
+            return;
+          }
+          if (file.size <= MAX_CHAT_EMBED_BYTES) {
+            const dataUrl = await blobToDataUrl(file);
+            await send({
+              messageType,
+              mediaUrl: dataUrl,
+              mediaMetadata: { name: file.name, size: file.size, type: file.type, duration },
+            });
+            setAtBottom(true);
+            return;
+          }
           const result = await uploadMedia(
             file,
             currentUser,
@@ -256,11 +280,32 @@ export function SellerThread({
       };
       recorder.onstop = async () => {
         stream.getTracks().forEach((t) => t.stop());
-        const blob = new Blob(chunksRef.current, { type: recorder.mimeType || 'audio/webm' });
-        const seconds = recordingSecondsRef.current;
-        if (blob.size > 200) {
-          const file = new File([blob], `voice-${Date.now()}.webm`, { type: blob.type });
-          upload(file, 'file', seconds);
+        // Voice notes stay on the two participants' devices only: the audio
+        // rides inside the message document as a data URL and never touches
+        // platform storage. Fully guarded — an exception here used to escape
+        // as an unhandled error from the recorder callback.
+        try {
+          const type = recorder.mimeType || 'audio/webm';
+          const blob = new Blob(chunksRef.current, { type });
+          const seconds = recordingSecondsRef.current;
+          if (blob.size <= 200) return;
+          if (blob.size > MAX_CHAT_EMBED_BYTES) {
+            toast({
+              variant: 'destructive',
+              title: 'Voice note too long',
+              description: 'Record a shorter note so it stays on-device.',
+            });
+            return;
+          }
+          const dataUrl = await blobToDataUrl(blob);
+          await send({
+            messageType: 'voice',
+            mediaUrl: dataUrl,
+            mediaMetadata: { name: 'Voice Note', size: blob.size, type, duration: seconds },
+          });
+          setAtBottom(true);
+        } catch {
+          toast({ variant: 'destructive', title: 'Voice note not sent' });
         }
       };
 
@@ -287,6 +332,12 @@ export function SellerThread({
     setRecording(false);
     if (timerRef.current) clearInterval(timerRef.current);
   };
+
+  // Auto-stop a long recording: device-only voice notes must fit the on-device
+  // size limit, and a note that can never be sent is worse than a stopped one.
+  React.useEffect(() => {
+    if (recording && recordingSeconds >= 150) stopRecording();
+  }, [recording, recordingSeconds]);
 
   React.useEffect(
     () => () => {

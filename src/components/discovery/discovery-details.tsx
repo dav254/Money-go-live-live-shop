@@ -25,9 +25,9 @@
 import * as React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
-  Bookmark, Check, ChevronLeft, Loader2, MapPin, MessageCircle, Minus,
+  Bookmark, Check, ChevronLeft, ChevronRight, Loader2, MapPin, MessageCircle, Minus,
   Package, Plus, Share2, ShoppingBag, Star, Store, Truck, Verified,
 } from 'lucide-react';
 import {
@@ -156,7 +156,18 @@ function DetailsBody({
   const stock = Number(listing.stock ?? 0);
   const purchasable = isPurchasable(listing);
   const maxQuantity = service ? 1 : Math.max(1, Math.min(stock || 1, 20));
-  const messageHref = `/messages?chatWith=${encodeURIComponent(listing.sellerId)}`;
+  /*
+   * Surface-aware, like the feed post does it: whichever app shell this
+   * discovery screen is rendered inside owns its own messages route, so a
+   * buyer on /app/buyer/discovery must not be bounced to the standalone
+   * /messages page (and vice versa).
+   */
+  const pathname = usePathname() ?? '';
+  const messageHref = pathname.startsWith('/app/seller')
+    ? `/app/seller/messages?chatWith=${encodeURIComponent(listing.sellerId)}`
+    : pathname.startsWith('/app/buyer')
+      ? `/app/buyer/messages?chatWith=${encodeURIComponent(listing.sellerId)}`
+      : `/messages?chatWith=${encodeURIComponent(listing.sellerId)}`;
 
   const requireAuth = (message: string) => {
     toast({
@@ -171,6 +182,31 @@ function DetailsBody({
   };
 
   const cover = current?.url ?? media[0]?.url ?? '';
+
+  /*
+   * Gallery browsing. Horizontal intent on a PHOTO steps through the seller's
+   * uploads (swipe like the feed does); the video is left alone so a swipe
+   * never fights its own controls. Arrow buttons cover desktop and anyone
+   * who does not discover the swipe, and the n/N badge makes it visible that
+   * there is more to see at all — previously only tiny dots hinted at it.
+   */
+  const dragStart = React.useRef<{ x: number; y: number } | null>(null);
+  const onGalleryPointerDown = (e: React.PointerEvent) => {
+    if (current?.type !== 'image') return;
+    dragStart.current = { x: e.clientX, y: e.clientY };
+  };
+  const onGalleryPointerUp = (e: React.PointerEvent) => {
+    const start = dragStart.current;
+    dragStart.current = null;
+    if (!start || current?.type !== 'image') return;
+    const dx = e.clientX - start.x;
+    if (Math.abs(dx) < 40) return;
+    stepGallery(dx < 0 ? 1 : -1);
+  };
+  const stepGallery = (delta: number) => {
+    if (media.length <= 1) return;
+    setActive((i) => (i + delta + media.length) % media.length);
+  };
 
   const toggleSave = async () => {
     if (!user) return requireAuth('Saved items need an account so they follow you.');
@@ -292,8 +328,10 @@ function DetailsBody({
 
         <div className="flex h-full flex-col">
           {/* Gallery */}
-          <div className="relative shrink-0">
-            <div className="relative aspect-[4/5] w-full bg-white/8 sm:aspect-square">
+          <div className="relative shrink-0">            <div className="relative aspect-[4/5] w-full bg-black sm:aspect-square"
+              onPointerDown={onGalleryPointerDown}
+              onPointerUp={onGalleryPointerUp}
+            >
               {current?.type === 'video' ? (
                 <video
                   key={current.url}
@@ -301,15 +339,20 @@ function DetailsBody({
                   poster={current.poster}
                   controls
                   playsInline
-                  className="h-full w-full object-cover"
+                  controlsList="nodownload"
+                  onContextMenu={(e) => e.preventDefault()}
+                  /* Contain, not cover: on any phone or laptop the WHOLE
+                     frame must be visible — cropping a product photo or a
+                     clip to fill a box hides exactly what is for sale. */
+                  className="h-full w-full bg-black object-contain"
                 />
               ) : (
                 <Image
-                  src={cover || 'https://picsum.photos/seed/vn-product/800/1000'}
+                  src={cover || '/placeholder-image.svg'}
                   alt={listing.name}
                   fill
                   sizes="(max-width: 640px) 100vw, 480px"
-                  className="object-cover"
+                  className="object-contain"
                   priority
                 />
               )}
@@ -327,6 +370,30 @@ function DetailsBody({
                 <span className="absolute right-3 top-3 rounded-full bg-white/15 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.18em] text-white backdrop-blur">
                   Sponsored
                 </span>
+              )}
+
+              {media.length > 1 && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => stepGallery(-1)}
+                    aria-label="Previous photo"
+                    className="absolute left-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-black/55 text-white backdrop-blur transition hover:bg-black/75 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--vn-discovery-accent)]"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => stepGallery(1)}
+                    aria-label="Next photo"
+                    className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-black/55 text-white backdrop-blur transition hover:bg-black/75 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--vn-discovery-accent)]"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                  <span className="absolute bottom-3 right-3 rounded-full bg-black/55 px-2 py-0.5 text-[10px] font-bold tabular-nums text-white backdrop-blur">
+                    {Math.min(active, media.length - 1) + 1} / {media.length}
+                  </span>
+                </>
               )}
             </div>
 
@@ -532,6 +599,21 @@ function DetailsBody({
                   Store
                 </Link>
               </div>
+
+              {/* The direct line to the seller. Labeled, full-width and above
+                  the fold of the sheet — an icon-only circle in the action bar
+                  was too easy to miss for buyers who arrived wanting to ask a
+                  question. Hidden on your own listing: you do not chat with
+                  yourself. */}
+              {user?.uid !== listing.sellerId && (
+                <Link
+                  href={messageHref}
+                  className="mt-3 flex h-10 w-full items-center justify-center gap-2 rounded-full border border-[color:var(--vn-discovery-accent)] text-[11px] font-bold uppercase tracking-wider text-[color:var(--vn-discovery-accent)] transition hover:bg-[color:var(--vn-discovery-accent)] hover:text-[#0A0A0A] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--vn-discovery-accent)]"
+                >
+                  <MessageCircle className="h-4 w-4" />
+                  Chat with seller
+                </Link>
+              )}
             </section>
 
             {/* Reviews */}

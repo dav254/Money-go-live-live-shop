@@ -49,7 +49,7 @@ const DemoCard = ({ item, index }: { item: any, index: number }) => {
         >
             <div className="h-full w-full relative">
                 <Image 
-                    src={`https://picsum.photos/seed/${item.title}/800/1400`} 
+                    src="/placeholder-image.svg"
                     alt={item.title}
                     fill
                     className="object-cover opacity-80 group-hover:opacity-100 transition-all duration-700 group-hover:scale-110"

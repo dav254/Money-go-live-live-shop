@@ -58,7 +58,7 @@ import { cn } from '@/lib/utils';
  *
  * The section grew from seven screens to sixteen: My sellers and Recently
  * viewed were added to the Shop group, Refunds & payments to Buy, and
- * Notifications and Help centre to You. Each one replaces an escape to the
+ * Notifications and Customer care to You. Each one replaces an escape to the
  * website — the buyer's own Account screen used to link out to `/buyer/wallet`,
  * `/buyer/wishlist`, `/buyer/notifications` and `/buyer/help`, and the
  * immersive bar's bell dead-linked to Account.
@@ -181,7 +181,14 @@ const GROUPS: DrawerGroup[] = [
         href: '/app/buyer/settings/notifications',
         icon: BellRing,
       },
-      { key: 'care', label: 'Help centre', href: '/app/buyer/care', icon: HelpCircle },
+      {
+        key: 'care',
+        label: 'Customer care',
+        // The buyer's direct line to the platform — contact form, report status
+        // and the help articles. Named to match the seller section's screen.
+        href: '/app/buyer/care',
+        icon: HelpCircle,
+      },
     ],
   },
 ];

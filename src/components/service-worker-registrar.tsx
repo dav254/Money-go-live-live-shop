@@ -27,14 +27,29 @@ export function ServiceWorkerRegistrar() {
   useEffect(() => {
     if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return;
 
+    let cancelled = false;
+    let retryTimer: number | undefined;
+    let retries = 0;
+
     const register = () => {
+      if (cancelled) return;
       navigator.serviceWorker
         .register('/sw.js', { scope: '/' })
         .then(() => navigator.serviceWorker.getRegistration('/'))
         .then((registration) => {
+          if (!registration) return;
+          // Server is reachable again — reset the retry budget.
+          retries = 0;
           // Silent update check: fetches any newer sw.js in the background.
-          registration?.update();
-          registration?.addEventListener('updatefound', () => {
+          // This promise MUST be caught: when the server was restarting, a
+          // failed check rejected with an unhandled
+          // "TypeError: Failed to update a ServiceWorker … bad HTTP response
+          // code (502)" that showed up as a red error even though nothing was
+          // actually wrong with the app.
+          registration.update().catch((err) => {
+            console.warn('[PWA] Service worker update check failed (will retry next load):', err);
+          });
+          registration.addEventListener('updatefound', () => {
             const installing = registration.installing;
             if (!installing) return;
             installing.addEventListener('statechange', () => {
@@ -47,7 +62,14 @@ export function ServiceWorkerRegistrar() {
           });
         })
         .catch((err) => {
+          // A 502 here just means the dev server/proxy was mid-restart.
+          // Retry quietly instead of leaving the page with a failed worker.
           console.warn('[PWA] Service worker registration failed:', err);
+          const delays = [5_000, 30_000, 120_000];
+          if (retries < delays.length) {
+            retryTimer = window.setTimeout(register, delays[retries]);
+            retries += 1;
+          }
         });
     };
 
@@ -61,6 +83,11 @@ export function ServiceWorkerRegistrar() {
     // during hydration gets the worker in place several seconds earlier, so the
     // prompt is usually already waiting by the time anyone looks at the button.
     register();
+
+    return () => {
+      cancelled = true;
+      if (retryTimer !== undefined) window.clearTimeout(retryTimer);
+    };
   }, []);
 
   return null;

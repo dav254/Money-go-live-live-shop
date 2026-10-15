@@ -18,6 +18,7 @@ import {
 import type { LiveSession, Product, SellerShop, UserProfile } from '@/lib/types';
 import { SellerCard, SellerSectionTitle, EmptyState } from '@/components/app/seller/seller-app-shell';
 import { ShopQRDots } from '@/components/shop/ShopQRDots';
+import { publicOrigin } from '@/lib/site-url';
 import { ListingThumb } from '@/components/app/seller/listing-thumb';
 import { useToast } from '@/hooks/use-toast';
 import { mergeSocialLinks, socialPlatformFor } from '@/lib/social-links';
@@ -134,16 +135,14 @@ export default function AppSellerShopPage() {
     hover: socialPlatformFor(link.url).hover,
   }));
 
-  // Public storefront origin — resolved on the client so the share link and
-  // the generated QR always encode the same URL the seller actually copies.
-  const [origin, setOrigin] = React.useState('');
-  React.useEffect(() => {
-    setOrigin(window.location.origin);
-  }, []);
+  // Canonical public origin (`vidnov.com`) — not `window.location.origin`,
+  // which would bake whatever host the app is served from into the share link
+  // and QR code.
+  const origin = publicOrigin();
   const shopLink = origin && sellerId ? `${origin}/sellers/${sellerId}` : '';
 
   const share = async () => {
-    const url = `${window.location.origin}/sellers/${sellerId}`;
+    const url = `${origin}/sellers/${sellerId}`;
     try {
       await navigator.clipboard.writeText(url);
       toast({ title: 'Link copied', description: 'Your public shop link is on your clipboard.' });

@@ -2,7 +2,7 @@
 
 import { UserNav } from '../layout/user-nav';
 import { SidebarTrigger } from '../ui/sidebar';
-import { useUserProfile } from '@/firebase';
+import { useUserProfile } from '@/firebase/auth/use-user-profile';
 import type { UserProfile } from '@/lib/types';
 import { Logo } from '../logo';
 import Link from 'next/link';

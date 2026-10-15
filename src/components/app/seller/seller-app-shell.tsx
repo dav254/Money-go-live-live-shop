@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 
 import {
-  Bell, ChevronLeft, Home, Boxes, Plus, Package,
+  Bell, ChevronLeft, Home, Boxes, Plus, Package, Search,
   Loader2, Menu, MessageSquare,
 } from 'lucide-react';
 import {
@@ -63,6 +63,8 @@ export function SellerAppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="vn-seller-scope flex min-h-screen flex-col bg-background font-sora">
+      {/* This IS the one header on discovery: hamburger, Vidnov name and the
+          search button (see SellerTopBar). */}
       <SellerTopBar onOpenNav={() => setNavOpen(true)} immersive={immersive} />
 
       {/* No `pb-28` in immersive mode: that padding exists purely to clear the
@@ -191,6 +193,8 @@ function useImmersiveRoute(): boolean {
 
 function SellerTopBar({ onOpenNav, immersive = false }: { onOpenNav: () => void; immersive?: boolean }) {
   const router = useRouter();
+  const pathname = usePathname() ?? '';
+  const onDiscovery = pathname === '/app/seller/discovery';
   const { user } = useUser();
   const { userProfile } = useUserProfile(user?.uid);
   const profile = (userProfile ?? null) as { fullName?: string } | null;
@@ -223,6 +227,21 @@ function SellerTopBar({ onOpenNav, immersive = false }: { onOpenNav: () => void;
           >
             <ChevronLeft className="h-5 w-5" />
           </button>
+
+          {/* Discovery's identity and search live HERE now — the section's own
+              bar is gone, so this is the only header on the screen. */}
+          {onDiscovery && <Logo className="ml-1 text-lg" />}
+          {onDiscovery && (
+            <button
+              type="button"
+              onClick={() => window.dispatchEvent(new CustomEvent('vidnov:open-search'))}
+              aria-label="Search & filters"
+              title="Search & filters"
+              className="ml-auto flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition hover:bg-secondary"
+            >
+              <Search className="h-5 w-5" />
+            </button>
+          )}
         </div>
       </header>
     );

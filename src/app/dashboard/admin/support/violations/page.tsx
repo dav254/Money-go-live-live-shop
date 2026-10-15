@@ -8,23 +8,18 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ShieldAlert, Eye, Ban, CheckCircle, Clock, AlertTriangle } from 'lucide-react';
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, query, orderBy, doc, updateDoc } from 'firebase/firestore';
-import type { Complaint } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
+import { useAdminComplaints } from '@/hooks/use-admin-complaints';
 import { useState } from 'react';
 
 export default function AdminViolationsPage() {
-  const firestore = useFirestore();
   const { toast } = useToast();
   const [statusFilter, setStatusFilter] = useState<string>('all');
 
-  const complaintsQuery = useMemoFirebase(() => {
-    return query(collection(firestore, 'complaints'), orderBy('createdAt', 'desc'));
-  }, [firestore]);
-
-  const { data: complaints, isLoading } = useCollection<Complaint>(complaintsQuery);
+  // Complaints come through the Admin-SDK API: the deployed rules deny
+  // client `list` on this collection (permission-denied error on load).
+  const { complaints, isLoading, updateStatus } = useAdminComplaints();
 
   const filtered = statusFilter === 'all'
     ? complaints
@@ -38,9 +33,8 @@ export default function AdminViolationsPage() {
   };
 
   const handleStatusChange = async (complaintId: string, newStatus: string) => {
-    const ref = doc(firestore, 'complaints', complaintId);
     try {
-      await updateDoc(ref, { status: newStatus });
+      await updateStatus(complaintId, newStatus);
       toast({ title: 'Status updated' });
     } catch {
       toast({ variant: 'destructive', title: 'Update failed' });

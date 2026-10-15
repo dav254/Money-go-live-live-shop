@@ -51,7 +51,7 @@ import { connect } from 'node:net';
 const PORT = process.env.PORT || '3000';
 const ORIGIN = `http://127.0.0.1:${PORT}`;
 /** The route a readiness/health probe hits first — always warmed. */
-const WARM_ROUTES = ['/'];
+const WARM_ROUTES = ['/', '/api/media/upload'];
 /** Opt-in extras: `/login,/dashboard/seller` (comma separated). */
 const EXTRA_ROUTES = (process.env.WARM_ROUTES_EXTRA || '')
   .split(',')
@@ -306,6 +306,12 @@ const planned = recycling;
       if (stopping) return;
       startChild();
       respawning = false;
+      // A respawned worker starts with an empty compile cache. Re-warm the
+      // key routes immediately: when the upload route compiles lazily during
+      // a seller's photo POST instead, a recycle mid-compile kills the
+      // request and the client burns its whole deadline retrying — that is
+      // the "Could not reach the server (waited 90 seconds)" error.
+      void warmUp();
     };
 
     if (planned) {

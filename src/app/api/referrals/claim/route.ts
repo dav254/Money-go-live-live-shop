@@ -128,7 +128,16 @@ export async function POST(req: NextRequest) {
     );
     // Mint the invitee's own name slug now, so they can refer someone else
     // immediately without waiting for a backfill.
-    await ensureReferralCode(uid, body?.name || '');
+    //
+    // Non-fatal on purpose: the referral document is ALREADY written above.
+    // Letting this nicety throw would return a 500 and make signup tell the
+    // user their invite "was not applied" while the referral is in fact
+    // recorded and pending — the exact false failure this route must avoid.
+    try {
+      await ensureReferralCode(uid, body?.name || '');
+    } catch (err) {
+      console.error('[referrals] ensureReferralCode failed (referral already recorded):', err);
+    }
 
     return NextResponse.json({ recorded: true });
   } catch (err) {

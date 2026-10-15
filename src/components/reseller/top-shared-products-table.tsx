@@ -121,7 +121,7 @@ export function TopSharedProductsTable() {
                         <TableRow key={item.product.id}>
                             <TableCell>
                                 <div className="flex items-center gap-3">
-                                    <Image src={item.product.imageUrl || 'https://picsum.photos/seed/placeholder/40'} alt={item.product.name || 'Product'} width={40} height={40} className="rounded-md object-cover" />
+                                    <Image src={item.product.imageUrl || '/placeholder-image.svg'} alt={item.product.name || 'Product'} width={40} height={40} className="rounded-md object-cover" />
                                     <span className="font-medium">{item.product.name}</span>
                                 </div>
                             </TableCell>

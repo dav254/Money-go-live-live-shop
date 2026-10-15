@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db, auth } from '@/firebase/server';
 import { FieldValue } from 'firebase-admin/firestore';
+import { notify } from '@/lib/notifications';
+import { awardDeliveryPoints, DELIVERY_POINTS_PER_PARTY } from '@/lib/points/delivery';
+import { broadcastAdminAlert } from '@/lib/whatsapp/bridge';
 import type { Order } from '@/lib/types';
 
 /**
@@ -89,6 +92,75 @@ export async function PUT(
     }
 
     await orderRef.update(update);
+
+    /*
+     * Tell the buyer. Their order screen updates live, but a dispatch or a
+     * cancellation is exactly what a buyer wants pushed to their phone rather
+     * than discovered on a future visit. `notify` fans out in-app + email +
+     * push and swallows its own failures, so a notification problem can never
+     * fail the status change that triggered it.
+     */
+    const BUYER_MESSAGE: Partial<Record<Order['orderStatus'], { title: string; message: string }>> = {
+      shipped: {
+        title: 'Your order is on the way',
+        message: `Order #${orderId.slice(0, 8)} has been dispatched by the seller.`,
+      },
+      delivery: {
+        title: 'Your order is out for delivery',
+        message: `Order #${orderId.slice(0, 8)} is in delivery.`,
+      },
+      delivered: {
+        title: 'Order delivered',
+        message: `Order #${orderId.slice(0, 8)} has been marked as delivered — you earned ${DELIVERY_POINTS_PER_PARTY} points. Confirm everything arrived in order.`,
+      },
+      cancelled: {
+        title: 'Order cancelled',
+        message: `Order #${orderId.slice(0, 8)} was cancelled by the seller. Any payment will be refunded.`,
+      },
+    };
+    const buyerMessage = BUYER_MESSAGE[status];
+    if (buyerMessage && order.buyerId) {
+      await notify({
+        db,
+        userId: order.buyerId,
+        type: 'ORDER_STATUS',
+        title: buyerMessage.title,
+        message: buyerMessage.message,
+        entityType: 'ORDER',
+        entityId: orderId,
+        link: '/buyer/my-orders',
+      }).catch(() => undefined);
+    }
+
+    /*
+     * A confirmed delivery pays both sides in points — seller and buyer get
+     * the same amount, because both held up their end. The award is one-shot
+     * (guarded on the order inside a transaction), and the seller is told so
+     * the balance change never looks arbitrary. See lib/points/delivery.ts.
+     */
+    // WhatsApp alert for the admin team (self-hosted bridge; a no-op until a
+    // phone is paired). Fire-and-forget — never blocks the status change.
+    broadcastAdminAlert(
+      '📦 Order update',
+      `Order #${orderId.slice(0, 8)} is now "${status}".`,
+    ).catch(() => undefined);
+
+    if (status === 'delivered') {
+      const awarded = await awardDeliveryPoints(db, order, orderId).catch(() => false);
+      if (awarded && order.sellerId) {
+        await notify({
+          db,
+          userId: order.sellerId,
+          type: 'ORDER_STATUS',
+          title: 'Delivery complete',
+          message: `Order #${orderId.slice(0, 8)} is delivered. ${DELIVERY_POINTS_PER_PARTY} points were added to your balance.`,
+          entityType: 'ORDER',
+          entityId: orderId,
+          link: '/app/seller/points',
+        }).catch(() => undefined);
+      }
+    }
+
     return NextResponse.json({ success: true, status });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';

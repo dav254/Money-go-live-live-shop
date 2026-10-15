@@ -11,14 +11,22 @@ initializeApp({ credential: cert(serviceAccount as never) });
 const db = getFirestore();
 
 async function main() {
-  const snap = await db.collection('errorLogs').orderBy('timestamp', 'desc').limit(8).get();
+  const snap = await db.collection('errorLogs').orderBy('timestamp', 'desc').limit(4).get();
   if (snap.empty) {
     console.log('No errorLogs entries found.');
   } else {
     snap.forEach((d) => {
+      const data = d.data();
       console.log('---');
       console.log('id:', d.id);
-      console.log(JSON.stringify(d.data(), null, 1).slice(0, 900));
+      console.log('message:', data.errorMessage ?? data.message);
+      console.log('timestamp:', data.timestamp?.toDate?.()?.toISOString?.() ?? '');
+      const ctx = data.context ?? data.errorContext ?? data.errorInfo;
+      if (ctx) {
+        console.log('context:', JSON.stringify(ctx, null, 1).slice(0, 3000));
+      } else {
+        console.log('(no context field) keys:', Object.keys(data).join(', '));
+      }
     });
   }
   process.exit(0);

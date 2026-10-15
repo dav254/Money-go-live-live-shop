@@ -55,7 +55,7 @@ const MOCK_CAMPAIGNS: AdCampaign[] = [
         id: 'ad_1',
         sellerId: 'node_alpha_99',
         productName: 'Cyber-Streetwear 2026',
-        productImageUrl: 'https://picsum.photos/seed/cyber/400/400',
+        productImageUrl: '/placeholder-image.svg',
         budget: 1500,
         spend: 1240,
         clicks: 4500,
@@ -67,7 +67,7 @@ const MOCK_CAMPAIGNS: AdCampaign[] = [
         id: 'ad_2',
         sellerId: 'node_beta_42',
         productName: 'Minimalist Tech Hub',
-        productImageUrl: 'https://picsum.photos/seed/tech/400/400',
+        productImageUrl: '/placeholder-image.svg',
         budget: 800,
         spend: 800,
         clicks: 2100,
@@ -79,7 +79,7 @@ const MOCK_CAMPAIGNS: AdCampaign[] = [
         id: 'ad_3',
         sellerId: 'node_gamma_12',
         productName: 'Artisan Coffee Roasts',
-        productImageUrl: 'https://picsum.photos/seed/coffee/400/400',
+        productImageUrl: '/placeholder-image.svg',
         budget: 500,
         spend: 150,
         clicks: 800,
@@ -153,7 +153,7 @@ export default function AdminAdsPage() {
           const newCampaign: AdCampaign = {
               ...data,
               id: `ad_${Math.random().toString(36).substr(2, 9)}`,
-              productImageUrl: 'https://picsum.photos/seed/new-ad/400/400',
+              productImageUrl: '/placeholder-image.svg',
               spend: 0,
               clicks: 0,
               conversions: 0,
@@ -183,7 +183,7 @@ export default function AdminAdsPage() {
         cell: ({ row }) => (
             <div className="flex items-center gap-4">
                 <div className="relative h-12 w-12 rounded-xl overflow-hidden border border-white/10 shadow-lg bg-black shrink-0">
-                    <Image src={row.original.productImageUrl || 'https://picsum.photos/seed/ad-product/100'} alt={row.original.productName || 'Ad'} fill className="object-cover" />
+                    <Image src={row.original.productImageUrl || '/placeholder-image.svg'} alt={row.original.productName || 'Ad'} fill className="object-cover" />
                 </div>
                 <div className="min-w-0">
                     <div className="font-black text-xs uppercase tracking-tight text-white truncate">{row.original.productName}</div>

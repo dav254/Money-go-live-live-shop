@@ -7,8 +7,11 @@ import { FieldValue } from 'firebase-admin/firestore';
 
 interface ComplaintPayload {
     complainantId: string;
-    targetId: string;
-    targetType: 'user' | 'product' | 'system';
+    /** Omit when there is no specific target — stored as 'unknown' (an empty id
+     *  would break admin cells that `doc()` with it as a document id). */
+    targetId?: string;
+    /** `order` and `system` are stored as-is / mapped below — see the write. */
+    targetType: 'user' | 'product' | 'order' | 'system';
     reason: string;
     description: string;
     orderId?: string;
@@ -22,7 +25,7 @@ export async function createComplaint(payload: ComplaintPayload): Promise<{ succ
         const newComplaint: Partial<Complaint> = {
             id: complaintRef.id,
             complainantId: payload.complainantId,
-            targetId: payload.targetId,
+            targetId: payload.targetId || 'unknown',
             // 'system' is how the report form tags a platform bug; the
             // moderation console groups those under 'other'.
             targetType: payload.targetType === 'system' ? 'other' : payload.targetType,

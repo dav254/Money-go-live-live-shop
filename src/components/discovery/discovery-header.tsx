@@ -3,46 +3,40 @@
 /**
  * DISCOVERY — the single header bar.
  *
- * One bar, not three. Identity, lanes and search used to stack into three
- * separately-pinned rows, which ate a third of a phone viewport before a
- * single listing was on screen. Everything now lives on one row: the logo,
- * the lane rail (which scrolls horizontally), search/filters and the account
- * chip. Search itself moved into the filter sheet, which already carries a
- * search field — a duplicate input row was the third bar's only real job.
+ * One bar, one row, no duplicates — and only where there is no shell header
+ * to take its place. On `/app/*` the shell's own top bar IS the header (it
+ * carries the hamburger, the Vidnov name and the search button), so
+ * `DiscoverySection` renders this bar only on the website route, which has no
+ * shell. Two things were deliberately dropped from here: the lane rail (For
+ * You · Products · Services · Businesses — it read as a second header) and
+ * the account chip (the account lives in the shell header / bottom bar).
  *
- * The lane rail is still the circular picker from the reference: an icon in a
- * circle, the label under it, the active lane a filled accent circle with an
- * underlined label. It reads as a row of destinations, not a filter chip list.
+ * What is left: the logo — the name, exactly where it was — and the
+ * search/filters button, which opens the filter sheet (search lives there).
  *
- * The accent is not hard-coded: it is `--vn-discovery-accent`, set per
- * audience (blue for buyers, orange for sellers) by `DiscoverySection`.
+ * The accent is not hard-coded: it is `--vn-discovery-accent`, declared on
+ * `.vn-discovery-scope` in `globals.css` (lime, the section's fixed identity) —
+ * so an active chip, a focus ring and a primary button are always the same
+ * colour as each other.
  */
 
 import * as React from 'react';
 import Link from 'next/link';
-import { Loader2, Search, UserRound } from 'lucide-react';
+import { Search } from 'lucide-react';
 
 import { Logo } from '@/components/logo';
-import { useUser } from '@/firebase';
 import { cn } from '@/lib/utils';
-import {
-  DISCOVERY_CATEGORIES,
-  activeFilterCount,
-  type DiscoveryCategory,
-  type DiscoveryFilters,
-} from '@/lib/discovery';
+import { activeFilterCount, type DiscoveryFilters } from '@/lib/discovery';
 
 /* ── Small round action button ──────────────────────────────────────────── */
 
 function IconButton({
   label,
-  href,
   onClick,
   active,
   children,
 }: {
   label: string;
-  href?: string;
   onClick?: () => void;
   active?: boolean;
   children: React.ReactNode;
@@ -55,13 +49,6 @@ function IconButton({
       : 'border-white/12 bg-white/6 text-white hover:border-white/35 hover:bg-white/12',
   );
 
-  if (href) {
-    return (
-      <Link href={href} aria-label={label} title={label} className={className}>
-        {children}
-      </Link>
-    );
-  }
   return (
     <button type="button" onClick={onClick} aria-label={label} title={label} className={className}>
       {children}
@@ -74,22 +61,11 @@ function IconButton({
 export function DiscoveryTopBar({
   filters,
   onOpenFilters,
-  activeCategory,
-  onSelectCategory,
 }: {
   filters: DiscoveryFilters;
   onOpenFilters: () => void;
-  activeCategory: DiscoveryCategory['id'];
-  onSelectCategory: (id: DiscoveryCategory['id']) => void;
 }) {
-  const { user, isLoading } = useUser();
-  const railRef = React.useRef<HTMLDivElement>(null);
   const filterCount = activeFilterCount(filters);
-
-  React.useEffect(() => {
-    const el = railRef.current?.querySelector<HTMLElement>(`[data-category="${activeCategory}"]`);
-    el?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-  }, [activeCategory]);
 
   return (
     <div className="vn-discovery-topbar relative z-40 shrink-0 border-b border-white/8 bg-[#0A0A0A]/92 backdrop-blur-xl">
@@ -98,54 +74,7 @@ export function DiscoveryTopBar({
           <Logo className="text-[18px] leading-none sm:text-[22px]" />
         </Link>
 
-        {/* Lane rail — the bar's reason to exist. Circular destinations,
-            horizontally scrollable, never wrapped. */}
-        <nav aria-label="Discovery categories" className="min-w-0 flex-1">
-          <div
-            ref={railRef}
-            className="scrollbar-hide flex items-start gap-2 overflow-x-auto py-0.5"
-          >
-            {DISCOVERY_CATEGORIES.map((category) => {
-              const isActive = category.id === activeCategory;
-              const Icon = category.icon;
-              return (
-                <button
-                  key={category.id}
-                  type="button"
-                  data-category={category.id}
-                  data-active={isActive}
-                  onClick={() => onSelectCategory(category.id)}
-                  aria-pressed={isActive}
-                  className="group flex w-12 shrink-0 flex-col items-center gap-1 focus-visible:outline-none"
-                >
-                  <span
-                    className={cn(
-                      'flex h-9 w-9 items-center justify-center rounded-full transition',
-                      'group-focus-visible:ring-2 group-focus-visible:ring-[color:var(--vn-discovery-accent)]',
-                      isActive
-                        ? 'bg-[color:var(--vn-discovery-accent)] text-[#0A0A0A]'
-                        : 'bg-white/8 text-white/85 group-hover:bg-white/14',
-                    )}
-                  >
-                    <Icon className="h-4 w-4" aria-hidden />
-                  </span>
-                  <span
-                    className={cn(
-                      'vn-micro text-center text-[9px] font-semibold leading-tight',
-                      isActive
-                        ? 'text-[color:var(--vn-discovery-accent)] underline decoration-[color:var(--vn-discovery-accent)] underline-offset-2'
-                        : 'text-white/60 group-hover:text-white/85',
-                    )}
-                  >
-                    {category.label}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </nav>
-
-        <div className="flex shrink-0 items-center gap-1.5">
+        <div className="ml-auto flex shrink-0 items-center gap-1.5">
           <IconButton
             label={
               filterCount
@@ -162,26 +91,6 @@ export function DiscoveryTopBar({
               </span>
             )}
           </IconButton>
-
-          {isLoading ? (
-            <span className="flex h-9 w-9 items-center justify-center rounded-full border border-white/12 bg-white/6">
-              <Loader2 className="h-4 w-4 animate-spin text-white/70" />
-            </span>
-          ) : (
-            <IconButton
-              label={user ? 'Your account' : 'Sign in'}
-              href={user ? '/dashboard/account' : '/login?returnTo=%2Fbuyer%2Fdiscovery'}
-              active={!!user}
-            >
-              {user ? (
-                <span className="text-[11px] font-bold uppercase">
-                  {(user.displayName || user.email || 'You').charAt(0)}
-                </span>
-              ) : (
-                <UserRound className="h-4 w-4" />
-              )}
-            </IconButton>
-          )}
         </div>
       </div>
     </div>

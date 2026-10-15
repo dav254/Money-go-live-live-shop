@@ -159,7 +159,9 @@ export function BuyerAppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="vn-buyer-scope flex min-h-screen flex-col bg-background">
-      {/* Navigation kept minimal but complete on this shell. */}
+      {/* Navigation kept minimal but complete on this shell. This IS the one
+          header on discovery: it carries the hamburger, the Vidnov name and
+          the search button (see BuyerTopBarInner). */}
       <BuyerTopBarInner onOpenNav={() => setNavOpen(true)} immersive={immersive} />
       <main className="mx-auto w-full max-w-md flex-1 pb-28 pt-4">
         {children}
@@ -178,6 +180,8 @@ function BuyerTopBarInner({
   immersive?: boolean;
 }) {
   const router = useRouter();
+  const pathname = usePathname() ?? '';
+  const onDiscovery = pathname === '/app/buyer/discovery';
   const { user } = useUser();
   const { userProfile } = useUserProfile(user?.uid);
   const profile = (userProfile ?? null) as { fullName?: string } | null;
@@ -210,6 +214,21 @@ function BuyerTopBarInner({
           >
             <ChevronLeft className="h-5 w-5" />
           </button>
+
+          {/* Discovery's identity and search live HERE now — the section's own
+              bar is gone, so this is the only header on the screen. */}
+          {onDiscovery && <Logo className="ml-1 text-lg" />}
+          {onDiscovery && (
+            <button
+              type="button"
+              onClick={() => window.dispatchEvent(new CustomEvent('vidnov:open-search'))}
+              aria-label="Search & filters"
+              title="Search & filters"
+              className="ml-auto flex h-9 w-9 items-center justify-center rounded-full text-white/70 transition hover:bg-white/10"
+            >
+              <Search className="h-5 w-5" />
+            </button>
+          )}
         </div>
       </header>
     );

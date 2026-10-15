@@ -1,3 +1,6 @@
+
+'use client';
+
 import * as React from 'react';
 import {
   Table,
@@ -71,6 +74,7 @@ export function SellerTopSharedProductsTable() {
                 return;
             }
 
+            // FIX: The query now correctly filters for the seller's own ID, matching the security rules.
             const activitiesQuery = query(collection(firestore, 'resellActivities'), where('sellerId', '==', sellerId));
             
             activitiesUnsubscribe = onSnapshot(activitiesQuery, (activitiesSnapshot) => {
@@ -135,7 +139,7 @@ export function SellerTopSharedProductsTable() {
                         <TableRow key={item.product.id}>
                             <TableCell>
                                 <div className="flex items-center gap-3">
-                                    <Image src={item.product.imageUrl || 'https://placehold.co/40x40/111111/ffffff?text=img'} alt={item.product.name || 'Product'} width={40} height={40} className="rounded-md object-cover" />
+                                    <Image src={item.product.imageUrl || '/placeholder-image.svg'} alt={item.product.name || 'Product'} width={40} height={40} className="rounded-md object-cover" />
                                     <span className="font-medium">{item.product.name}</span>
                                 </div>
                             </TableCell>

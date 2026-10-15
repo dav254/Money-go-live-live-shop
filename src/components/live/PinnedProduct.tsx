@@ -46,7 +46,7 @@ export function PinnedProduct({ product }: { product: Product }) {
     >
       <div className="relative h-16 w-16 rounded-xl overflow-hidden flex-shrink-0 border border-white/5 bg-black">
         <Image
-          src={product.imageUrl || 'https://picsum.photos/seed/pinned/150'}
+          src={product.imageUrl || '/placeholder-image.svg'}
           alt={product.name || 'Pinned Product'}
           fill
           className="object-cover"

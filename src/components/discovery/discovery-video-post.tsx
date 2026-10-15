@@ -24,6 +24,7 @@
 import * as React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import {
   Bookmark, Heart, Loader2, MapPin, MessageCircle,
   Pause, Play, Plus, Send, Share2, ShoppingBag, Store, Volume2, VolumeX,
@@ -159,6 +160,20 @@ export function DiscoveryVideoPost({
   const [index, setIndex] = React.useState(0);
   const safeIndex = Math.min(index, Math.max(0, playable.length - 1));
   const current = playable[safeIndex];
+  /**
+   * Posters that failed to paint get their own set. Sharing `failed` with
+   * media URLs was the crash: when a stored poster is the video file itself,
+   * the poster's error marked the VIDEO as failed, emptied `playable`, and
+   * the whole post fell back to a broken image over black.
+   */
+  const [failedPosters, setFailedPosters] = React.useState<Set<string>>(new Set());
+  /**
+   * The last-resort cover image failed too (a dead legacy URL). Swap to the
+   * local placeholder rather than leaving a broken icon over the post.
+   */
+  const [coverFailed, setCoverFailed] = React.useState(false);
+  /** Once the buyer swipes or taps, the slideshow stops driving itself. */
+  const [manual, setManual] = React.useState(false);
 
   const videoRef = React.useRef<HTMLVideoElement>(null);
   const [buffering, setBuffering] = React.useState(false);
@@ -167,14 +182,17 @@ export function DiscoveryVideoPost({
   const [progress, setProgress] = React.useState(0);
 
   React.useEffect(() => {
-    if (!active || playable.length <= 1) return;
+    if (!active || manual || playable.length <= 1) return;
     const id = window.setInterval(() => setIndex((i) => (i + 1) % playable.length), 6000);
     return () => window.clearInterval(id);
-  }, [active, playable.length]);
+  }, [active, manual, playable.length]);
 
   React.useEffect(() => {
     setIndex(0);
+    setManual(false);
     setFailed(new Set());
+    setFailedPosters(new Set());
+    setCoverFailed(false);
     setBuffering(false);
     setPaused(false);
     setProgress(0);
@@ -194,6 +212,82 @@ export function DiscoveryVideoPost({
     setFailed((prev) => (prev.has(url) ? prev : new Set(prev).add(url)));
     setIndex(0);
   }, []);
+
+  /** A poster that will not load only hides the poster — never the clip. */
+  const markPosterFailed = React.useCallback((url: string) => {
+    setFailedPosters((prev) => (prev.has(url) ? prev : new Set(prev).add(url)));
+  }, []);
+
+  /* — carousel control — */
+  /*
+   * A listing's photos live in ONE section of the vertical feed. Horizontal
+   * intent scrubs them (swipe, left/right tap zones, arrow keys); vertical
+   * scrolling stays with the feed because the overlay is `touch-pan-y`, so the
+   * browser never hands us a vertical gesture to swallow.
+   */
+  const step = React.useCallback(
+    (delta: number) => {
+      setManual(true);
+      setIndex((i) => {
+        const n = playable.length;
+        if (n <= 1) return i;
+        return (i + delta + n) % n;
+      });
+    },
+    [playable.length],
+  );
+
+  const dragStart = React.useRef<{ x: number; y: number } | null>(null);
+  const dragged = React.useRef(false);
+
+  const onOverlayPointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
+    dragged.current = false;
+    if (current?.type !== 'image') return;
+    dragStart.current = { x: e.clientX, y: e.clientY };
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+
+  const onOverlayPointerMove = (e: React.PointerEvent<HTMLButtonElement>) => {
+    const start = dragStart.current;
+    if (!start || dragged.current) return;
+    const dx = e.clientX - start.x;
+    const dy = e.clientY - start.y;
+    // Sideways movement that also beats the vertical component claims the
+    // gesture; anything else is left to the feed's own scroll.
+    if (Math.abs(dx) > 14 && Math.abs(dx) > Math.abs(dy)) dragged.current = true;
+  };
+
+  const onOverlayPointerUp = (e: React.PointerEvent<HTMLButtonElement>) => {
+    const start = dragStart.current;
+    dragStart.current = null;
+    if (start) {
+      try {
+        e.currentTarget.releasePointerCapture(e.pointerId);
+      } catch {
+        /* pointer was never captured — nothing to release */
+      }
+    }
+    if (!start || !dragged.current) return;
+    const dx = e.clientX - start.x;
+    if (Math.abs(dx) >= 40) step(dx < 0 ? 1 : -1);
+  };
+
+  const onOverlayClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    if (dragged.current) {
+      // A swipe just ended — the synthetic click must not page as well.
+      dragged.current = false;
+      return;
+    }
+    if (current?.type === 'video') {
+      setPaused((p) => !p);
+      return;
+    }
+    if (playable.length <= 1) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    if (x < rect.width * 0.35) step(-1);
+    else if (x > rect.width * 0.65) step(1);
+  };
 
   /* — auth gate — */
 
@@ -312,13 +406,33 @@ export function DiscoveryVideoPost({
   const cta = isService(listing) ? 'View service' : 'View product';
   const actionable = purchasable || isService(listing);
 
+  /*
+   * Where the Message button sends the buyer: the messages section of
+   * whichever surface this feed is rendered on. All three accept
+   * `?chatWith=<uid>` and open (or start) that conversation immediately.
+   */
+  const pathname = usePathname() ?? '';
+  const messagesHref = pathname.startsWith('/app/seller')
+    ? `/app/seller/messages?chatWith=${encodeURIComponent(seller.id)}`
+    : pathname.startsWith('/app/buyer')
+      ? `/app/buyer/messages?chatWith=${encodeURIComponent(seller.id)}`
+      : `/messages?chatWith=${encodeURIComponent(seller.id)}`;
+  /*
+   * The CTA carries the surface's own colour: blue on buyer surfaces, orange
+   * on seller ones (the dashboard live-feed included). The lime accent stays
+   * for prices and follow badges — it was too close to "buy" to also mean
+   * "open".
+   */
+  const sellerSurface =
+    pathname.startsWith('/app/seller') || pathname.startsWith('/dashboard/seller');
+
   return (
     <section className="absolute inset-0 flex overflow-hidden bg-black">
       {/* Media */}
       <div className="absolute inset-0">
         {current?.type === 'video' ? (
           <>
-            {current.poster && !failed.has(current.poster) && (
+            {current.poster && !failedPosters.has(current.poster) && (
               <Image
                 src={current.poster}
                 alt=""
@@ -326,7 +440,7 @@ export function DiscoveryVideoPost({
                 sizes="100vw"
                 priority={active}
                 className="object-cover opacity-90"
-                onError={() => markFailed(current.poster!)}
+                onError={() => markPosterFailed(current.poster!)}
               />
             )}
             <video
@@ -337,6 +451,8 @@ export function DiscoveryVideoPost({
               loop
               playsInline
               preload={active ? 'auto' : 'metadata'}
+              controlsList="nodownload"
+              onContextMenu={(e) => e.preventDefault()}
               onError={() => markFailed(current.url)}
               onWaiting={() => setBuffering(true)}
               onLoadStart={() => setBuffering(true)}
@@ -355,13 +471,25 @@ export function DiscoveryVideoPost({
           </>
         ) : (
           <Image
-            src={current?.url ?? coverImage}
+            /* `(current?.url ?? coverImage) || placeholder`: with no playable
+               media left (e.g. the clip 404s) `coverImage` can be '' — an
+               empty src renders as a broken icon, which is the "crashed" look.
+               When the cover URL itself is dead (legacy Firebase Storage),
+               `coverFailed` drops the post to the local placeholder. */
+            src={
+              coverFailed
+                ? '/placeholder-image.svg'
+                : (current?.url ?? coverImage) || '/placeholder-image.svg'
+            }
             alt={listing.name}
             fill
             sizes="100vw"
             priority={active}
             className="object-cover"
-            onError={() => current && markFailed(current.url)}
+            onError={() => {
+              if (current) markFailed(current.url);
+              else setCoverFailed(true);
+            }}
           />
         )}
       </div>
@@ -380,12 +508,27 @@ export function DiscoveryVideoPost({
         </div>
       )}
 
-      {/* Tap the media to pause. */}
+      {/* Media interaction: video = tap to pause; photos = a horizontal
+          carousel inside this one feed (swipe, tap an edge, or arrow keys). */}
       <button
         type="button"
-        onClick={() => current?.type === 'video' && setPaused((p) => !p)}
-        aria-label={paused ? 'Play' : 'Pause'}
-        className="absolute inset-0 z-10 cursor-default focus-visible:outline-none"
+        onClick={onOverlayClick}
+        onPointerDown={onOverlayPointerDown}
+        onPointerMove={onOverlayPointerMove}
+        onPointerUp={onOverlayPointerUp}
+        onKeyDown={(e) => {
+          if (playable.length <= 1) return;
+          if (e.key === 'ArrowLeft') { e.preventDefault(); step(-1); }
+          if (e.key === 'ArrowRight') { e.preventDefault(); step(1); }
+        }}
+        aria-label={
+          current?.type === 'video'
+            ? paused ? 'Play' : 'Pause'
+            : playable.length > 1
+              ? `Photo ${safeIndex + 1} of ${playable.length}. Tap the left or right edge, swipe, or use the arrow keys to change photo.`
+              : 'Listing photo'
+        }
+        className="absolute inset-0 z-10 cursor-default touch-pan-y focus-visible:outline-none"
       />
 
       {sponsored && (
@@ -397,13 +540,18 @@ export function DiscoveryVideoPost({
       {/* Media position dots — inside the text column so they can never
           collide with the rail. */}
       {playable.length > 1 && (
-        <div className="absolute bottom-full left-4 right-20 mb-2 flex gap-1">
-          {playable.map((m, i) => (
-            <span
-              key={m.url}
-              className={cn('h-0.5 flex-1 rounded-full transition-colors', i === safeIndex ? 'bg-[color:var(--vn-discovery-accent)]' : 'bg-white/25')}
-            />
-          ))}
+        <div className="absolute bottom-full left-4 right-20 mb-2 flex items-center gap-2">
+          <div className="flex flex-1 gap-1">
+            {playable.map((m, i) => (
+              <span
+                key={m.url}
+                className={cn('h-0.5 flex-1 rounded-full transition-colors', i === safeIndex ? 'bg-[color:var(--vn-discovery-accent)]' : 'bg-white/25')}
+              />
+            ))}
+          </div>
+          <span className="shrink-0 text-[10px] font-semibold tabular-nums text-white/70">
+            {safeIndex + 1} / {playable.length}
+          </span>
         </div>
       )}
 
@@ -450,14 +598,6 @@ export function DiscoveryVideoPost({
           )}
         </div>
 
-        {/* Title + price */}
-        <h2 className="font-grotesk mt-2 text-[17px] font-bold leading-tight text-white">
-          {listing.name}
-        </h2>
-        <p className="font-grotesk mt-0.5 text-[20px] font-bold leading-none text-[color:var(--vn-discovery-accent)]">
-          {priceText(listing)}
-        </p>
-
         {/* Caption */}
         {caption && (
           <div className="mt-2">
@@ -465,33 +605,81 @@ export function DiscoveryVideoPost({
           </div>
         )}
 
-        {/* Location + availability */}
-        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-white/55">
-          {place && (
-            <span className="flex items-center gap-1">
-              <MapPin className="h-3 w-3" aria-hidden />
-              {place}
-            </span>
-          )}
-          {availabilityLabel(listing) && <span>{availabilityLabel(listing)}</span>}
-        </div>
+        {/*
+          Product card — the shape buyers already recognise: thumbnail, name,
+          price, stock + place, then the actions underneath. "View product"
+          is the primary, full-width action; the message button drops the
+          buyer straight into the chat with this seller (all three surfaces
+          read `?chatWith=`).
+        */}
+        <div className="mt-3 rounded-2xl border border-white/10 bg-black/55 p-3 backdrop-blur-md">
+          <div className="flex items-center gap-3">
+            <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-white/10">
+              <Image
+                src={coverImage || '/placeholder-image.svg'}
+                alt={listing.name}
+                fill
+                sizes="56px"
+                className="object-cover"
+              />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[13px] font-bold text-white">{listing.name}</p>
+              <p className="font-grotesk text-[17px] font-black leading-tight text-[color:var(--vn-discovery-accent)]">
+                {priceText(listing)}
+              </p>
+              <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[11px] text-white/55">
+                {availabilityLabel(listing) && <span>{availabilityLabel(listing)}</span>}
+                {place && (
+                  <span className="flex items-center gap-1">
+                    <MapPin className="h-3 w-3" aria-hidden />
+                    {place}
+                  </span>
+                )}
+              </p>
+            </div>
+          </div>
 
-        {/* Primary CTA — full width, exactly where a thumb already is. */}
-        <button
-          type="button"
-          onClick={onOpenDetails}
-          disabled={!actionable}
-          className={cn(
-            'mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-2xl text-[14px] font-bold transition',
-            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white',
-            actionable
-              ? 'bg-[color:var(--vn-discovery-accent)] text-[#0A0A0A] hover:bg-[color:var(--vn-discovery-accent-hover)]'
-              : 'cursor-not-allowed bg-white/12 text-white/40',
-          )}
-        >
-          <ShoppingBag className="h-4 w-4" aria-hidden />
-          {cta}
-        </button>
+          <div className="mt-3 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={onOpenDetails}
+              disabled={!actionable}
+              aria-label={`${cta} — ${listing.name}`}
+              className={cn(
+                'flex h-11 flex-1 items-center justify-center gap-2 rounded-xl text-[13px] font-bold transition',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white',
+                actionable
+                  ? sellerSurface
+                    ? 'bg-orange-500 text-white shadow-md shadow-black/30 hover:bg-orange-400'
+                    : 'bg-blue-500 text-white shadow-md shadow-black/30 hover:bg-blue-400'
+                  : 'cursor-not-allowed bg-white/12 text-white/40',
+              )}
+            >
+              <ShoppingBag className="h-4 w-4 shrink-0" aria-hidden />
+              {/* The product's own name inside the button: the buyer reads
+                  exactly what a tap will open, before tapping. The prefix is
+                  `shrink-0` so a long name — the part worth reading — is what
+                  truncates, never the words around it. */}
+              <span className="flex min-w-0 items-baseline gap-1.5">
+                <span className="shrink-0 opacity-70">{cta} ·</span>
+                <span className="min-w-0 truncate font-extrabold">{listing.name}</span>
+              </span>
+            </button>
+
+            {user?.uid !== seller.id && (
+              <Link
+                href={messagesHref}
+                aria-label={`Chat with ${seller.name}`}
+                title="Chat with the seller"
+                className="flex h-11 shrink-0 items-center justify-center gap-1.5 rounded-xl border border-white/15 bg-white/8 px-3.5 text-[12px] font-bold text-white transition hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+              >
+                <MessageCircle className="h-4 w-4" aria-hidden />
+                Chat
+              </Link>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Playback row — real progress, real controls. */}
@@ -635,7 +823,7 @@ function DiscoveryComments({
         userId: user.uid,
         userName: resolveCommenterName(user),
         userEmail: user.email ?? '',
-        userAvatar: user.photoURL ?? `https://picsum.photos/seed/${user.uid}/64`,
+        userAvatar: user.photoURL ?? '/placeholder-avatar.svg',
         timestamp: serverTimestamp(),
       });
       setDraft('');

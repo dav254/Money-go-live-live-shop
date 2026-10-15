@@ -79,7 +79,7 @@ export function BuyerAppHub() {
                   {[1, 2, 3, 4].map((n) => (
                     <div key={n} className="relative aspect-[3/4] overflow-hidden rounded-lg">
                       <Image
-                        src={`https://picsum.photos/seed/vnapp${n}/240/320`}
+                        src="/placeholder-image.svg"
                         alt={`App preview ${n}`}
                         fill
                         unoptimized

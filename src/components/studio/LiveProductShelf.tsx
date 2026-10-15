@@ -28,7 +28,7 @@ const ProductRow = ({ product, onPin, onUnpin, isPinned }: { product: Product; o
             <div className="flex p-2 gap-3 items-center">
                 <div className="relative h-14 w-14 rounded-lg overflow-hidden shrink-0 border border-white/10">
                     <Image 
-                        src={product.imageUrl || 'https://picsum.photos/seed/placeholder/150'} 
+                        src={product.imageUrl || '/placeholder-image.svg'}
                         alt={product.name || 'product'} 
                         fill 
                         className="object-cover" 

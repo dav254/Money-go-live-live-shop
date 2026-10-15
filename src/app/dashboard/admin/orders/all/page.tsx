@@ -319,7 +319,7 @@ export default function AdminAllOrdersPage() {
             return (
                 <div className="flex items-center gap-3">
                     <Avatar className="h-10 w-10 rounded-md">
-                        <AvatarImage src={productImage || 'https://picsum.photos/seed/product/100'} />
+                        <AvatarImage src={productImage || '/placeholder-image.svg'} />
                         <AvatarFallback>{productName.charAt(0)}</AvatarFallback>
                     </Avatar>
                     <span className="font-medium capitalize">{productName}</span>

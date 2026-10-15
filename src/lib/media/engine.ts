@@ -1,5 +1,8 @@
 import * as path from 'path';
 import * as fsp from 'fs/promises';
+import { createWriteStream } from 'fs';
+import { Readable } from 'stream';
+import { pipeline } from 'stream/promises';
 import { MEDIA_ROOT, MEDIA_TMP_ROOT, MEDIA_CONFIG } from './config';
 import { processImage, validateImageContent, generateMediaId } from './image';
 import { processVideo, validateVideoFile } from './video';
@@ -211,8 +214,28 @@ export async function intake(input: EngineIntakeInput): Promise<EngineIntakeResu
 
   const mediaId = generateMediaId();
   const tmpPath = path.join(MEDIA_TMP_ROOT, `up-${mediaId}`);
-  const buf = Buffer.from(await file.arrayBuffer());
-  await fsp.writeFile(tmpPath, buf);
+  /*
+   * Videos are STREAMED straight to disk. Buffering the whole clip — which
+   * `Buffer.from(await file.arrayBuffer())` does on top of the body the
+   * framework already holds — doubles peak memory for a 500MB upload, and that
+   * spike is exactly what pushed the Node process over its memory ceiling: the
+   * process got recycled mid-flight, every upload in progress died, and the
+   * seller saw "Could not reach the server" on photos that were never the
+   * problem. Images/audio/documents are capped far lower, so buffering those
+   * (needed for content sniffing anyway) is safe.
+   */
+  let sizeBytes = file.size;
+  let rawBuf: Buffer | null = null;
+  if (isVideo) {
+    await pipeline(
+      Readable.fromWeb(file.stream() as unknown as import('stream/web').ReadableStream),
+      createWriteStream(tmpPath),
+    );
+  } else {
+    rawBuf = Buffer.from(await file.arrayBuffer());
+    sizeBytes = rawBuf.length;
+    await fsp.writeFile(tmpPath, rawBuf);
+  }
 
   const base: DiskMediaStatus = {
     id: mediaId,
@@ -220,7 +243,7 @@ export async function intake(input: EngineIntakeInput): Promise<EngineIntakeResu
     type: isImage ? 'image' : isVideo ? 'video' : isAudio ? 'audio' : 'file',
     status: 'PROCESSING',
     mimeType: mime || 'application/octet-stream',
-    sizeBytes: buf.length,
+    sizeBytes,
     isPrivate: input.isPrivate ?? !!(requestId || offerId),
     createdAt: Date.now(),
   };
@@ -232,7 +255,7 @@ export async function intake(input: EngineIntakeInput): Promise<EngineIntakeResu
       const abs = adapter.resolve(rel);
       await adapter.ensureDir(path.dirname(abs));
       await adapter.moveFile(tmpPath, abs);
-      const stored = (await adapter.stat(abs))?.size ?? buf.length;
+      const stored = (await adapter.stat(abs))?.size ?? sizeBytes;
       const rec: DiskMediaStatus = {
         ...base,
         status: 'READY',
@@ -247,7 +270,8 @@ export async function intake(input: EngineIntakeInput): Promise<EngineIntakeResu
 
     // ---- IMAGES: process synchronously, return the final URL now. ----
     if (isImage) {
-      const v = await validateImageContent(buf, mime);
+      // Images are always buffered above (isVideo is false here).
+      const v = await validateImageContent(rawBuf ?? Buffer.alloc(0), mime);
       if (!v.ok) {
         await fsp.rm(tmpPath, { force: true });
         return { accepted: false, reason: v.reason };

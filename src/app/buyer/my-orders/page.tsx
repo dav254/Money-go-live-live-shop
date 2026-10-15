@@ -334,7 +334,7 @@ const OrderCard = ({ order, setOptimisticOrders }: { order: Order, setOptimistic
                 <CardContent className="p-4">
                     <div className="flex gap-4">
                         <div className="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-xl border border-white/10 shadow-lg">
-                            <Image src={order.productImage || 'https://picsum.photos/seed/product/200'} alt={order.productName || 'product image'} fill className="object-cover" />
+                            <Image src={order.productImage || '/placeholder-image.svg'} alt={order.productName || 'product image'} fill className="object-cover" />
                         </div>
                         <div className="flex-1 min-w-0">
                             <p className="font-black text-sm uppercase tracking-tight text-white truncate">{order.productName}</p>

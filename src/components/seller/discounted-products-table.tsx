@@ -68,7 +68,7 @@ export function DiscountedProductsTable() {
           <div className="flex items-center gap-4">
               <div className="relative h-12 w-12 rounded-md overflow-hidden">
                   <Image 
-                      src={row.original.imageUrl || 'https://picsum.photos/seed/product/150/150'}
+                      src={row.original.imageUrl || '/placeholder-image.svg'}
                       alt={row.original.name || 'Product image'} 
                       fill 
                       className="object-cover" 

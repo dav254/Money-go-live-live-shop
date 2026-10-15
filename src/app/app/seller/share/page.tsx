@@ -5,6 +5,7 @@ import { Copy, ExternalLink, Printer, QrCode, Share2, Smartphone } from 'lucide-
 import { useUser } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { ShopQRDots } from '@/components/shop/ShopQRDots';
+import { publicOrigin } from '@/lib/site-url';
 import {
   SellerCard,
   SellerSectionTitle,
@@ -27,20 +28,21 @@ import {
  * (error correction Q) and draws the matrix itself — rounded dots and ember
  * finder-eye cores — so the code is unique to this shop, scannable from a
  * printed sticker, and downloadable as a PNG straight from the card. The URL
- * is resolved on the client from `window.location.origin` so the code, the
- * copy button and the shop itself can never point at different hosts.
+ * is resolved from `publicOrigin()` — the canonical `vidnov.com` origin — so
+ * the code, the copy button and the shop itself can never point at different
+ * hosts, and never at whatever preview/local domain the app happens to be
+ * served from (`window.location.origin` used to bake the sandbox host into
+ * every QR code a seller printed).
  */
 export default function AppSellerSharePage() {
   const { user } = useUser();
   const { toast } = useToast();
   const sellerId = user?.uid ?? '';
 
-  // Public storefront origin — resolved on the client so the share link and
-  // the generated QR always encode the same URL the seller actually copies.
-  const [origin, setOrigin] = React.useState('');
-  React.useEffect(() => {
-    setOrigin(window.location.origin);
-  }, []);
+  // Canonical public origin (`vidnov.com`) — not `window.location.origin`,
+  // which would copy the host the app is being served from (preview domain,
+  // localhost) into every share link and printed QR code.
+  const origin = publicOrigin();
   const shopLink = origin && sellerId ? `${origin}/sellers/${sellerId}` : '';
 
   const copyLink = async () => {

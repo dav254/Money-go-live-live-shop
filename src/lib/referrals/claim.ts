@@ -1,6 +1,6 @@
 'use client';
 
-import { getAuth } from 'firebase/auth';
+import { getSurfaceAuth } from '@/firebase/surface-auth';
 import { normaliseReferralCode } from '@/lib/referrals/referral-code';
 
 /**
@@ -48,9 +48,17 @@ export async function claimSignupReferral(input: {
 
   // A fresh token: the ID token minted at account creation can be stale by the
   // time this runs, and the server rejects a bad one outright.
+  //
+  // `getSurfaceAuth()` and not the no-argument `getAuth()`: this runs right
+  // after signup, and on the installed-app surface the account lives in the
+  // NAMED `vidnov-app` instance while no-arg `getAuth()` resolves against
+  // `[DEFAULT]` (the website's app) — whose `currentUser` is null here. That
+  // returned a false `no-auth` for every referral claimed inside the app, so
+  // the signup page showed "Invite code not applied" even when nothing was
+  // wrong with the code.
   let token: string;
   try {
-    const user = getAuth().currentUser;
+    const user = getSurfaceAuth().currentUser;
     if (!user) return { recorded: false, reason: 'no-auth' };
     token = await user.getIdToken(true);
   } catch {

@@ -39,10 +39,12 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { DotsHorizontalIcon } from '@radix-ui/react-icons';
 import { useToast } from '@/hooks/use-toast';
+import { useRouter } from 'next/navigation';
 
 export default function AdminRolesPage() {
     const firestore = useFirestore();
     const { toast } = useToast();
+    const router = useRouter();
     const [sorting, setSorting] = React.useState<SortingState>([]);
     const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
 
@@ -116,7 +118,8 @@ export default function AdminRolesPage() {
                             <DropdownMenuItem onClick={() => handleRoleChange(user.id, 'buyer')}>Set as Buyer</DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleRoleChange(user.id, 'seller')}>Set as Seller</DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleRoleChange(user.id, 'reseller')}>Set as Reseller</DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleRoleChange(user.id, 'admin')} className="text-destructive">Set as Admin</DropdownMenuItem>
+                            {/* Admin changes go through the Admins section, which enforces the last-admin and self-demotion guards this screen cannot. */}
+                            <DropdownMenuItem onClick={() => router.push('/dashboard/admin/users/admins')}>Set as Admin…</DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>
                 );

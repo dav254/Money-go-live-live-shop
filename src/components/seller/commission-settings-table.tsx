@@ -36,7 +36,7 @@ function CommissionRow({ product, onUpdate, isChanged, onSave, isSaving }: { pro
         <TableRow>
             <TableCell className="font-medium">
                 <div className="flex items-center gap-3">
-                    <Image src={product.imageUrl || 'https://picsum.photos/seed/product/40'} alt={product.name || 'Product Image'} width={40} height={40} className="rounded-md object-cover" />
+                    <Image src={product.imageUrl || '/placeholder-image.svg'} alt={product.name || 'Product Image'} width={40} height={40} className="rounded-md object-cover" />
                     <span className="truncate">{product.name}</span>
                 </div>
             </TableCell>

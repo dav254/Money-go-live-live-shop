@@ -131,7 +131,28 @@ export async function enablePush(user: User): Promise<PushOptInResult> {
 
     return { status: 'enabled', token };
   } catch (err) {
-    return { status: 'error', reason: err instanceof Error ? err.message : 'Unknown error.' };
+    const message = err instanceof Error ? err.message : 'Unknown error.';
+
+    /*
+     * FCM refuses the subscribe call — with an opaque OAuth wall of text —
+     * when the project's own Google Cloud setup blocks it: the Firebase
+     * Installations / Cloud Messaging APIs are disabled for the project, or
+     * the browser API key carries application restrictions ("selected APIs"
+     * or a referrer allowlist) that exclude them. Nothing in this app can
+     * fix that, so name it instead of surfacing the raw Google error.
+     */
+    if (
+      message.includes('token-subscribe-failed') ||
+      message.includes('missing required authentication credential')
+    ) {
+      return {
+        status: 'error',
+        reason:
+          'Firebase refused this device: open Firebase console → Project settings → Cloud Messaging, enable the Cloud Messaging (V1) and Firebase Installations APIs for this project, and make sure the browser API key has no API restrictions. Then try again.',
+      };
+    }
+
+    return { status: 'error', reason: message };
   }
 }
 

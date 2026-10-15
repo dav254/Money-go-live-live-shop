@@ -62,6 +62,15 @@ function run(cmd: string, args: string[], timeoutMs = 5 * 60 * 1000): Promise<Cm
   });
 }
 
+/** True when the path exists and is a regular file. */
+async function fileExists(p: string): Promise<boolean> {
+  try {
+    return (await fsp.stat(p)).isFile();
+  } catch {
+    return false;
+  }
+}
+
 interface FfprobeJson {
   streams?: Array<{
     codec_type?: string;
@@ -170,21 +179,42 @@ export async function processVideo(
 
     // 2. One thumbnail from ~10% into the video (fallback to first frame).
     const probe = await probeVideo(outTmp);
+    /*
+     * NEVER seek to or past the end of the clip. ffmpeg happily exits 0 while
+     * writing NO file at all when the seek lands at/after EOF — a 1-second
+     * clip seeked to t=1 is the exact case — and the promote below then dies
+     * with `ENOENT … copyfile …/thumb.jpg`, marking the whole upload FAILED
+     * even though the transcode itself succeeded. Short clips take the first
+     * frame; longer ones seek to 10% but stay strictly inside the duration.
+     */
+    const duration = probe.ok ? (probe.durationSeconds ?? 0) : 0;
     const thumbAt =
-      probe.ok && probe.durationSeconds && probe.durationSeconds > 2
-        ? String(Math.max(1, Math.floor(probe.durationSeconds * 0.1)))
-        : '1';
-    const thumb = await run('ffmpeg', [
+      duration > 2
+        ? String(Math.min(Math.max(1, Math.floor(duration * 0.1)), Math.max(1, Math.floor(duration) - 1)))
+        : '0';
+    const thumbFilter = `scale='min(${MEDIA_CONFIG.THUMBNAIL_DIMENSION},iw)':-2`;
+    let thumb = await run('ffmpeg', [
       '-y',
       '-ss', thumbAt,
       '-i', outTmp,
       '-vframes', '1',
-      '-vf', `scale='min(${MEDIA_CONFIG.THUMBNAIL_DIMENSION},iw)':-2`,
+      '-vf', thumbFilter,
       '-q:v', '4',
       thumbTmp,
     ]);
-    if (thumb.code !== 0) {
-      throw new Error('Video thumbnail generation failed.');
+    if (thumb.code !== 0 || !(await fileExists(thumbTmp))) {
+      // Fallback: no seek at all — the first frame always exists.
+      thumb = await run('ffmpeg', [
+        '-y',
+        '-i', outTmp,
+        '-vframes', '1',
+        '-vf', thumbFilter,
+        '-q:v', '4',
+        thumbTmp,
+      ]);
+      if (thumb.code !== 0 || !(await fileExists(thumbTmp))) {
+        throw new Error('Video thumbnail generation failed.');
+      }
     }
 
     // 3. Promote into permanent storage (atomic renames). Marketplace

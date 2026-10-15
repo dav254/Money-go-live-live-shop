@@ -1,3 +1,6 @@
+
+'use client';
+
 import type { Product } from '@/lib/types';
 import Image from 'next/image';
 import { Skeleton } from '../ui/skeleton';
@@ -26,7 +29,7 @@ export function PinnedProductPreview({ product, isLoading }: { product: Product 
     <div className="bg-black/60 backdrop-blur-md border border-primary/50 p-3 rounded-lg flex items-center gap-3 w-72 shadow-lg">
       <div className="relative h-16 w-16 rounded-md overflow-hidden flex-shrink-0 border border-white/10">
         <Image
-          src={product.imageUrl || 'https://placehold.co/150x150/111111/ffffff?text=pinned'}
+          src={product.imageUrl || '/placeholder-image.svg'}
           alt={product.name || 'Pinned Product'}
           fill
           className="object-cover"

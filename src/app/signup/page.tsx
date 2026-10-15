@@ -49,6 +49,41 @@ const formSchema = z.object({
   role: z.enum(['buyer', 'seller'], { required_error: 'You must select a role.' }),
 });
 
+/**
+ * Human wording for the auth errors signup can actually hit.
+ *
+ * The raw `error.message` is developer text — "Firebase: Error
+ * (auth/email-already-in-use)" told users nothing except that something broke,
+ * when the truth is simply: this email already has an account, go log in.
+ */
+function signupErrorToast(error: any): { title: string; description?: string } {
+  switch (error?.code) {
+    case 'auth/email-already-in-use':
+      return {
+        title: 'Email already registered',
+        description: 'An account with this email already exists — use the Login link below to sign in.',
+      };
+    case 'auth/account-exists-with-different-credential':
+      return {
+        title: 'Account already exists',
+        description: 'This email is registered with a password. Log in with email instead of Google.',
+      };
+    case 'auth/invalid-email':
+      return { title: 'Check your email', description: 'That email address does not look valid.' };
+    case 'auth/weak-password':
+      return { title: 'Password too weak', description: 'Use at least 6 characters for your password.' };
+    case 'auth/operation-not-allowed':
+      return { title: 'Signup unavailable', description: 'Email signup is temporarily disabled — try Continue with Google.' };
+    case 'auth/popup-closed-by-user':
+    case 'auth/cancelled-popup-request':
+      return { title: 'Google signup cancelled', description: 'The Google window was closed before signup finished.' };
+    case 'auth/network-request-failed':
+      return { title: 'Network problem', description: 'Check your connection and try again.' };
+    default:
+      return { title: 'Signup Failed', description: error?.message || 'Something went wrong creating your account.' };
+  }
+}
+
 function SignupFormContent() {
   const auth = useAuth();
   const firestore = useFirestore();
@@ -131,7 +166,8 @@ function SignupFormContent() {
         });
       }
     } catch (error: any) {
-      toast({ variant: 'destructive', title: 'Authentication Failed' });
+      const { title, description } = signupErrorToast(error);
+      toast({ variant: 'destructive', title, description });
     } finally {
       setIsGoogleLoading(false);
     }
@@ -177,7 +213,8 @@ function SignupFormContent() {
         }
       });
     } catch (error: any) {
-      toast({ variant: 'destructive', title: 'Signup Failed', description: error.message });
+      const { title, description } = signupErrorToast(error);
+      toast({ variant: 'destructive', title, description });
     }
   }
 

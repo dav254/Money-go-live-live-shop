@@ -180,8 +180,8 @@ const VOICES = [
 
 const FEATURED_STUDIO = {
   id: 1,
-  src: 'https://images.unsplash.com/photo-1550254478-ead40cc4e0c0?w=720&h=480&fit=crop',
-  alt: 'Shopper on a phone among shelves of brightly coloured goods',
+  src: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=720&h=480&fit=crop',
+  alt: 'Shopper browsing shelves of brightly coloured goods',
   badge: 'Featured studio',
   name: 'Karibu Craft Shop',
 };
@@ -189,8 +189,8 @@ const FEATURED_STUDIO = {
 const SHOPGRID_GALLERY = [
   {
     id: 1,
-    src: 'https://images.unsplash.com/photo-1542211705-64120d1d2c5a?w=480&h=480&fit=crop',
-    alt: 'Colourful sneakers displayed on a runner',
+    src: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=480&h=480&fit=crop',
+    alt: 'Colourful sneaker displayed against a clean backdrop',
     name: 'Golden Step Footwear',
     tag: 'New',
   },
@@ -226,7 +226,7 @@ const SHOPGRID_COVER = [
   },
   {
     id: 2,
-    src: 'https://images.unsplash.com/photo-1554142159-360a58e5e301?w=480&h=480&fit=crop',
+    src: 'https://images.unsplash.com/photo-1556740758-90de374c12ad?w=480&h=480&fit=crop',
     alt: 'Seller checking orders on a mobile device',
     name: 'Seller side of Vidnov',
   },
@@ -258,7 +258,7 @@ const LIVESTREAM_PHOTOS = [
 
 const PRODUCT_REVEAL = {
   id: 1,
-  src: 'https://images.unsplash.com/photo-1542211705-64120d1d2c5a?w=720&h=480&fit=crop',
+  src: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=720&h=480&fit=crop',
   alt: 'A single colorful sneaker displayed against a clean studio background',
   name: 'Golden Step Footwear',
   tag: 'Just listed',
@@ -1461,12 +1461,18 @@ export default function VidnovHomePage() {
               </ul>
 
               <div className="mt-8 flex flex-wrap gap-3">
-                <Button asChild className="h-12 rounded-xl">
-                  <Link href="/app">
-                    Open the app
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </Link>
-                </Button>
+                {/*
+                  Download, not "open": the old button dropped a visitor
+                  straight into an auto-signed-in app session — a homepage
+                  must never log someone into the product. The button now
+                  installs the app to their phone (the browser's own PWA
+                  install flow), and registering is the second, explicit
+                  step via "Create a business".
+                */}
+                <InstallAppButton
+                  label="Download the app"
+                  className="h-12 rounded-xl border-none bg-primary px-6 font-semibold text-primary-foreground shadow-sm hover:bg-primary/90"
+                />
                 <Button asChild variant="outline" className="h-12 rounded-xl">
                   <Link href={SELL}>Create a business</Link>
                 </Button>

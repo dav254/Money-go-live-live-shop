@@ -78,6 +78,19 @@ export interface DiscoveryMedia {
 }
 
 /**
+ * True when an `<img>` (or a `<video poster>`) can actually paint this URL.
+ *
+ * Legacy publishes saved the video file itself into `videoThumbnailUrls` —
+ * the upload form fell back to the clip's own URL whenever the real thumbnail
+ * was not at hand. An image pointed at an `.mp4` never renders, so the feed
+ * showed a broken-image icon over black, which reads as a crashed video.
+ */
+function isDisplayableImage(url: string): boolean {
+  if (!url || url.startsWith('blob:')) return false;
+  return !/\.(mp4|webm|mov|m4v|avi|mkv)(\?|#|$)/i.test(url);
+}
+
+/**
  * Every piece of media a listing owns, de-duplicated, videos first.
  *
  * A listing with no media at all still returns one entry — the placeholder —
@@ -99,9 +112,24 @@ export function listingMedia(product: Product | null | undefined): DiscoveryMedi
   push(product.imageUrl, 'image');
   (product.imageUrls ?? []).forEach((url) => push(url, 'image'));
 
+  // A poster survives only if it is a real image that is not one of the
+  // clips: a poster pointing at the video itself made the feed mark the
+  // video as failed (they share one URL), blanking the whole post.
+  const videoUrls = new Set(media.filter((m) => m.type === 'video').map((m) => m.url));
+  for (const item of media) {
+    if (item.type !== 'video' || !item.poster) continue;
+    const poster = item.poster.trim();
+    item.poster =
+      poster && poster !== item.url && !videoUrls.has(poster) && isDisplayableImage(poster)
+        ? poster
+        : undefined;
+  }
+
   if (media.length === 0) {
+    // Local, always-served placeholder: discovery must never depend on an
+    // external image host (picsum) that can be blocked or rate-limited.
     media.push({
-      url: 'https://picsum.photos/seed/vn-product/800/1000',
+      url: '/placeholder-image.svg',
       type: 'image',
     });
   }
@@ -111,10 +139,11 @@ export function listingMedia(product: Product | null | undefined): DiscoveryMedi
 /** The single cover image a card should show. */
 export function listingCover(product: Product | null | undefined): string {
   const media = listingMedia(product);
-  return media.find((m) => m.type === 'image')?.url
-    ?? media[0]?.poster
-    ?? media[0]?.url
-    ?? 'https://picsum.photos/seed/vn-product/800/1000';
+  const image = media.find((m) => m.type === 'image');
+  if (image) return image.url;
+  // Never hand an `<img>` a video URL — a video-only listing without a
+  // poster falls back to the local placeholder instead of a broken icon.
+  return media[0]?.poster ?? '/placeholder-image.svg';
 }
 
 /**
@@ -130,10 +159,11 @@ export function listingCover(product: Product | null | undefined): string {
  */
 export function sellerListingCover(product: Product | null | undefined): string {
   const media = listingMedia(product);
-  return media.find((m) => m.type === 'image')?.url
-    ?? media[0]?.poster
-    ?? media[0]?.url
-    ?? '';
+  const image = media.find((m) => m.type === 'image');
+  if (image) return image.url;
+  // Same rule as listingCover: a clip is never an image source. '' keeps the
+  // seller-facing "no image yet" state this helper exists for.
+  return media[0]?.poster ?? '';
 }
 
 /** True when this listing should be rendered as an immersive video post. */

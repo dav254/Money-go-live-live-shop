@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useFirestore, useUser } from '@/firebase';
-import { collection, query, where, onSnapshot, orderBy, getDocs, doc, getDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, orderBy, getDocs, doc, getDoc, addDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import type { Chat, UserProfile } from '@/lib/types';
 import { ConversationList } from './conversation-list';
 import { ChatWindow } from './chat-window';
@@ -123,16 +123,60 @@ export function ChatSystem() {
 
   }, [allChats, participants, user, isAdmin]);
   
+  /*
+   * `?chatWith=<uid>` must OPEN the conversation even when no chat document
+   * exists yet — a seller tapping "Chat with Buyer" on a first order has
+   * nothing to find in the loaded list, and the old code only selected from
+   * that list, so the button silently did nothing. Mirror the buyer app:
+   * find the chat (even one I previously deleted, which must be un-deleted
+   * or it stays invisible to me), or create it, then select it.
+   */
+  const openingChatRef = useRef<string | null>(null);
   useEffect(() => {
     // `useSearchParams` can hand back null outside a Suspense boundary.
     const chatWithId = searchParams?.get('chatWith');
-    if (chatWithId && chatsWithParticipants.length > 0 && !selectedChat) {
-      const chatToSelect = chatsWithParticipants.find(c => c.participantIds.includes(chatWithId));
-      if (chatToSelect) {
-        setSelectedChat(chatToSelect);
+    if (!firestore || !user || !chatWithId || chatWithId === user.uid) return;
+    if (selectedChat || openingChatRef.current === chatWithId) return;
+
+    const existing = allChats.find(c => c.participantIds.includes(chatWithId));
+    if (existing) {
+      if (existing.deletedFor?.includes(user.uid)) {
+        // Reopening a chat I deleted must clear the flag, or the other side
+        // keeps seeing a conversation I can no longer reach from my list.
+        setDoc(doc(firestore, 'chats', existing.id), { deletedFor: [] }, { merge: true }).catch(() => undefined);
       }
+      setSelectedChat(existing);
+      return;
     }
-  }, [searchParams, chatsWithParticipants, selectedChat]);
+
+    // Wait for the first snapshot before creating: until chats have loaded we
+    // do not know whether the conversation already exists.
+    if (isLoading) return;
+
+    openingChatRef.current = chatWithId;
+    (async () => {
+      try {
+        const chatRef = await addDoc(collection(firestore, 'chats'), {
+          participantIds: [user.uid, chatWithId],
+          deletedFor: [],
+          unreadCounts: {},
+          lastMessage: '',
+          lastMessageTimestamp: serverTimestamp(),
+        });
+        setSelectedChat({
+          id: chatRef.id,
+          participantIds: [user.uid, chatWithId],
+          deletedFor: [],
+          unreadCounts: {},
+          lastMessage: '',
+        } as Chat);
+      } catch (error) {
+        console.error('Could not open the conversation:', error);
+        // Allow a retry on the next effect run.
+        openingChatRef.current = null;
+      }
+    })();
+  }, [firestore, user, isLoading, searchParams, allChats, selectedChat]);
 
   const handleChatDeleted = () => {
     if(selectedChat) {

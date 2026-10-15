@@ -37,7 +37,7 @@ const ProductDetails = ({ productId }: { productId: string }) => {
 
     return (
         <Link href={`/products/${product.id}`} className="flex items-center gap-3 group">
-            <Image src={product.imageUrl || 'https://picsum.photos/seed/placeholder-product/40/40'} alt={product.name || 'product'} width={40} height={40} className="rounded-md object-cover" />
+            <Image src={product.imageUrl || '/placeholder-image.svg'} alt={product.name || 'product'} width={40} height={40} className="rounded-md object-cover" />
             <span className="font-medium group-hover:text-primary">{product.name}</span>
         </Link>
     );

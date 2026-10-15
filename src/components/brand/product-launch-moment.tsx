@@ -75,7 +75,7 @@ export function ProductLaunchMoment() {
               <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-amber-900/10 via-neutral-900/10 to-primary/10" />
 
               {/* product */}
-              <div className="absolute left-1/2 top-1/2 h-56 w-56 -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-cover bg-center shadow-2xl" style={{ backgroundImage: 'url(https://images.unsplash.com/photo-1542211705-64120d1d2c5a?w=400&h=400&fit=crop)' }} />
+              <div className="absolute left-1/2 top-1/2 h-56 w-56 -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-cover bg-center shadow-2xl" style={{ backgroundImage: 'url(https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&h=400&fit=crop)' }} />
 
               {/* floating stats */}
               <div className="absolute -right-2 top-6 z-10 max-w-[160px] rounded-xl border border-border bg-card/95 p-3 backdrop-blur shadow-lg">

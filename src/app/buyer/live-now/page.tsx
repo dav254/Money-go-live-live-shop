@@ -51,7 +51,7 @@ const StreamCard = ({ session }: { session: LiveSession }) => {
 
                 <div className="absolute inset-0 opacity-40 group-hover:opacity-60 transition-opacity duration-500 group-hover:scale-110">
                     <img 
-                        src={`https://picsum.photos/seed/${session.id}/600/400`} 
+                        src="/placeholder-image.svg"
                         alt="preview" 
                         className="w-full h-full object-cover" 
                         loading="lazy" 

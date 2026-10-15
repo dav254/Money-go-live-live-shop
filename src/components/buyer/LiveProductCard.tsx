@@ -11,7 +11,7 @@ import { useRouter } from "next/navigation";
 
 
 export function LiveProductCard({ product }: { product: Product }) {
-  const imageUrl = product.imageUrl || 'https://picsum.photos/seed/placeholder/200';
+  const imageUrl = product.imageUrl || '/placeholder-image.svg';
   const { toast } = useToast();
   const { user } = useUser();
   const firestore = useFirestore();

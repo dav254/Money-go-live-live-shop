@@ -6,17 +6,17 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
-import { 
-    Package, 
-    MoreVertical, 
-    Trash2, 
-    PlusCircle, 
-    Send, 
-    File, 
-    Download, 
-    Loader2, 
-    ArrowLeft, 
-    MessageSquare, 
+import {
+    Package,
+    MoreVertical,
+    Trash2,
+    PlusCircle,
+    Send,
+    File,
+    Download,
+    Loader2,
+    ArrowLeft,
+    MessageSquare,
     CheckCheck,
     X,
     ChevronRight,
@@ -31,14 +31,16 @@ import {
     CreditCard,
     ShieldCheck,
     DollarSign,
-    ChevronDown
+    ChevronDown,
 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import type { Chat, ChatMessage, Product, UserProfile, Order } from '@/lib/types';
 import type { User } from 'firebase/auth';
-import { useUser, useFirestore, useCollection, useMemoFirebase, useUserProfile, useDoc } from '@/firebase';
+import { useUser, useUserProfile } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
 import { collection, addDoc, serverTimestamp, orderBy, query, where, doc, updateDoc, arrayUnion, getDoc, writeBatch, increment, setDoc } from 'firebase/firestore';
 import { uploadMedia } from '@/lib/media/upload-client';
+import { blobToDataUrl, compressImageForChat, MAX_CHAT_EMBED_BYTES } from '@/lib/chat/device-media';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogClose, DialogDescription, DialogFooter } from '../ui/dialog';
 import Image from 'next/image';
 import {
@@ -53,8 +55,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Progress } from '../ui/progress';
 import Link from 'next/link';
 import { formatDistanceToNow } from 'date-fns';
-import { Badge } from '../ui/badge';
-import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 
 interface ChatWindowProps {
   chat: Chat | null;
@@ -224,14 +225,15 @@ const MediaMessage = ({ message }: { message: ChatMessage }) => {
   const isVideo = type.startsWith('video/');
 
   if (isImage) {
+    // Plain <img>, not next/image: chat images are data URLs (device-only
+    // attachments) and next/image rejects the `data:` scheme.
     return (
       <a href={message.mediaUrl} target="_blank" rel="noopener noreferrer" className="block overflow-hidden rounded-xl border shadow-sm max-w-full text-left">
-        <Image 
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
             src={message.mediaUrl} 
             alt={name || 'image'} 
-            width={180} 
-            height={180} 
-            className="max-w-full h-auto object-cover hover:scale-105 transition-transform duration-500" 
+            className="max-w-[180px] h-auto object-cover hover:scale-105 transition-transform duration-500"
         />
       </a>
     );
@@ -290,11 +292,18 @@ const ShareProductDialog = ({ sellerId, onShare }: { sellerId: string; onShare: 
     )
 }
 
-export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWindowProps) {
+export function ChatWindow({ chat, currentUser: currentUserProp, onChatDeleted, onBack }: ChatWindowProps) {
+  const { user: activeUser } = useUser();
+  const { userProfile } = useUserProfile(activeUser?.uid);
   const [newMessage, setNewMessage] = useState('');
   const [optimisticMessages, setOptimisticMessages] = useState<any[]>([]);
   const firestore = useFirestore();
-  const { userProfile } = useUserProfile(currentUser?.uid);
+
+  // Resolve the sender once from the stable hook (the actual authenticated
+  // session), and fall back to the parent prop only so the caller's injected
+  // override can still drive the chat UI when the hook is not yet populated.
+  const currentUser = (activeUser ?? currentUserProp);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const { toast } = useToast();
@@ -321,19 +330,19 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
   }, [serverMessages]);
 
   useEffect(() => {
-    if (chat && currentUser && firestore) {
-        const otherId = chat.participantIds.find(id => id !== currentUser.uid);
+    if (chat && activeUser && firestore) {
+        const otherId = chat.participantIds.find(id => id !== activeUser.uid);
         if (otherId) {
             getDoc(doc(firestore, 'userProfiles', otherId)).then(snap => {
                 if (snap.exists()) setOtherParticipantProfile(snap.data() as UserProfile);
             });
         }
     }
-  }, [chat, currentUser, firestore]);
+  }, [chat, activeUser, firestore]);
 
   useEffect(() => {
-    if (!chat || !currentUser || !firestore || !serverMessages) return;
-    const unreadFromOther = serverMessages.filter(m => m.senderId !== currentUser.uid && !m.isRead);
+    if (!chat || !activeUser || !firestore || !serverMessages) return;
+    const unreadFromOther = serverMessages.filter(m => m.senderId !== activeUser.uid && !m.isRead);
     if (unreadFromOther.length > 0) {
         const batch = writeBatch(firestore);
         unreadFromOther.forEach(m => {
@@ -341,12 +350,12 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
         });
         
         batch.update(doc(firestore, 'chats', chat.id), {
-            [`unreadCounts.${currentUser.uid}`]: 0
+            [`unreadCounts.${activeUser.uid}`]: 0
         });
 
         batch.commit().catch(console.error);
     }
-  }, [serverMessages, chat, currentUser, firestore]);
+  }, [serverMessages, chat, activeUser, firestore]);
 
   const scrollToBottom = useCallback(() => {
     const viewport = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]');
@@ -376,17 +385,18 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
   const sendMessage = async (messageData: Partial<ChatMessage>) => {
       if (!chat || !currentUser || !firestore) return;
       const tempId = `temp-${Date.now()}`;
-      setOptimisticMessages(prev => [...prev, { id: tempId, senderId: currentUser.uid, timestamp: new Date(), isOptimistic: true, ...messageData }]);
+      const senderId = currentUser.uid;
+      setOptimisticMessages(prev => [...prev, { id: tempId, senderId, timestamp: new Date(), isOptimistic: true, ...messageData }]);
 
       try {
-          await addDoc(collection(firestore, 'chats', chat.id, 'messages'), { 
-              senderId: currentUser.uid, 
-              timestamp: serverTimestamp(), 
-              isRead: false, 
-              ...messageData 
+          await addDoc(collection(firestore, 'chats', chat.id, 'messages'), {
+              senderId,
+              timestamp: serverTimestamp(),
+              isRead: false,
+              ...messageData
           });
 
-          const otherId = chat.participantIds.find(id => id !== currentUser.uid);
+          const otherId = chat.participantIds.find(id => id !== senderId);
           const updateObj: any = { 
               lastMessage: messageData.messageType === 'voice' ? 'Sent a voice note' : (messageData.messageText || 'Sent a file'), 
               lastMessageTimestamp: serverTimestamp(),
@@ -416,29 +426,51 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
     const file = e.target.files?.[0];
     if (!file || !chat || !currentUser) return;
 
-    // Self-hosted media engine: the file lands in chats/<chatId>/ on the VPS
-    // disk (images/videos are transcoded; other files are stored as-is).
-    setUploadProgress(0);
+    // Device-only first: images are compressed and small files are embedded
+    // straight into the message document, so private chat media never lands
+    // in platform storage. Only videos/large files that physically cannot fit
+    // (Firestore caps a document at 1 MB) fall back to the upload pipeline.
     try {
-      const result = await uploadMedia(
-        file,
-        currentUser,
-        (p) => setUploadProgress(p.percent),
-        { folder: `chats/${chat.id}` },
-      );
-      if (result.phase === 'failed' || !result.url) {
-        throw new Error(result.error || 'Upload failed.');
-      }
-      const type = file.type.startsWith('image/') ? 'image' : file.type.startsWith('video/') ? 'video' : 'file';
+      const kind = file.type.startsWith('image/') ? 'image' : file.type.startsWith('video/') ? 'video' : 'file';
 
-      await sendMessage({
-        messageType: type,
-        mediaUrl: result.url,
-        mediaMetadata: { name: file.name, size: file.size, type: file.type }
-      });
+      if (kind === 'image') {
+        const { dataUrl, bytes } = await compressImageForChat(file);
+        await sendMessage({
+          messageType: 'image',
+          mediaUrl: dataUrl,
+          mediaMetadata: { name: file.name, size: bytes, type: 'image/jpeg' }
+        });
+      } else if (file.size <= MAX_CHAT_EMBED_BYTES) {
+        const dataUrl = await blobToDataUrl(file);
+        await sendMessage({
+          messageType: kind,
+          mediaUrl: dataUrl,
+          mediaMetadata: { name: file.name, size: file.size, type: file.type }
+        });
+      } else {
+        setUploadProgress(0);
+        const result = await uploadMedia(
+          file,
+          currentUser,
+          (p) => setUploadProgress(p.percent),
+          { folder: `chats/${chat.id}` },
+        );
+        if (result.phase === 'failed' || !result.url) {
+          throw new Error(result.error || 'Upload failed.');
+        }
+        await sendMessage({
+          messageType: kind,
+          mediaUrl: result.url,
+          mediaMetadata: { name: file.name, size: file.size, type: file.type }
+        });
+      }
     } catch (error) {
       console.error("Upload error:", error);
-      toast({ variant: 'destructive', title: 'Upload Failed' });
+      toast({
+        variant: 'destructive',
+        title: 'Could not send file',
+        description: error instanceof Error ? error.message : 'Please try again.',
+      });
     } finally {
       setUploadProgress(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -450,53 +482,56 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
         console.error("Error sharing product:", error);
         toast({ variant: 'destructive', title: 'Share Failed' });
     });
-  }, [chat, currentUser, firestore, toast, sendMessage]);
+  }, [chat, activeUser, firestore, toast, sendMessage]);
 
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream, { 
-          mimeType: 'audio/webm',
-          audioBitsPerSecond: 32000
-      });
+      // Not every browser supports webm (Firefox records ogg); ask for a
+      // supported container instead of passing an unsupported one and having
+      // MediaRecorder throw a "Microphone Error".
+      const preferredMime = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus']
+        .find((type) => typeof MediaRecorder.isTypeSupported === 'function' && MediaRecorder.isTypeSupported(type));
+      const mediaRecorder = new MediaRecorder(stream, preferredMime
+          ? { mimeType: preferredMime, audioBitsPerSecond: 32000 }
+          : { audioBitsPerSecond: 32000 });
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
 
       mediaRecorder.ondataavailable = (event) => {
         if (event.data.size > 0) audioChunksRef.current.push(event.data);
       };      mediaRecorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-        const finalDuration = recordingTime;
-        
-        if (audioBlob.size > 100) {
-            // Voice notes go through the same self-hosted pipeline as every
-            // other upload — stored as-is in chats/<chatId>/.
-            const voiceFile = new globalThis.File([audioBlob], `voice-${Date.now()}.webm`, { type: 'audio/webm' });
-            setUploadProgress(1);
-            try {
-                const result = await uploadMedia(
-                    voiceFile,
-                    currentUser,
-                    (p) => setUploadProgress(p.percent),
-                    { folder: `chats/${chat!.id}` },
-                );
-                if (result.phase === 'failed' || !result.url) {
-                    throw new Error(result.error || 'Upload failed.');
-                }
-                await sendMessage({
-                    messageType: 'voice',
-                    mediaUrl: result.url,
-                    mediaMetadata: { name: 'Voice Note', size: audioBlob.size, type: 'audio/webm', duration: finalDuration }
-                });
-            } catch (error) {
-                console.error('Voice note upload failed:', error);
-                toast({ variant: 'destructive', title: 'Upload Failed' });
-            } finally {
-                setUploadProgress(null);
-            }
-        }
+        // Voice notes stay on the two participants' devices only: the audio
+        // rides inside the message document as a data URL and never touches
+        // platform storage. The whole callback is guarded — an exception here
+        // used to escape as an unhandled recorder error.
+        try {
+            const audioType = mediaRecorder.mimeType || 'audio/webm';
+            const audioBlob = new Blob(audioChunksRef.current, { type: audioType });
+            const finalDuration = recordingTime;
 
-        stream.getTracks().forEach(track => track.stop());
+            if (audioBlob.size > 100) {
+                if (audioBlob.size > MAX_CHAT_EMBED_BYTES) {
+                    toast({
+                        variant: 'destructive',
+                        title: 'Voice note too long',
+                        description: 'Record a shorter note so it stays on-device.',
+                    });
+                } else {
+                    const dataUrl = await blobToDataUrl(audioBlob);
+                    await sendMessage({
+                        messageType: 'voice',
+                        mediaUrl: dataUrl,
+                        mediaMetadata: { name: 'Voice Note', size: audioBlob.size, type: audioType, duration: finalDuration }
+                    });
+                }
+            }
+        } catch (error) {
+            console.error('Voice note failed:', error);
+            toast({ variant: 'destructive', title: 'Voice note not sent' });
+        } finally {
+            stream.getTracks().forEach(track => track.stop());
+        }
       };
 
       mediaRecorder.start();
@@ -527,6 +562,12 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
       if (timerRef.current) clearInterval(timerRef.current);
     }
   };
+
+  // Auto-stop a long recording: device-only voice notes must fit the on-device
+  // size limit, and a note that can never be sent is worse than a stopped one.
+  useEffect(() => {
+    if (isRecording && recordingTime >= 150) stopRecording();
+  }, [isRecording, recordingTime]);
 
   if (!chat || !currentUser) {
     return (
@@ -569,7 +610,7 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="rounded-full h-7 w-7 shrink-0"><MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-44 rounded-xl shadow-2xl">
-                    <DropdownMenuItem className="text-destructive text-[10px] font-bold uppercase tracking-widest" onClick={() => updateDoc(doc(firestore, 'chats', chat.id), { deletedFor: arrayUnion(currentUser.uid) }).then(onChatDeleted)}>
+                    <DropdownMenuItem className="text-destructive text-[10px] font-bold uppercase tracking-widest" onClick={() => updateDoc(doc(firestore, 'chats', chat.id), { deletedFor: arrayUnion(activeUser?.uid ?? '') }).then(onChatDeleted)}>
                         <Trash2 className="mr-2 h-3 w-3" /> Delete Chat
                     </DropdownMenuItem>
                     </DropdownMenuContent>
@@ -584,7 +625,7 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
                     onScrollCapture={(e) => handleScroll(e.currentTarget)}
                 >
                 {allMessages.map((msg) => {
-                    const senderIsMe = msg.senderId === currentUser.uid;
+                    const senderIsMe = msg.senderId === activeUser?.uid;
                     const alignRight = senderIsMe;
                     return (
                         <div key={msg.id} className={cn("flex w-full animate-in fade-in slide-in-from-bottom-1 duration-300", alignRight ? "justify-end" : "justify-start")}>
@@ -668,8 +709,7 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
                         >
                             <PlusCircle className="h-4 w-4" />
                         </Button>
-                        
-                        {userProfile?.userRole === 'seller' && (
+                                                {userProfile?.userRole === 'seller' && currentUser && (
                             <Dialog>
                                 <DialogTrigger asChild>
                                     <Button type="button" size="icon" variant="outline" className="h-8 w-8 rounded-xl border-white/5 shrink-0 bg-neutral-900/50">

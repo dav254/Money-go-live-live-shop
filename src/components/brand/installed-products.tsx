@@ -172,7 +172,7 @@ export function InstalledProducts() {
                     }}
                   />
                 ))}
-                <div className="ml-auto flex h-28 w-20 shrink-0 items-end rounded-xl bg-cover bg-center bg-no-repeat opacity-90 sm:h-36 sm:w-24" style={{ backgroundImage: 'url(https://images.unsplash.com/photo-1542211705-64120d1d2c5a?w=120&h=160&fit=crop)' }} />
+                <div className="ml-auto flex h-28 w-20 shrink-0 items-end rounded-xl bg-cover bg-center bg-no-repeat opacity-90 sm:h-36 sm:w-24" style={{ backgroundImage: 'url(https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=120&h=160&fit=crop)' }} />
               </div>
 
               {/* shelf 2 */}
