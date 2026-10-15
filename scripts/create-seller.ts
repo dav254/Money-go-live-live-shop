@@ -50,8 +50,9 @@ async function createSeller() {
     id: SELLER_ID,
     sellerId: SELLER_ID,
     shopName: "My Awesome Shop",
-    logoUrl: 'https://picsum.photos/seed/seller-avatar/400/400',
-    bannerUrl: 'https://picsum.photos/seed/seller-banner/1200/400',
+    // Local, always-served placeholders — never an external image host.
+    logoUrl: '/placeholder-avatar.svg',
+    bannerUrl: '/placeholder-image.svg',
     isVerified: true,
     rating: 4.8,
     reviewsCount: 150,
