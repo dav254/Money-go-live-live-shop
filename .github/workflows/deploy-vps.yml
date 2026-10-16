@@ -1,0 +1,45 @@
+name: Deploy to Contabo VPS
+
+on:
+  push:
+    branches: [vidnov-vps]
+  workflow_dispatch:
+
+# One deploy at a time — a second push waits instead of racing the first.
+concurrency:
+  group: deploy-vps
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Pull, build and reload on the VPS
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -e
+            cd /root/app
+
+            echo "--- source ---"
+            git fetch origin vidnov-vps
+            git pull --ff-only origin vidnov-vps
+            git log --oneline -1
+
+            echo "--- install ---"
+            npm ci
+
+            echo "--- build ---"
+            NODE_OPTIONS=--max-old-space-size=3072 npm run build
+
+            echo "--- restart ---"
+            pm2 reload goearnvid || pm2 start npm --name goearnvid -- start
+            pm2 save || true
+
+            echo "--- health ---"
+            curl -s -o /dev/null -w 'home %{http_code}\n' localhost:3000/
+            curl -s -o /dev/null -w 'discovery %{http_code}\n' localhost:3000/buyer/discovery
