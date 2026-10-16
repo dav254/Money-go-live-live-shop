@@ -31,7 +31,17 @@ jobs:
             git log --oneline -1
 
             echo "--- install ---"
-            npm ci
+            # Only reinstall when the lockfile actually changed — a blind
+            # `npm ci` deletes node_modules first, which briefly breaks the
+            # serving process for no benefit on most deploys. Always install
+            # when node_modules is missing (fresh clone), otherwise the build
+            # would run against an empty tree.
+            if [ ! -d node_modules ] || git diff --name-only HEAD@{1} HEAD -- package-lock.json 2>/dev/null | grep -q package-lock.json; then
+              echo "installing dependencies — npm ci"
+              npm ci
+            else
+              echo "lockfile unchanged and node_modules present — reusing"
+            fi
 
             echo "--- build ---"
             NODE_OPTIONS=--max-old-space-size=3072 npm run build

@@ -18,7 +18,18 @@
  */
 import { initializeApp, cert, ServiceAccount } from 'firebase-admin/app';
 import { getFirestore, Timestamp, QueryDocumentSnapshot } from 'firebase-admin/firestore';
+import { config as loadEnv } from 'dotenv';
 import * as fs from 'fs';
+
+// Load the same env files `next start` loads in production, so the script
+// finds Firebase credentials wherever the app finds them.
+for (const envFile of ['.env.production', '.env.local', '.env']) {
+  try {
+    loadEnv({ path: envFile });
+  } catch {
+    /* file absent — try the next one */
+  }
+}
 
 const PICSUM = /https?:\/\/(?:www\.)?picsum\.photos\/[^\s"']*/gi;
 const REPLACEMENT = '/placeholder-image.svg';
