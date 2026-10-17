@@ -51,5 +51,16 @@ jobs:
             pm2 save || true
 
             echo "--- health ---"
-            curl -s -o /dev/null -w 'home %{http_code}\n' localhost:3000/
+            # pm2 reload returns before Next.js is listening on :3000, and a
+            # single instant curl raced it (saw 000 / connection refused and
+            # failed a deploy whose build and reload had both succeeded).
+            # Poll for up to 60s instead.
+            code=000
+            for _ in $(seq 1 30); do
+              code=$(curl -s -o /dev/null -w '%{http_code}' localhost:3000/ || true)
+              [ "$code" = "200" ] && break
+              sleep 2
+            done
+            echo "home $code"
+            [ "$code" = "200" ]
             curl -s -o /dev/null -w 'discovery %{http_code}\n' localhost:3000/buyer/discovery
