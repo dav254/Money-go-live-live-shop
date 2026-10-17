@@ -45,6 +45,36 @@ function HostStage({ participantName, onEnd }: { participantName: string; onEnd:
   const [cameraOn, setCameraOn] = useState(true);
   const [micOn, setMicOn] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [cameraReady, setCameraReady] = useState(false);
+  const [cameraTimedOut, setCameraTimedOut] = useState(false);
+
+  /*
+   * WHY THE PREVIEW USED TO STAY BLACK
+   *
+   * The webcam track lands in `localParticipant.streams` *in place*, after the
+   * join, and that mutation does not reliably re-render the component. The
+   * attach effect below could therefore run once — before the track existed —
+   * and never run again: the stage went straight to "live" (join() is
+   * synchronous) with an empty <video>, i.e. a black screen with working
+   * controls on top. Keep the latest participant in a ref and poll for the
+   * track instead of trusting a single render.
+   */
+  const participantRef = useRef(localParticipant);
+  useEffect(() => {
+    participantRef.current = localParticipant;
+  }, [localParticipant]);
+
+  const attachLocalVideo = useCallback(() => {
+    const track = participantRef.current?.streams?.get('video')?.track;
+    if (!track || !videoRef.current) return false;
+    const current = videoRef.current.srcObject as MediaStream | null;
+    if (current && current.getTracks()[0] === track) return true;
+    const stream = new MediaStream();
+    stream.addTrack(track);
+    videoRef.current.srcObject = stream;
+    videoRef.current.play().catch(() => undefined);
+    return true;
+  }, []);
 
   // Join once, then attach the local camera to the preview element.
   useEffect(() => {
@@ -66,16 +96,46 @@ function HostStage({ participantName, onEnd }: { participantName: string; onEnd:
     };
   }, [join, leave]);
 
-  // Attach the local video track whenever it changes (enabled/disabled).
+  // Event-driven attach for whenever the component does re-render (camera
+  // toggles, meeting events).
   useEffect(() => {
-    const track = localParticipant?.streams?.get('video')?.track;
-    if (videoRef.current && track) {
-      const stream = new MediaStream();
-      stream.addTrack(track);
-      videoRef.current.srcObject = stream;
-      videoRef.current.play().catch(() => undefined);
-    }
-  }, [localParticipant, cameraOn, state]);
+    if (attachLocalVideo()) setCameraReady(true);
+  }, [localParticipant, cameraOn, state, attachLocalVideo]);
+
+  // Polling attach for when it does not: every 400ms until the track shows up.
+  // Some SDK builds also wait for an explicit enable even though the provider
+  // was configured with `webcamEnabled: true`, so if nothing has arrived by
+  // 2.5s, nudge it once. If it still has nothing at 10s the camera permission
+  // is the problem, and we say that instead of showing an empty black frame.
+  useEffect(() => {
+    if (!cameraOn) return;
+    setCameraTimedOut(false);
+
+    const kick = window.setTimeout(() => {
+      if (participantRef.current?.streams?.get('video')?.track) return;
+      try {
+        participantRef.current?.enableWebcam();
+      } catch {
+        // denied or already transitioning — the timeout below covers it
+      }
+    }, 2500);
+
+    const poll = window.setInterval(() => {
+      if (attachLocalVideo()) {
+        setCameraReady(true);
+        window.clearInterval(poll);
+        window.clearTimeout(kick);
+      }
+    }, 400);
+
+    const timeout = window.setTimeout(() => setCameraTimedOut(true), 10000);
+
+    return () => {
+      window.clearInterval(poll);
+      window.clearTimeout(kick);
+      window.clearTimeout(timeout);
+    };
+  }, [cameraOn, attachLocalVideo]);
 
   // Local mic must be attached to an element to be audible by viewers.
   useEffect(() => {
@@ -116,17 +176,25 @@ function HostStage({ participantName, onEnd }: { participantName: string; onEnd:
     <div className="relative h-full w-full bg-black">
       <video ref={videoRef} autoPlay muted playsInline className="h-full w-full object-cover" />
 
-      {(!cameraOn || state === 'connecting') && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/85 text-white">
-          {state === 'connecting' ? (
-            <>
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <p className="text-[10px] font-black uppercase tracking-[0.3em] text-white/50">Connecting your camera…</p>
-            </>
-          ) : (
+      {(!cameraOn || state === 'connecting' || !cameraReady) && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/85 px-6 text-center text-white">
+          {!cameraOn ? (
             <>
               <CameraOff className="h-8 w-8 text-white/40" />
               <p className="text-[10px] font-black uppercase tracking-[0.3em] text-white/50">Camera off</p>
+            </>
+          ) : cameraTimedOut ? (
+            <>
+              <CameraOff className="h-8 w-8 text-white/40" />
+              <p className="text-[10px] font-black uppercase tracking-[0.3em] text-white/50">No camera picture yet</p>
+              <p className="max-w-xs text-[11px] leading-relaxed text-white/50">
+                Allow camera access for this site in your browser settings, then tap the camera button to try again.
+              </p>
+            </>
+          ) : (
+            <>
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <p className="text-[10px] font-black uppercase tracking-[0.3em] text-white/50">Connecting your camera…</p>
             </>
           )}
         </div>

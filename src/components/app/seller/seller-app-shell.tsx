@@ -183,7 +183,10 @@ function SellerTabBar() {
 
 /* ── Top bar ─────────────────────────────────────────────────────────────── */
 
-const IMMERSIVE_ROUTES = ['/app/seller/messages', '/app/seller/discovery'];
+// `live` is immersive so the broadcast stage runs edge-to-edge: without it
+// the tab bar sat under the preview (two navigation surfaces on one screen)
+// and the preview could only ever be as tall as the leftover content box.
+const IMMERSIVE_ROUTES = ['/app/seller/messages', '/app/seller/discovery', '/app/seller/live'];
 
 function useImmersiveRoute(): boolean {
   const pathname = usePathname();
