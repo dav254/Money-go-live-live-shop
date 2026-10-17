@@ -115,6 +115,30 @@ export default function BuyerCheckoutPage() {
   const [paying, setPaying] = React.useState<Method | null>(null);
   const [product, setProduct] = React.useState<Product | null>(null);
 
+  /*
+   * Which gateways the server can actually start. `null` until the probe
+   * answers — and if it never answers the list stays complete (fail open),
+   * because hiding every button over a flaky probe would be worse than a
+   * server-side error toast.
+   */
+  const [gateways, setGateways] = React.useState<{
+    paystack?: boolean;
+    paypal?: boolean;
+  } | null>(null);
+
+  React.useEffect(() => {
+    let alive = true;
+    fetch('/api/create-payment-intent')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (alive && data && typeof data === 'object') setGateways(data);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
+
   React.useEffect(() => {
     if (!firestore || !orderId) return;
     let alive = true;
@@ -182,7 +206,29 @@ export default function BuyerCheckoutPage() {
    * disabled.
    */
   const pay = async (method: Method) => {
-    if (!user?.email || !order) return;
+    if (!order) return;
+    if (!user?.email) {
+      toast({
+        variant: 'destructive',
+        title: 'Add an email to your account',
+        description: 'Payment receipts are sent by email — add one in Profile, then try again.',
+      });
+      return;
+    }
+    // Older order documents carry `productPrice` but no `totalAmount`;
+    // sending 0 made the server reject the payment with "Missing required
+    // payment details." — which read to the buyer as "payment refused".
+    // Fall through the same fields the summary itself renders.
+    const amount =
+      Number(order.totalAmount) || Number(order.productPrice) || Number(order.subtotal) || 0;
+    if (amount <= 0) {
+      toast({
+        variant: 'destructive',
+        title: 'This order has no payable amount',
+        description: 'The total is missing on this order. Message the seller, or reopen checkout in a minute.',
+      });
+      return;
+    }
     setPaying(method);
     try {
       const res = await fetch('/api/create-payment-intent', {
@@ -190,7 +236,7 @@ export default function BuyerCheckoutPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           orderId: order.id,
-          amount: Number(order.totalAmount) || 0,
+          amount,
           email: user.email,
           gateway: method === 'paypal' ? 'paypal' : 'paystack',
           channel: method === 'paypal' ? undefined : method,
@@ -263,6 +309,18 @@ export default function BuyerCheckoutPage() {
   const total = Number(order.totalAmount) || 0;
   const shipping = Number(order.shippingCost) || 0;
   const subtotal = total - shipping;
+
+  /*
+   * Methods to offer. Once the probe answers, a gateway the server is not
+   * configured for is simply not rendered — e.g. PayPal with no
+   * PAYPAL_CLIENT_ID/SECRET was a button guaranteed to fail with
+   * "PayPal is not configured on this server." The option comes back by
+   * itself the moment the keys land in the server's .env.
+   */
+  const visibleMethods = METHODS.filter((m) => {
+    if (!gateways) return true;
+    return m.id === 'paypal' ? gateways.paypal === true : gateways.paystack === true;
+  });
   const wasCredited = Number(order.deliveryCreditApplied) === 1;
 
   /*
@@ -420,8 +478,20 @@ export default function BuyerCheckoutPage() {
           Secure payment options
         </p>
 
+        {!user?.email && (
+          <p className="mb-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[11px] leading-relaxed text-amber-600 dark:text-amber-400">
+            Add an email address to your account before paying — receipts are sent by email.
+          </p>
+        )}
+
+        {gateways && visibleMethods.length === 0 && (
+          <p className="rounded-xl border border-border bg-card px-3 py-4 text-center text-xs text-muted-foreground">
+            Online payments are being configured right now — check back in a few minutes.
+          </p>
+        )}
+
         <div className="space-y-2">
-          {METHODS.map((m) => {
+          {visibleMethods.map((m) => {
             const Icon = m.icon;
             const busy = paying === m.id;
             return (

@@ -22,6 +22,21 @@ function getPayPalClient() {
   return new paypal.core.PayPalHttpClient(environment);
 }
 
+/**
+ * Which gateways this deployment can actually start.
+ *
+ * The checkout screen reads this before rendering its method list, so an
+ * unconfigured gateway (PayPal keys not in `.env`, Paystack key missing)
+ * never shows up as a button that is guaranteed to fail with a 500. Fail-open
+ * by design: the screen keeps its full list if this probe fails.
+ */
+export async function GET() {
+  return NextResponse.json({
+    paystack: !!process.env.PAYSTACK_SECRET_KEY,
+    paypal: !!(process.env.PAYPAL_CLIENT_ID && process.env.PAYPAL_CLIENT_SECRET),
+  });
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
