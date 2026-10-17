@@ -2,7 +2,7 @@ name: Deploy to Contabo VPS
 
 on:
   push:
-    branches: [vidnov-vps]
+    branches: [main]
   workflow_dispatch:
 
 # One deploy at a time — a second push waits instead of racing the first.
@@ -26,8 +26,8 @@ jobs:
             cd /root/app
 
             echo "--- source ---"
-            git fetch origin vidnov-vps
-            git pull --ff-only origin vidnov-vps
+            git fetch origin main
+            git pull --ff-only origin main
             git log --oneline -1
 
             echo "--- install ---"
