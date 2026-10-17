@@ -10,7 +10,7 @@ import { VideoCard } from '@/components/feed/video-card';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
-import { Search, ChevronLeft } from 'lucide-react';
+import { Search, ChevronLeft, Menu } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 
@@ -107,10 +107,10 @@ export default function BuyerLiveFeedPage() {
     const router = useRouter();
     const [intersectingCard, setIntersectingCard] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
     const productsQuery = useMemoFirebase(() => {
         if (!firestore) return null;
-        // Fetch the 10 most recent products
         return query(collection(firestore, 'products'), orderBy('uploadDate', 'desc'), limit(10));
     }, [firestore]);
 
@@ -178,15 +178,40 @@ export default function BuyerLiveFeedPage() {
 
     return (
         <div className="relative h-screen w-full bg-black overflow-hidden">
-            {/* Floating Header / Search Section */}
-            <div className="absolute top-0 left-0 right-0 z-50 p-4 flex items-center gap-2 bg-gradient-to-b from-black/80 to-transparent">
+             <aside className={cn(
+                "absolute top-0 left-0 h-full z-50 w-64 bg-neutral-900/90 backdrop-blur-lg border-r border-white/10 transition-transform duration-300 ease-in-out",
+                isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+            )}>
+                <div className="p-4">
+                    <div className="flex justify-between items-center mb-6">
+                        <h2 className="font-headline text-xl font-bold text-white">Menu</h2>
+                        <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(false)} className="text-white">
+                            <ChevronLeft className="h-6 w-6" />
+                        </Button>
+                    </div>
+                    <nav className="flex flex-col gap-2">
+                        <Button variant="ghost" className="justify-start text-white" onClick={() => router.push('/buyer/dashboard')}>Dashboard</Button>
+                        <Button variant="ghost" className="justify-start text-white" onClick={() => router.push('/buyer/profile')}>Profile</Button>
+                        <Button variant="ghost" className="justify-start text-white" onClick={() => router.push('/buyer/orders')}>My Orders</Button>
+                    </nav>
+                </div>
+            </aside>
+
+            {isSidebarOpen && (
+                <div 
+                    onClick={() => setIsSidebarOpen(false)} 
+                    className="absolute inset-0 bg-black/50 z-40"
+                />
+            )}
+
+            <div className="absolute top-0 left-0 right-0 z-30 p-4 flex items-center gap-2 bg-gradient-to-b from-black/80 to-transparent">
                 <Button 
                     variant="ghost" 
                     size="icon" 
                     className="text-white bg-black/20 hover:bg-black/40 rounded-full"
-                    onClick={() => router.push('/buyer/dashboard')}
+                    onClick={() => setIsSidebarOpen(true)}
                 >
-                    <ChevronLeft className="h-6 w-6" />
+                    <Menu className="h-6 w-6" />
                 </Button>
                 <form onSubmit={handleSearchSubmit} className="flex-1 max-w-md mx-auto">
                     <div className="relative group">
@@ -199,7 +224,6 @@ export default function BuyerLiveFeedPage() {
                         />
                     </div>
                 </form>
-                {/* Spacer for symmetry on mobile */}
                 <div className="w-10 md:hidden" />
             </div>
 

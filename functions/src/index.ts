@@ -347,7 +347,7 @@ export const processPayout = functions.firestore
                     source: 'balance',
                     amount: amount * 100,
                     recipient: recipientResponse.data.data.recipient_code,
-                    reason: `Go Earn Payout: ${payoutId}`,
+                    reason: `Vidnov Payout: ${payoutId}`,
                 }, {
                     headers: {
                         Authorization: `Bearer ${paystackSecret}`
@@ -404,7 +404,7 @@ export const notifyAdminOnSignup = functions.firestore
         const role = userData.userRole || userData.role || 'buyer';
         const name = userData.fullName || 'New User';
         
-        const dashboardLink = `https://goearnvid.shop/dashboard/admin/users/${role}s`;
+        const dashboardLink = `https://vidnov.com/dashboard/admin/users/${role}s`;
         const message = `🚀 NEW REGISTRATION!\nName: ${name}\nRole: ${role.toUpperCase()}\nDashboard: ${dashboardLink}`;
         
         return await sendWhatsAppToAdmin(message);
@@ -421,7 +421,7 @@ export const notifyAdminOnOrder = functions.firestore
         const amount = orderData.totalAmount;
         const product = orderData.productName || 'Product';
         
-        const orderLink = `https://goearnvid.shop/dashboard/admin/orders/all?orderId=${context.params.orderId}`;
+        const orderLink = `https://vidnov.com/dashboard/admin/orders/all?orderId=${context.params.orderId}`;
         const message = `💰 NEW ORDER RECEIVED!\nOrder ID: #${context.params.orderId.substring(0, 6)}\nItem: ${product}\nTotal: $${amount.toFixed(2)}\nAdmin Panel: ${orderLink}`;
         
         return await sendWhatsAppToAdmin(message);

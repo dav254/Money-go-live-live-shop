@@ -821,3 +821,42 @@ export interface Order {
     platformFee?: number;
     resellerCommission?: number;
 }
+
+export interface ProductUploadFormProps {
+  productToEdit?: Product;
+  onFormSubmit?: () => void;
+}
+
+export interface Payment {
+    id: string;
+    orderId: string;
+    amount: number;
+    paymentStatus: 'pending' | 'succeeded' | 'failed';
+    paymentDate: any;
+    source: 'commissions' | 'boosts' | 'subscriptions' | 'ads';
+}
+
+export interface Report {
+    id: string;
+    reportType: 'video' | 'user';
+    reportedId: string;
+    reporterId: string;
+    reason: string;
+    createdAt: Timestamp;
+}
+
+export interface Video {
+    id: string;
+    createdAt: Timestamp;
+    isFlagged: boolean;
+}
+
+export interface Activity {
+    id: string;
+    timestamp: Timestamp;
+    type: 'new_seller' | 'order_completed' | 'video_flagged' | 'withdrawal_requested' | 'new_buyer';
+    description: string;
+    details: string;
+    icon: string;
+    color: string;
+}

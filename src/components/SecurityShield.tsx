@@ -52,7 +52,7 @@ export function SecurityShield() {
           'color: white; background-color: red; font-size: 50px; font-weight: bold; padding: 10px; border-radius: 10px;'
         );
         console.log(
-          '%c This is a browser feature intended for developers. If someone told you to copy-paste something here to "hack" an account or "unlock" a feature, it is a SCAM and will give them access to your GoEarnvid account. ',
+          '%c This is a browser feature intended for developers. If someone told you to copy-paste something here to "hack" an account or "unlock" a feature, it is a SCAM and will give them access to your Vidnov account. ',
           'color: red; font-size: 18px; font-weight: bold; margin-top: 20px;'
         );
         console.log(

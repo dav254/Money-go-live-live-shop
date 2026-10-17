@@ -155,7 +155,7 @@ export default function AdminLoginPage() {
                 </Button>
                 
                 <p className="text-[10px] font-bold text-center text-neutral-600 uppercase tracking-widest">
-                    Unauthorized access attempts are logged and tracked.
+                    Unauthorized access attempts are logged and tracked via vidnov.com protocol.
                 </p>
                 
               </CardFooter>

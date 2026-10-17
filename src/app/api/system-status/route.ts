@@ -69,7 +69,7 @@ export async function GET(request: Request) {
     ]);
 
     const services: ServiceStatus[] = [
-      { name: 'API Gateway (Go Earn)', status: 'operational' },
+      { name: 'API Gateway (Vidnov)', status: 'operational' },
       { name: 'Database (Firebase Firestore)', status: firestore },
       { name: 'AI Core (Google Gemini)', status: ai },
       { name: 'Live Stream Signals (VideoSDK)', status: live },

@@ -50,7 +50,7 @@ const nextConfig = {
           },
           {
             key: 'Permissions-Policy',
-            value: 'camera=(self), microphone=(self), geolocation=(self), clipboard-write=(self "https://goearnvid.shop")',
+            value: 'camera=(self), microphone=(self), geolocation=(self), clipboard-write=(self "https://vidnov.com")',
           },
           {
             key: 'Content-Security-Policy',

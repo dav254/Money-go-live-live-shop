@@ -1,4 +1,3 @@
-
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/firebase/server';
 import { FieldValue } from 'firebase-admin/firestore';
@@ -137,7 +136,7 @@ export async function PUT(request: NextRequest) {
                 updatedAt: FieldValue.serverTimestamp()
             });
 
-            return NextResponse.json({ success: true, message: 'Boost approved and posted to the official Go Earn TikTok account.' });
+            return NextResponse.json({ success: true, message: 'Boost approved and posted to the official Vidnov TikTok account.' });
         }
 
     } catch (error: any) {

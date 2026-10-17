@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useState, Suspense } from 'react';
@@ -111,7 +110,12 @@ function SignupFormContent() {
     if (!isUserLoading && !isProfileLoading && user && userProfile) {
       if (userProfile.status === 'suspended') return;
       const role = userProfile.userRole || userProfile.role;
-      const target = role === 'seller' ? '/dashboard/seller' : role === 'admin' ? '/dashboard/admin' : role === 'reseller' ? '/dashboard/reseller' : '/buyer/dashboard';
+      
+      let target = '/buyer/live'; // Default for buyers: Immersive Video Feed
+      if (role === 'seller') target = '/dashboard/seller';
+      else if (role === 'admin') target = '/dashboard/admin';
+      else if (role === 'reseller') target = '/dashboard/reseller';
+      
       router.replace(target);
     }
   }, [user, userProfile, isUserLoading, isProfileLoading, router]);

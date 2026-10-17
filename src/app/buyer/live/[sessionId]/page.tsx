@@ -37,7 +37,7 @@ export default function BuyerLiveSessionPage(props: { params: Promise<{ sessionI
   const sessionId = params.sessionId;
   const firestore = useFirestore();
 
-  const [activePanel, setActivePanel] = useState<'chat' | 'products' | null>(null);
+  const [activePanel, setActivePanel] = useState<'chat' | 'products' | 'promos' | 'viewers' | null>(null);
   const [hasUnreadChat, setHasUnreadChat] = useState(false);
 
   // Subscribe to the live session document
@@ -94,7 +94,7 @@ export default function BuyerLiveSessionPage(props: { params: Promise<{ sessionI
   }, [session, isSessionLoading, router]);
 
   const handleShare = () => {
-      const url = `https://goearnvid.shop/buyer/live/${sessionId}`;
+      const url = `https://vidnov.com/buyer/live/${sessionId}`;
       navigator.clipboard.writeText(url).then(() => {
           toast({ title: 'Link Copied!', description: 'Invite friends to shop live together.' });
       });

@@ -15,7 +15,7 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
 // The user ID to target
-const userId = 'DusChTn2jmSzBAStnIPDElj39qF2';
+const userId = 'z7x4SUxWO8RYeFxPdDjWU6JY28x1';
 const userProfileRef = doc(db, 'userProfiles', userId);
 
 // The main function to set the admin role
@@ -23,15 +23,15 @@ async function setAdminRole() {
   console.log(`Attempting to set role for user: ${userId}`);
   try {
     // Use setDoc with { merge: true } to create or update the document
-    await setDoc(userProfileRef, { userRole: 'admin' }, { merge: true });
+    await setDoc(userProfileRef, { role: 'admin' }, { merge: true });
     
     // Also ensure the user is in the 'admins' collection
     const adminRef = doc(db, 'admins', userId);
     await setDoc(adminRef, {
         uid: userId,
-        email: 'admin@moneygod.com', // You can fill this out as needed
+        email: 'chegedavis1@gmail.com', // You can fill this out as needed
         role: 'SuperAdmin',
-        displayName: 'david Kamiano chege', // You can fill this out as needed
+        displayName: 'DJ #254', // You can fill this out as needed
         lastLogin: new Date().toISOString()
     }, { merge: true });
 

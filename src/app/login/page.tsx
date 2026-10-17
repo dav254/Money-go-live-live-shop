@@ -155,10 +155,27 @@ export default function LoginPage() {
       }
     } catch (error: any) {
       console.error('Login Error:', error);
+      // Firebase collapses "no such user" and "wrong password" into one
+      // invalid-credential error, so map only the codes we can genuinely
+      // distinguish and fall back to a neutral message rather than blaming
+      // the password for network or rate-limit failures.
+      let description = 'An unexpected error occurred. Please try again.';
+      if (
+        error?.code === 'auth/invalid-credential' ||
+        error?.code === 'auth/invalid-email' ||
+        error?.code === 'auth/user-not-found' ||
+        error?.code === 'auth/wrong-password'
+      ) {
+        description = 'The email or password you entered is incorrect.';
+      } else if (error?.code === 'auth/too-many-requests') {
+        description = 'Too many attempts. Please wait a moment and try again.';
+      } else if (error?.code === 'auth/network-request-failed') {
+        description = 'Network error. Check your connection and try again.';
+      }
       toast({
         variant: 'destructive',
         title: 'Login Failed',
-        description: 'Invalid password.',
+        description,
       });
     }
   }

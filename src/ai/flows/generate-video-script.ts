@@ -33,7 +33,7 @@ const prompt = ai.definePrompt({
   name: 'generateVideoScriptPrompt',
   input: { schema: GenerateVideoScriptInputSchema },
   output: { schema: GenerateVideoScriptOutputSchema },
-  prompt: `You are a professional commercial director for GoEarnvid, a video-first social commerce platform.
+  prompt: `You are a professional commercial director for Vidnov, a video-first social commerce platform.
   
 Your task is to write a high-fidelity cinematic prompt for an AI video model (Veo 2.0).
 The prompt should be 1-2 sentences, highly descriptive, and optimized for professional advertising.
@@ -48,7 +48,7 @@ Description: {{{data.description}}}
 Objective: Create a script that showcases this specific product in a luxury or high-energy commercial setting. Focus on textures, lighting, and "Post-Earn-Repeat" energy.
 {{else}}
 [PLATFORM CONTEXT]
-GoEarnvid is a global social commerce protocol where creators upload videos to earn yield.
+Vidnov is a global social commerce protocol where creators upload videos to earn yield.
 
 Objective: Create a brand-level advertisement scene showing the "Post, Earn, Repeat" loop, successful entrepreneurs, or the global discovery feed in a cinematic, futuristic way.
 {{/if}}

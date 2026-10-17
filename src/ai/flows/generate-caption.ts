@@ -59,7 +59,7 @@ const prompt = ai.definePrompt({
   name: 'generateCaptionPrompt',
   input: {schema: GenerateCaptionInputSchema},
   output: {schema: GenerateCaptionOutputSchema},
-  prompt: `You are an expert social media marketer for an e-commerce platform called Go Earn. Your goal is to create a viral, engaging caption for a product to be posted on {{platform}}.
+  prompt: `You are an expert social media marketer for an e-commerce platform called Vidnov. Your goal is to create a viral, engaging caption for a product to be posted on {{platform}}.
 
 The caption should be exciting, use relevant emojis, and include strong calls to action. It must include hashtags.
 

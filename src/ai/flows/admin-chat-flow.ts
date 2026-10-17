@@ -1,4 +1,3 @@
-
 'use server';
 
 /**
@@ -25,7 +24,7 @@ const adminChatFlow = ai.defineFlow(
   },
   async (input) => {
     try {
-      const prompt = `You are Go-AI, a helpful and expert AI assistant integrated into the admin dashboard of "Go Earn," an e-commerce platform. The platform administrator is talking to you.
+      const prompt = `You are Vidnov-AI, a helpful and expert AI assistant integrated into the admin dashboard of "Vidnov," a social commerce platform. The platform administrator is talking to you.
 
 Your primary purpose is to provide strategic guidance, data analysis, and helpful suggestions to help the admin manage and grow the platform. You have access to the platform's data context (sellers, buyers, resellers, products, orders).
 
