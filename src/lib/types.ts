@@ -827,15 +827,10 @@ export interface ProductUploadFormProps {
   onFormSubmit?: () => void;
 }
 
-export interface Payment {
-    id: string;
-    orderId: string;
-    amount: number;
-    paymentStatus: 'pending' | 'succeeded' | 'failed';
-    paymentDate: any;
-    source: 'commissions' | 'boosts' | 'subscriptions' | 'ads';
-}
-
+// NOTE: the admin finance view on the incoming branch declared a second, 
+// stricter `Payment` interface here. It clashed with the canonical one above
+// (TS2687/TS2717) and its `source` discriminator is referenced nowhere, so
+// the canonical all-optional shape is the only declaration.
 export interface Report {
     id: string;
     reportType: 'video' | 'user';

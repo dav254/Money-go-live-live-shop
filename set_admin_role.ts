@@ -3,7 +3,15 @@ import { initializeApp, cert } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 
 // The service account key is loaded from a JSON file
-import serviceAccount from '../service-account.json';
+import serviceAccountKey from './service-account.json';
+
+// The JSON uses snake_case keys (project_id, client_email, private_key);
+// cert() expects the camelCase ServiceAccount shape.
+const serviceAccount = {
+  projectId: serviceAccountKey.project_id,
+  clientEmail: serviceAccountKey.client_email,
+  privateKey: serviceAccountKey.private_key,
+};
 
 // Initialize the Firebase Admin SDK
 const adminApp = initializeApp({
