@@ -94,7 +94,10 @@ export default function BuyerLiveNowPage() {
     if (!sessions) return [];
     
     return sessions.filter(session => {
-        if (!session.videosdkMeetingId) return false;
+        // A session is watchable when its transport channel exists: LiveKit
+        // sessions carry livekitRoomName, legacy ones carry videosdkMeetingId.
+        const channel = session.provider === 'livekit' ? session.livekitRoomName : session.videosdkMeetingId;
+        if (!channel) return false;
         
         // Anti-stale logic: Only show shows started in the last 12 hours
         const startTime = session.startTime?.toMillis?.() || 0;

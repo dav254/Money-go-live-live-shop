@@ -19,7 +19,21 @@ import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/firebase';
 import Link from 'next/link';
 
+// Legacy transport — sessions created before the LiveKit migration remain
+// watchable during the transition (they still carry videosdkMeetingId).
 const VideoSDKViewer = dynamic(() => import('@/components/buyer/VideoSDKViewer'), {
+  ssr: false,
+  loading: () => (
+    <div className="h-full w-full flex flex-col items-center justify-center bg-black text-center p-8">
+      <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
+      <p className="text-white font-black uppercase tracking-widest text-[10px]">Syncing 4K Data Pipe...</p>
+    </div>
+  ),
+});
+
+// Current transport: subscribe-only LiveKit viewer for sessions created with
+// `provider: "livekit"`.
+const LiveKitViewer = dynamic(() => import('@/components/buyer/LiveKitViewer'), {
   ssr: false,
   loading: () => (
     <div className="h-full w-full flex flex-col items-center justify-center bg-black text-center p-8">
@@ -47,6 +61,13 @@ export default function BuyerLiveSessionPage(props: { params: Promise<{ sessionI
   }, [firestore, sessionId]);
 
   const { data: session, isLoading: isSessionLoading } = useDoc<LiveSession>(sessionRef);
+
+  // Which transport backs this session record? LiveKit sessions carry
+  // `livekitRoomName` (written by the session-creation API together with
+  // `provider`); anything else is a legacy VideoSDK session with
+  // `videosdkMeetingId` and must stay watchable during the transition.
+  const isLiveKitSession = session?.provider === 'livekit';
+  const connectionRoom = isLiveKitSession ? session?.livekitRoomName : session?.videosdkMeetingId;
 
   // Unread chat notification logic
   useEffect(() => {
@@ -85,13 +106,13 @@ export default function BuyerLiveSessionPage(props: { params: Promise<{ sessionI
 
   // FAST DISCONNECT: Watch for 'ended' status or null meeting ID
   useEffect(() => {
-    if (!isSessionLoading && (session?.status === 'ended' || (session?.status === 'live' && !session.videosdkMeetingId))) {
+    if (!isSessionLoading && (session?.status === 'ended' || (session?.status === 'live' && !connectionRoom))) {
       const timer = setTimeout(() => {
           router.replace('/buyer/live-now');
       }, 1000);
       return () => clearTimeout(timer);
     }
-  }, [session, isSessionLoading, router]);
+  }, [session, isSessionLoading, router, connectionRoom]);
 
   const handleShare = () => {
       const url = `https://vidnov.com/buyer/live/${sessionId}`;
@@ -132,7 +153,7 @@ export default function BuyerLiveSessionPage(props: { params: Promise<{ sessionI
       )
   }
 
-  if (!session || session.status !== 'live' || !session.videosdkMeetingId) {
+  if (!session || session.status !== 'live' || !connectionRoom) {
     return (
       <BuyerLayout fullWidth isGuestAllowed>
         <div className="h-[calc(100vh-4rem)] flex flex-col items-center justify-center bg-black text-center p-8">
@@ -156,7 +177,11 @@ export default function BuyerLiveSessionPage(props: { params: Promise<{ sessionI
       <div className="relative h-[calc(100vh-4rem)] w-full bg-black overflow-hidden flex">
         <div className="flex-1 relative overflow-hidden">
           <div className="absolute inset-0 z-0">
-            <VideoSDKViewer meetingId={session.videosdkMeetingId} />
+            {isLiveKitSession ? (
+              <LiveKitViewer sessionId={sessionId} />
+            ) : (
+              <VideoSDKViewer meetingId={session.videosdkMeetingId as string} />
+            )}
           </div>
 
           {session.activeOffer && (

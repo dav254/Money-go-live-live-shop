@@ -474,6 +474,15 @@ export interface LiveSession {
     sellerId: string;
     title: string;
     status: 'upcoming' | 'live' | 'paused' | 'ended';
+    /**
+     * Video transport backing this session. Sessions created before the
+     * LiveKit migration (or while only VideoSDK was configured) have no
+     * `provider` value and are read as legacy VideoSDK sessions.
+     */
+    provider?: 'livekit' | 'videosdk';
+    /** LiveKit room for `provider === 'livekit'` — minted server-side only. */
+    livekitRoomName?: string | null;
+    /** Legacy field — kept so in-flight and historical sessions stay readable. */
     videosdkMeetingId?: string | null;
     viewerCount: number;
     startTime: any;

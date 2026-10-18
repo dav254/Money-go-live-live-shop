@@ -7,9 +7,10 @@
  * product shelf, no chat rail, no analytics — buyers get all of that on the
  * viewer side. While you are live you see your own preview; nobody else does.
  *
- * Transport: VideoSDK. The join token is minted server-side at
- * /api/videosdk/token and the room is created by /api/live-session, so the
- * SDK secret never reaches the browser.
+ * Transport: LiveKit. POST /api/live-session authenticates the seller, charges
+ * the session, mints a server-side broadcaster token and returns the room name
+ * + websocket URL in one response, so the API secret never reaches the
+ * browser.
  */
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
@@ -49,39 +50,19 @@ export function SellerLiveStudio({
   const { toast } = useToast();
   const previewRef = useRef<HTMLVideoElement>(null);
 
-  const [token, setToken] = useState<string | null>(null);
+  // No preflight token fetch: LiveKit connection details arrive together
+  // with the session itself from POST /api/live-session, so a config problem
+  // surfaces exactly when the sellers presses Go live — and a missing config
+  // fails the request server-side instead of showing a half-ready studio.
   const [tokenError, setTokenError] = useState<string | null>(null);
-  const [checking, setChecking] = useState(true);
 
   const [title, setTitle] = useState('');
   const [phase, setPhase] = useState<'idle' | 'starting' | 'live'>('idle');
-  const [session, setSession] = useState<{ meetingId: string } | null>(null);
+  const [session, setSession] = useState<{ wsUrl: string; roomName: string; token: string } | null>(null);
   const [cameraDenied, setCameraDenied] = useState(false);
 
   const points = userProfile?.aiPoints ?? 0;
-  const canStart = !!token && points >= SESSION_COST && !cameraDenied;
-
-  const fetchToken = useCallback(async () => {
-    setChecking(true);
-    try {
-      const res = await fetch('/api/videosdk/token');
-      const data = await res.json();
-      if (!res.ok) {
-        setTokenError(data.message || 'Live streaming is not configured yet.');
-        return;
-      }
-      setToken(data.token ?? null);
-      setTokenError(null);
-    } catch {
-      setTokenError('Could not reach the live service.');
-    } finally {
-      setChecking(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void fetchToken();
-  }, [fetchToken]);
+  const canStart = points >= SESSION_COST && !cameraDenied;
 
   /** Idle preview: request the camera so the seller can check the shot. */
   useEffect(() => {
@@ -107,9 +88,9 @@ export function SellerLiveStudio({
   }, [phase]);
 
   const goLive = useCallback(async () => {
-    if (!user || !token) return;
+    if (!user) return;
     setPhase('starting');
-    // Release the idle preview so the SDK owns the camera from here on.
+    // Release the idle preview so the LiveKit Room owns the camera from here on.
     if (previewRef.current?.srcObject) {
       (previewRef.current.srcObject as MediaStream).getTracks().forEach((t) => t.stop());
       previewRef.current.srcObject = null;
@@ -122,9 +103,20 @@ export function SellerLiveStudio({
         body: JSON.stringify({ title: title.trim() || undefined, status: 'live' }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || data.error || 'Could not start the broadcast.');
+      if (!res.ok) {
+        // Config problems light up the persistent "Setup required" box; every
+        // other failure (points, conflict) just toasts, as before.
+        if (data?.error === 'CONFIG_MISSING') {
+          setTokenError(data.message || 'Live streaming is not configured on this server.');
+        }
+        throw new Error(data.message || data.error || 'Could not start the broadcast.');
+      }
+      if (data.provider !== 'livekit' || !data.livekitRoomName || !data.token || !data.wsUrl) {
+        throw new Error('The server did not return LiveKit connection details. The broadcast was not started.');
+      }
 
-      setSession({ meetingId: data.videosdkMeetingId });
+      setSession({ wsUrl: data.wsUrl, roomName: data.livekitRoomName, token: data.token });
+      setTokenError(null);
       setPhase('live');
       toast({ title: 'You are live', description: 'Buyers can now watch you in VIDNOV LIVE.' });
     } catch (error) {
@@ -135,7 +127,7 @@ export function SellerLiveStudio({
         description: error instanceof Error ? error.message : 'Please try again.',
       });
     }
-  }, [user, token, title, toast]);
+  }, [user, title, toast]);
 
   const endLive = useCallback(async () => {
     if (user) {
@@ -203,13 +195,14 @@ export function SellerLiveStudio({
   }, [user, toast, viewerBasePath]);
 
   /* ------------------------------ live ------------------------------ */
-  if (phase === 'live' && session && token) {
+  if (phase === 'live' && session) {
     const urgent = secondsLeft <= 20;
     return (
       <div className="relative h-full w-full overflow-hidden bg-black">
         <HostPreview
-          meetingId={session.meetingId}
-          token={token}
+          wsUrl={session.wsUrl}
+          roomName={session.roomName}
+          token={session.token}
           participantName={userProfile?.shopName || userProfile?.fullName || 'Seller'}
           onEnd={endLive}
         />
@@ -263,7 +256,7 @@ export function SellerLiveStudio({
           <div className="max-w-md rounded-2xl border border-amber-500/30 bg-amber-500/10 p-5 text-left">
             <p className="text-xs font-black uppercase tracking-widest text-amber-300">Setup required</p>
             <p className="mt-1.5 text-sm text-white/70">{tokenError}</p>
-            <Button variant="outline" className="mt-4 border-white/15 text-white" onClick={fetchToken}>
+            <Button variant="outline" className="mt-4 border-white/15 text-white" onClick={() => setTokenError(null)}>
               Try again
             </Button>
           </div>
@@ -280,7 +273,7 @@ export function SellerLiveStudio({
             <Button
               size="lg"
               onClick={goLive}
-              disabled={!canStart || checking || isProfileLoading || phase === 'starting'}
+              disabled={!canStart || isProfileLoading || phase === 'starting'}
               className="h-14 w-full rounded-xl bg-red-600 text-sm font-black uppercase tracking-wide text-white shadow-xl shadow-red-600/30 hover:bg-red-700"
             >
               {phase === 'starting' ? (

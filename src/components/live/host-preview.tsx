@@ -5,18 +5,34 @@
  *
  * One purpose only: while the seller is live, show THEM their own camera and
  * nothing else. No product shelf, no viewer list, no chat — the public
- * broadcast is the viewer's screen (`VideoSDKViewer`).
+ * broadcast is the viewer's screen (LiveKitViewer / VideoSDKViewer).
  *
- * Transport: VideoSDK (the connected account). The token comes from the
- * Vidnov backend; the SDK secret never reaches the browser.
+ * Transport: LiveKit (`livekit-client`). The room name and websocket URL come
+ * from POST /api/live-session together with a server-minted publish token;
+ * the API key/secret pair never reaches the browser.
+ *
+ * Lifecycle rules (migration spec §4):
+ *  - exactly one Room per mount; rerenders (toggles, timers) never connect
+ *    again, and a StrictMode double-mount disconnects the first room in
+ *    cleanup before creating the second;
+ *  - cleanup detaches the local preview, stops published tracks, disconnects
+ *    and drops listeners — navigating away or ending the stream leaves no
+ *    camera light on and no socket open;
+ *  - `cancelled` marks deliberate teardown so our own disconnect is never
+ *    reported to the seller as a network failure.
  */
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { MeetingProvider, useMeeting } from '@videosdk.live/react-sdk';
-import { Camera, CameraOff, Mic, MicOff, Loader2, Radio, Square } from 'lucide-react';
+import { Room, RoomEvent, Track, ConnectionState } from 'livekit-client';
+import type { LocalTrackPublication } from 'livekit-client';
+import { Camera, CameraOff, Mic, MicOff, Loader2, Square } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface HostPreviewProps {
-  meetingId: string;
+  /** LiveKit websocket URL (safe to expose — credentials stay server-side). */
+  wsUrl: string;
+  /** LiveKit room minted with the session. */
+  roomName: string;
+  /** Short-lived publish+subscribe token for the seller identity. */
   token: string;
   participantName: string;
   onEnd: () => void;
@@ -25,149 +41,209 @@ interface HostPreviewProps {
 
 type StageState = 'connecting' | 'live' | 'error';
 
-function HostStage({ participantName, onEnd }: { participantName: string; onEnd: () => void }) {
-  const { join, leave, localParticipant } = useMeeting() as unknown as {
-    join: () => void;
-    leave: () => void;
-    localParticipant: {
-      streams: Map<string, { track?: MediaStreamTrack }>;
-      enableWebcam: () => void;
-      disableWebcam: () => void;
-      enableMic: () => void;
-      disableMic: () => void;
-    };
-  };
-
+function HostStage({
+  wsUrl,
+  roomName,
+  token,
+  participantName,
+  onEnd,
+}: {
+  wsUrl: string;
+  roomName: string;
+  token: string;
+  participantName: string;
+  onEnd: () => void;
+}) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const audioAttached = useRef(false);
-  const joined = useRef(false);
+  const roomRef = useRef<Room | null>(null);
+  /** The camera track currently wired into the <video>, so re-attach events never double-attach. */
+  const attachedTrackRef = useRef<{ detach: (el: HTMLMediaElement) => void } | null>(null);
+
   const [state, setState] = useState<StageState>('connecting');
   const [cameraOn, setCameraOn] = useState(true);
   const [micOn, setMicOn] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [errorTitle, setErrorTitle] = useState('Camera unavailable');
   const [cameraReady, setCameraReady] = useState(false);
   const [cameraTimedOut, setCameraTimedOut] = useState(false);
+  const [micDenied, setMicDenied] = useState(false);
 
-  /*
-   * WHY THE PREVIEW USED TO STAY BLACK
-   *
-   * The webcam track lands in `localParticipant.streams` *in place*, after the
-   * join, and that mutation does not reliably re-render the component. The
-   * attach effect below could therefore run once — before the track existed —
-   * and never run again: the stage went straight to "live" (join() is
-   * synchronous) with an empty <video>, i.e. a black screen with working
-   * controls on top. Keep the latest participant in a ref and poll for the
-   * track instead of trusting a single render.
-   */
-  const participantRef = useRef(localParticipant);
-  useEffect(() => {
-    participantRef.current = localParticipant;
-  }, [localParticipant]);
-
-  const attachLocalVideo = useCallback(() => {
-    const track = participantRef.current?.streams?.get('video')?.track;
-    if (!track || !videoRef.current) return false;
-    const current = videoRef.current.srcObject as MediaStream | null;
-    if (current && current.getTracks()[0] === track) return true;
-    const stream = new MediaStream();
-    stream.addTrack(track);
-    videoRef.current.srcObject = stream;
-    videoRef.current.play().catch(() => undefined);
-    return true;
+  const attachLocal = useCallback((publication: LocalTrackPublication) => {
+    if (publication.source !== Track.Source.Camera) return;
+    const track = publication.videoTrack;
+    const el = videoRef.current;
+    if (!track || !el) return;
+    if (attachedTrackRef.current === track) {
+      setCameraReady(true);
+      return;
+    }
+    if (attachedTrackRef.current) {
+      try {
+        attachedTrackRef.current.detach(el);
+      } catch {
+        // already gone
+      }
+    }
+    track.attach(el);
+    attachedTrackRef.current = track;
+    setCameraReady(true);
+    setCameraTimedOut(false);
   }, []);
 
-  // Join once, then attach the local camera to the preview element.
-  useEffect(() => {
-    if (joined.current) return;
-    joined.current = true;
-    try {
-      join();
-      setState('live');
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not join the live room.');
-      setState('error');
+  const detachLocal = useCallback(() => {
+    const track = attachedTrackRef.current;
+    const el = videoRef.current;
+    if (track && el) {
+      try {
+        track.detach(el);
+      } catch {
+        // element already unmounted
+      }
     }
-    return () => {
-      try {
-        leave();
-      } catch {
-        // already left
-      }
+    attachedTrackRef.current = null;
+    setCameraReady(false);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const room = new Room();
+    roomRef.current = room;
+
+    const onPublished = (publication: LocalTrackPublication) => {
+      if (cancelled) return;
+      attachLocal(publication);
     };
-  }, [join, leave]);
+    const onUnpublished = (publication: LocalTrackPublication) => {
+      if (cancelled) return;
+      if (publication.source === Track.Source.Camera) detachLocal();
+    };
+    const onConnectionState = (s: ConnectionState) => {
+      if (cancelled) return;
+      if (s === ConnectionState.Reconnecting) setState('connecting');
+    };
+    const onDisconnected = () => {
+      if (cancelled) return;
+      setErrorTitle('Broadcast connection lost');
+      setError('The connection to the live room dropped. Go live again to resume broadcasting.');
+      setState('error');
+    };
 
-  // Event-driven attach for whenever the component does re-render (camera
-  // toggles, meeting events).
-  useEffect(() => {
-    if (attachLocalVideo()) setCameraReady(true);
-  }, [localParticipant, cameraOn, state, attachLocalVideo]);
+    room.on(RoomEvent.LocalTrackPublished, onPublished);
+    room.on(RoomEvent.LocalTrackUnpublished, onUnpublished);
+    room.on(RoomEvent.ConnectionStateChanged, onConnectionState);
+    room.on(RoomEvent.Disconnected, onDisconnected);
 
-  // Polling attach for when it does not: every 400ms until the track shows up.
-  // Some SDK builds also wait for an explicit enable even though the provider
-  // was configured with `webcamEnabled: true`, so if nothing has arrived by
-  // 2.5s, nudge it once. If it still has nothing at 10s the camera permission
-  // is the problem, and we say that instead of showing an empty black frame.
-  useEffect(() => {
-    if (!cameraOn) return;
-    setCameraTimedOut(false);
-
-    const kick = window.setTimeout(() => {
-      if (participantRef.current?.streams?.get('video')?.track) return;
+    (async () => {
       try {
-        participantRef.current?.enableWebcam();
+        await room.connect(wsUrl, token);
+      } catch (e) {
+        if (cancelled) return;
+        setErrorTitle('Could not connect');
+        setError(
+          e instanceof Error
+            ? e.message
+            : 'The live server could not be reached. Check your connection and try again.',
+        );
+        setState('error');
+        return;
+      }
+      if (cancelled) return;
+      setState('live');
+
+      // Publish the seller's camera and microphone. A denial is surfaced,
+      // not fatal — the seller can fix permissions and retry from the stage.
+      try {
+        const pub = await room.localParticipant.setCameraEnabled(true);
+        if (!cancelled && pub) attachLocal(pub);
       } catch {
-        // denied or already transitioning — the timeout below covers it
+        if (!cancelled) {
+          setCameraOn(true);
+          setCameraTimedOut(true);
+        }
       }
-    }, 2500);
-
-    const poll = window.setInterval(() => {
-      if (attachLocalVideo()) {
-        setCameraReady(true);
-        window.clearInterval(poll);
-        window.clearTimeout(kick);
+      if (cancelled) return;
+      try {
+        await room.localParticipant.setMicrophoneEnabled(true);
+        if (!cancelled) setMicDenied(false);
+      } catch {
+        if (!cancelled) {
+          setMicOn(false);
+          setMicDenied(true);
+        }
       }
-    }, 400);
-
-    const timeout = window.setTimeout(() => setCameraTimedOut(true), 10000);
+    })();
 
     return () => {
-      window.clearInterval(poll);
-      window.clearTimeout(kick);
-      window.clearTimeout(timeout);
+      // Deliberate teardown FIRST, so the Disconnected handler stays silent.
+      cancelled = true;
+      // Stop requesting camera/mic BEFORE dropping the connection, so a publish
+      // that was mid-flight cannot leave the camera light on after unmount;
+      // disconnect(true) then stops + unpublishes whatever did publish and
+      // detaches our local preview.
+      void room.localParticipant.setCameraEnabled(false).catch(() => undefined);
+      void room.localParticipant.setMicrophoneEnabled(false).catch(() => undefined);
+      detachLocal();
+      void room.disconnect(true).catch(() => undefined);
+      const emitter = room as unknown as {
+        removeAllListeners?: () => void;
+      };
+      try {
+        emitter.removeAllListeners?.();
+      } catch {
+        // listener cleanup is best-effort; every handler guards on `cancelled`
+      }
+      roomRef.current = null;
     };
-  }, [cameraOn, attachLocalVideo]);
+  }, [wsUrl, roomName, token, attachLocal, detachLocal]);
 
-  // Local mic must be attached to an element to be audible by viewers.
+  /*
+   * Camera watchdog: connect + publish are awaited, but if no picture has
+   * attached within 10s of going live (hung device, locked camera), tell the
+   * seller instead of leaving a black stage with working controls on top.
+   */
   useEffect(() => {
-    if (audioAttached.current || !localParticipant) return;
-    const track = localParticipant.streams?.get('audio')?.track;
-    if (!track) return;
-    const audio = new Audio();
-    audio.srcObject = new MediaStream([track]);
-    audio.muted = false;
-    audio.play().catch(() => undefined);
-    audioAttached.current = true;
-  }, [localParticipant, micOn, state]);
+    if (state !== 'live' || cameraOn || cameraReady) return;
+    const timeout = window.setTimeout(() => setCameraTimedOut(true), 10_000);
+    return () => window.clearTimeout(timeout);
+  }, [state, cameraOn, cameraReady]);
 
-  const toggleCamera = useCallback(() => {
-    if (!localParticipant) return;
-    if (cameraOn) localParticipant.disableWebcam();
-    else localParticipant.enableWebcam();
-    setCameraOn((v) => !v);
-  }, [cameraOn, localParticipant]);
+  const toggleCamera = useCallback(async () => {
+    const room = roomRef.current;
+    if (!room) return;
+    const next = !cameraOn;
+    try {
+      const pub = await room.localParticipant.setCameraEnabled(next);
+      setCameraOn(next);
+      if (next && pub && !attachedTrackRef.current) attachLocal(pub);
+      if (!next) setCameraTimedOut(false);
+    } catch {
+      // Permission refused: keep the "on" intent visible and show the hint.
+      setCameraOn(true);
+      setCameraTimedOut(true);
+    }
+  }, [cameraOn, attachLocal]);
 
-  const toggleMic = useCallback(() => {
-    if (!localParticipant) return;
-    if (micOn) localParticipant.disableMic();
-    else localParticipant.enableMic();
-    setMicOn((v) => !v);
-  }, [micOn, localParticipant]);
+  const toggleMic = useCallback(async () => {
+    const room = roomRef.current;
+    if (!room) return;
+    const next = !micOn;
+    try {
+      await room.localParticipant.setMicrophoneEnabled(next);
+      setMicOn(next);
+      if (next) setMicDenied(false);
+    } catch {
+      setMicOn(false);
+      setMicDenied(true);
+    }
+  }, [micOn]);
 
   if (state === 'error') {
     return (
       <div className="flex h-full w-full flex-col items-center justify-center gap-3 bg-black text-center">
-        <p className="text-sm font-bold uppercase tracking-widest text-red-400">Camera unavailable</p>
-        <p className="max-w-xs text-xs text-white/50">{error ?? 'Allow camera and microphone access, then go live again.'}</p>
+        <p className="text-sm font-bold uppercase tracking-widest text-red-400">{errorTitle}</p>
+        <p className="max-w-xs text-xs text-white/50">
+          {error ?? 'Allow camera and microphone access, then go live again.'}
+        </p>
       </div>
     );
   }
@@ -194,7 +270,9 @@ function HostStage({ participantName, onEnd }: { participantName: string; onEnd:
           ) : (
             <>
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <p className="text-[10px] font-black uppercase tracking-[0.3em] text-white/50">Connecting your camera…</p>
+              <p className="text-[10px] font-black uppercase tracking-[0.3em] text-white/50">
+                {state === 'connecting' ? 'Reconnecting to the room…' : 'Connecting your camera…'}
+              </p>
             </>
           )}
         </div>
@@ -210,59 +288,59 @@ function HostStage({ participantName, onEnd }: { participantName: string; onEnd:
         </span>
       </div>
 
-      {/* Bottom controls: camera, mic, end */}
-      <div className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-3 bg-gradient-to-t from-black/85 to-transparent p-5">
-        <button
-          type="button"
-          onClick={toggleCamera}
-          aria-label={cameraOn ? 'Turn camera off' : 'Turn camera on'}
-          className={cn(
-            'flex h-12 w-12 items-center justify-center rounded-full border transition',
-            cameraOn ? 'border-white/15 bg-white/10 text-white' : 'border-red-500/40 bg-red-600 text-white',
-          )}
-        >
-          {cameraOn ? <Camera className="h-5 w-5" /> : <CameraOff className="h-5 w-5" />}
-        </button>
-        <button
-          type="button"
-          onClick={toggleMic}
-          aria-label={micOn ? 'Mute microphone' : 'Unmute microphone'}
-          className={cn(
-            'flex h-12 w-12 items-center justify-center rounded-full border transition',
-            micOn ? 'border-white/15 bg-white/10 text-white' : 'border-red-500/40 bg-red-600 text-white',
-          )}
-        >
-          {micOn ? <Mic className="h-5 w-5" /> : <MicOff className="h-5 w-5" />}
-        </button>
-        <button
-          type="button"
-          onClick={onEnd}
-          className="flex h-12 items-center gap-2 rounded-full bg-red-600 px-5 text-xs font-black uppercase tracking-widest text-white transition hover:bg-red-700"
-        >
-          <Square className="h-4 w-4 fill-current" /> End
-        </button>
+      {/* Bottom controls: mic warning, camera, mic, end */}
+      <div className="absolute inset-x-0 bottom-0 flex flex-col items-center gap-3 bg-gradient-to-t from-black/85 to-transparent p-5">
+        {micDenied && state === 'live' && (
+          <p className="rounded-full bg-amber-500/15 px-3 py-1 text-center text-[10px] font-bold uppercase tracking-widest text-amber-300">
+            Microphone blocked — allow mic access in your browser to talk to viewers
+          </p>
+        )}
+        <div className="flex items-center justify-center gap-3">
+          <button
+            type="button"
+            onClick={toggleCamera}
+            aria-label={cameraOn ? 'Turn camera off' : 'Turn camera on'}
+            className={cn(
+              'flex h-12 w-12 items-center justify-center rounded-full border transition',
+              cameraOn && cameraReady ? 'border-white/15 bg-white/10 text-white' : 'border-red-500/40 bg-red-600 text-white',
+            )}
+          >
+            {cameraOn && cameraReady ? <Camera className="h-5 w-5" /> : <CameraOff className="h-5 w-5" />}
+          </button>
+          <button
+            type="button"
+            onClick={toggleMic}
+            aria-label={micOn ? 'Mute microphone' : 'Unmute microphone'}
+            className={cn(
+              'flex h-12 w-12 items-center justify-center rounded-full border transition',
+              micOn ? 'border-white/15 bg-white/10 text-white' : 'border-red-500/40 bg-red-600 text-white',
+            )}
+          >
+            {micOn ? <Mic className="h-5 w-5" /> : <MicOff className="h-5 w-5" />}
+          </button>
+          <button
+            type="button"
+            onClick={onEnd}
+            className="flex h-12 items-center gap-2 rounded-full bg-red-600 px-5 text-xs font-black uppercase tracking-widest text-white transition hover:bg-red-700"
+          >
+            <Square className="h-4 w-4 fill-current" /> End
+          </button>
+        </div>
       </div>
     </div>
   );
 }
 
-export default function HostPreview({ meetingId, token, participantName, onEnd, className }: HostPreviewProps) {
+export default function HostPreview({ wsUrl, roomName, token, participantName, onEnd, className }: HostPreviewProps) {
   return (
-    <MeetingProvider
-      token={token}
-      config={{
-        meetingId,
-        micEnabled: true,
-        webcamEnabled: true,
-        name: participantName,
-        mode: 'CONFERENCE',
-        debugMode: false,
-      }}
-      joinWithoutUserInteraction
-    >
-      <div className={cn('h-full w-full', className)}>
-        <HostStage participantName={participantName} onEnd={onEnd} />
-      </div>
-    </MeetingProvider>
+    <div className={cn('h-full w-full', className)}>
+      <HostStage
+        wsUrl={wsUrl}
+        roomName={roomName}
+        token={token}
+        participantName={participantName}
+        onEnd={onEnd}
+      />
+    </div>
   );
 }
