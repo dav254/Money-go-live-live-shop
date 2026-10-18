@@ -147,10 +147,10 @@ export function SellerLiveStudio({
   }, [user, toast]);
 
   /*
-   * The 2-minute cap on a live broadcast.
+   * The 70-minute cap on a paid live session.
    *
    * A countdown the seller can SEE, because a stream that silently dies at
-   * 2:00 with no warning reads as a crash and loses them the sale they were
+   * the end with no warning reads as a crash and loses them the sale they were
    * mid-way through. The last 20 seconds turn red so "wrap it up" arrives
    * before the cut rather than with it.
    *
@@ -175,7 +175,7 @@ export function SellerLiveStudio({
             void endLive();
             toast({
               title: 'Broadcast complete',
-              description: 'That was your 2 minutes. Go live again any time.',
+              description: 'That was your 70 minutes. Go live again any time.',
             });
           }
           return 0;

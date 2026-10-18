@@ -1,5 +1,6 @@
 import { AccessToken } from 'livekit-server-sdk';
 import { db } from '@/firebase/server';
+import { MAX_LIVE_SECONDS } from '@/lib/listings/limits';
 import {
   LIVESTREAMS_COLLECTION,
   type LiveStream,
@@ -94,8 +95,10 @@ export async function createViewerToken(
 /* ------------------------------------------------------------------ */
 
 /** Unique room per stream: vidnov_live_<rand> (spec §14 — never reused). */
-/** Cap for one broadcast. See `lib/listings/limits` for why it is two minutes. */
-const MAX_LIVE_SECONDS = 120;
+// Cap for one broadcast: 70 minutes — imported from `lib/listings/limits` as
+// the single source of truth, so the watchdog ceiling, the seller countdown
+// and the charged session window can never drift apart again (they used to:
+// countdown 600s vs watchdog 120s).
 
 export function generateRoomName(): string {
   const bytes = new Uint8Array(8);
@@ -250,8 +253,8 @@ export async function listLiveStreams(opts: {
  * phone loses signal, the browser is killed. Without this sweep the document
  * stays `LIVE` forever and every visitor is told a dead room is open.
  *
- * It is also the server-side half of the 2-minute cap, so a client that
- * ignores the countdown still cannot broadcast past the ceiling.
+ * It is also the server-side half of the paid 70-minute cap, so a client that
+ * ignores the countdown still cannot broadcast past the window it paid for.
  *
  * ## It was never called
  *
@@ -272,10 +275,9 @@ export async function failStaleStreams(): Promise<{ ended: number; overran: numb
    * There used to be a second, longer "stale" window here (30 minutes, for a
    * seller who vanished without ending the stream). That branch is gone
    * because it can no longer be reached: the query below only returns streams
-   * older than the 2-minute cutoff, so every document it yields is already
-   * over the cap. A dead stream older than 30 minutes was also over 2 minutes,
-   * so it is still swept — the shorter cap subsumes the longer one rather than
-   * leaving two rules where one is dead.
+   * older than the paid-session cutoff, so every document it yields is already
+   * over the cap. A dead stream older than any second threshold is still
+   * swept once it passes the ceiling — one rule, no dead code paths.
    *
    * `limit(25)` is per run, not total: if more than 25 broadcasts are stuck
    * LIVE at once, the next cron minute picks up the rest.

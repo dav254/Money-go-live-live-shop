@@ -39,18 +39,19 @@ export const MAX_VIDEO_SECONDS = 600;
 export const MAX_VIDEO_LABEL = '10 minutes';
 
 /**
- * Maximum length of one LIVE broadcast.
+ * Maximum length of one LIVE broadcast — SEVENTY MINUTES, the exact window
+ * the seller pays for: `POST /api/live-session` charges 100 points for a
+ * session with `timeRemainingMs = 70 minutes`, and the countdown the seller
+ * watches is this number. Product decision (owner): a paid live session is a
+ * show, not a clip, and nothing may cut it before the paid window ends — the
+ * server-side watchdog uses this same constant for its ceiling.
  *
- * The same two minutes as an uploaded clip, and that is worth being explicit
- * about: this platform is a shop window, not a broadcast network. A seller is
- * showing an item or demonstrating a job to people who are browsing, not
- * running a talk show. Two minutes is long enough to answer "does it work" and
- * "how much", which is what a buyer in the feed is actually deciding on.
- *
- * If it is ever raised, raise `MAX_VIDEO_SECONDS` with it — a platform where
- * live is twice as long as the recorded version is confusing to sell against.
+ * Deliberately INDEPENDENT of `MAX_VIDEO_SECONDS` (recorded uploads stay 10
+ * minutes): the old "live must equal recorded" rule would have capped a paid
+ * 70-minute show at the recorded-clip ceiling, cutting sellers off mid-broadcast
+ * after taking their points.
  */
-export const MAX_LIVE_SECONDS = 600;
+export const MAX_LIVE_SECONDS = 70 * 60;
 
 /**
  * Media items a seller may have uploaded in total, images and videos together.

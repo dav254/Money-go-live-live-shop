@@ -4,7 +4,7 @@ import { failStaleStreams } from '@/lib/live/service';
 /**
  * STREAM WATCHDOG ENDPOINT.
  *
- * Ends live broadcasts that have passed the 2-minute ceiling, and ones whose
+ * Ends live broadcasts that have passed the paid 70-minute ceiling, and ones whose
  * seller vanished without ending the stream. Without this running, a dead
  * broadcast stays `LIVE` forever and every visitor is told an empty room is
  * open.

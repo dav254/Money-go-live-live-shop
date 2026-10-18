@@ -43,9 +43,21 @@ test('the advertised limit is generous, and the label agrees with it', () => {
   );
 });
 
-test('live broadcasts share the same ceiling', () => {
+test('live sessions run the full paid 70 minutes', () => {
   const { MAX_LIVE_SECONDS } = require('../lib/listings/limits.ts');
-  assert.equal(MAX_LIVE_SECONDS, MAX_VIDEO_SECONDS, 'live and recorded should not disagree');
+  /*
+   * CHANGED deliberately (owner decision): a live session is a PAID product —
+   * 100 points buys a 70-minute broadcast — so it runs the full paid window
+   * instead of mirroring the 10-minute recorded-upload ceiling. What this test
+   * now guards: the broadcast can never silently be cut BEFORE the window the
+   * seller paid for (the old equality would have capped paid shows at the
+   * clip limit).
+   */
+  assert.equal(MAX_LIVE_SECONDS, 70 * 60, 'live must match the paid 70-minute session');
+  assert.ok(
+    MAX_LIVE_SECONDS > MAX_VIDEO_SECONDS,
+    'a paid live session must not be shorter than a recorded clip',
+  );
 });
 
 test('stored video is compressed for a phone, not archived', () => {
