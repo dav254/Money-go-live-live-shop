@@ -60,6 +60,12 @@ export function SellerLiveStudio({
   const [phase, setPhase] = useState<'idle' | 'starting' | 'live'>('idle');
   const [session, setSession] = useState<{ wsUrl: string; roomName: string; token: string } | null>(null);
   const [cameraDenied, setCameraDenied] = useState(false);
+  /**
+   * The server said "already live" (HTTP 200, no charge): a session of this
+   * seller's is still inside its paid window. Shown as a professional resume
+   * panel with direct actions — never a blocking error.
+   */
+  const [alreadyLive, setAlreadyLive] = useState<{ title: string; remainingMs: number } | null>(null);
 
   const points = userProfile?.aiPoints ?? 0;
   const canStart = points >= SESSION_COST && !cameraDenied;
@@ -111,12 +117,28 @@ export function SellerLiveStudio({
         }
         throw new Error(data.message || data.error || 'Could not start the broadcast.');
       }
+
+      if (data?.alreadyLive) {
+        // Resume, not rejection: an active session still owns this account.
+        setAlreadyLive({
+          title: typeof data.title === 'string' ? data.title : '',
+          remainingMs: typeof data.remainingMs === 'number' ? data.remainingMs : 0,
+        });
+        setPhase('idle');
+        toast({
+          title: 'You are already live',
+          description: 'Your broadcast is still running — open it or start fresh below.',
+        });
+        return;
+      }
+
       if (data.provider !== 'livekit' || !data.livekitRoomName || !data.token || !data.wsUrl) {
         throw new Error('The server did not return LiveKit connection details. The broadcast was not started.');
       }
 
       setSession({ wsUrl: data.wsUrl, roomName: data.livekitRoomName, token: data.token });
       setTokenError(null);
+      setAlreadyLive(null);
       setPhase('live');
       toast({ title: 'You are live', description: 'Buyers can now watch you in VIDNOV LIVE.' });
     } catch (error) {
@@ -194,6 +216,16 @@ export function SellerLiveStudio({
     toast({ title: 'Link copied', description: 'Share your live link to bring viewers in.' });
   }, [user, toast, viewerBasePath]);
 
+  /** End the old session (idempotent server-side) so Go live can start fresh. */
+  const endAndRestart = useCallback(async () => {
+    await endLive();
+    setAlreadyLive(null);
+    toast({
+      title: 'Old broadcast ended',
+      description: 'Tap Go live now to start a fresh session.',
+    });
+  }, [endLive, toast]);
+
   /* ------------------------------ live ------------------------------ */
   if (phase === 'live' && session) {
     const urgent = secondsLeft <= 20;
@@ -252,7 +284,60 @@ export function SellerLiveStudio({
           </p>
         </div>
 
-        {tokenError ? (
+        {alreadyLive ? (
+          <div className="w-full max-w-md rounded-2xl border border-red-500/30 bg-red-500/10 p-5 text-left">
+            <p className="text-xs font-black uppercase tracking-widest text-red-400">
+              You&rsquo;re already live
+            </p>
+            <p className="mt-1.5 text-sm text-white/70">
+              {alreadyLive.title ? (
+                <>
+                  Your broadcast <span className="text-white">&ldquo;{alreadyLive.title}&rdquo;</span> is
+                  still running
+                </>
+              ) : (
+                'Your broadcast is still running'
+              )}
+              {alreadyLive.remainingMs > 0 && (
+                <>
+                  {' '}— about{' '}
+                  <span className="text-white">
+                    {Math.max(1, Math.round(alreadyLive.remainingMs / 60000))} minutes
+                  </span>{' '}
+                  left on this session
+                </>
+              )}
+              . Buyers can watch it right now, and nothing was charged for this tap.
+            </p>
+            <div className="mt-4 flex flex-col gap-2">
+              <Button
+                asChild
+                className="h-11 rounded-xl bg-red-600 text-xs font-black uppercase tracking-wide text-white shadow-lg shadow-red-600/20 hover:bg-red-700"
+              >
+                <a href={`${viewerBasePath}/${user?.uid ?? ''}`} target="_blank" rel="noreferrer">
+                  Open my live stream
+                </a>
+              </Button>
+              <Button
+                variant="outline"
+                className="h-11 rounded-xl border-white/15 bg-white/5 text-xs font-bold uppercase tracking-wide text-white hover:bg-white/10"
+                onClick={endAndRestart}
+              >
+                End broadcast &amp; start fresh
+              </Button>
+              <Button
+                variant="ghost"
+                className="h-11 text-xs font-bold uppercase tracking-wide text-white/50 hover:text-white/80"
+                onClick={() => setAlreadyLive(null)}
+              >
+                Not now
+              </Button>
+            </div>
+            <p className="mt-3 text-[10px] font-bold uppercase tracking-widest text-white/30">
+              Starting fresh begins a new {SESSION_COST}-point session — this one is never charged twice
+            </p>
+          </div>
+        ) : tokenError ? (
           <div className="max-w-md rounded-2xl border border-amber-500/30 bg-amber-500/10 p-5 text-left">
             <p className="text-xs font-black uppercase tracking-widest text-amber-300">Setup required</p>
             <p className="mt-1.5 text-sm text-white/70">{tokenError}</p>

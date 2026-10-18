@@ -7,6 +7,7 @@ import {
   createSellerToken,
   generateRoomName,
 } from '@/lib/live/service';
+import { activeSessionRemainingMs } from '@/lib/live/session-window';
 
 const GO_LIVE_COST = 100; // 100 points ($1.00 USD)
 const SESSION_LIMIT_MS = 70 * 60 * 1000; // 70 minutes
@@ -105,7 +106,12 @@ export async function POST(request: Request) {
     type TxResult =
       | { kind: 'retry'; roomName: string; newBalance: number }
       | { kind: 'created'; newBalance: number }
-      | { kind: 'conflict'; error: string; message: string }
+      | {
+          kind: 'already-live';
+          meetingId: string;
+          title: string;
+          remainingMs: number;
+        }
       | { kind: 'no-points'; error: string; message: string; needsPoints: true; newBalance: number }
       | { kind: 'no-profile' };
 
@@ -128,12 +134,27 @@ export async function POST(request: Request) {
         } as const;
       }
       if (existing?.status === 'live' && existing?.videosdkMeetingId) {
-        return {
-          kind: 'conflict',
-          error: 'SESSION_ACTIVE',
-          message:
-            'A stream is already live on this account on the legacy transport. Let it end before starting a new broadcast — you were not charged.',
-        } as const;
+        // Legacy session still live. Two professional outcomes instead of a
+        // blocking error (spec: never strand the seller):
+        //  • inside its paid 70-minute window → report "already live" so the
+        //    studio shows the active-broadcast panel with direct actions,
+        //    no charge, no dead end;
+        //  • window expired (or startTime unusable) → fall through: the fresh
+        //    session overwrites the stale document — same single-charge rule
+        //    as any new go-live, and the seller is unblocked forever.
+        const remainingMs = activeSessionRemainingMs(
+          existing as { startTime?: unknown; timeRemainingMs?: unknown },
+          Date.now(),
+          SESSION_LIMIT_MS,
+        );
+        if (remainingMs > 0) {
+          return {
+            kind: 'already-live',
+            meetingId: existing.videosdkMeetingId as string,
+            title: (existing.title as string) || '',
+            remainingMs,
+          } as const;
+        }
       }
       if (currentPoints < GO_LIVE_COST) {
         return {
@@ -180,11 +201,17 @@ export async function POST(request: Request) {
           { error: result.error, details: result.message, needsPoints: result.needsPoints },
           { status: 402 },
         );
-      case 'conflict':
-        return NextResponse.json(
-          { error: result.error, message: result.message },
-          { status: 409 },
-        );
+      case 'already-live':
+        // 200, not an error: the studio renders the "already live" panel.
+        return NextResponse.json({
+          success: true,
+          alreadyLive: true,
+          liveSessionId: sessionRef.id,
+          provider: 'videosdk',
+          videosdkMeetingId: result.meetingId,
+          title: result.title,
+          remainingMs: result.remainingMs,
+        });
       case 'retry': {
         // Reconnecting to the session that is already live — no charge, and a
         // fresh token for the stored room (config was proven above).
