@@ -102,10 +102,18 @@ export function waitForInstallPrompt(timeoutMs = 4000): Promise<BeforeInstallPro
       if (event) finish(event);
     });
 
-    // Becoming "ready" is the precondition for Chrome offering the prompt, so
-    // re-check as soon as it happens rather than sitting out the whole timeout.
+    // Becoming "ready" is the precondition for Chrome offering the prompt —
+    // but it is NOT the prompt. On a repeat visit `serviceWorker.ready`
+    // resolves immediately (the worker is already active) while
+    // `beforeinstallprompt` still arrives a beat later; finishing here with a
+    // still-null captured event is exactly what made a one-tap install button
+    // silently do nothing. Only finish early when the prompt has actually
+    // arrived — otherwise the subscription above settles it as soon as it does.
     navigator.serviceWorker?.ready
-      .then(() => finish(getInstallPrompt()))
+      .then(() => {
+        const prompt = getInstallPrompt();
+        if (prompt) finish(prompt);
+      })
       .catch(() => undefined);
   });
 }

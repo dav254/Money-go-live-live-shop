@@ -17,7 +17,6 @@
       ".next/**",
       ".git/**",
       "functions/**",
-      "webrtc-backend/**",
       "firebase-debug.log",
       "firebase-debug.*.log"
     ]

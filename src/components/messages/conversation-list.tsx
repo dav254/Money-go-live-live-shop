@@ -50,11 +50,10 @@ export function ConversationList({ chats, selectedChat, onSelectChat, isLoading 
           ) : chats.length > 0 ? (
             chats.map((chat) => {
               const otherParticipant = chat.otherParticipant;
-              if (!otherParticipant) return null;
               const isActive = selectedChat?.id === chat.id;
               
               // Online status logic: active within last 2 minutes
-              const isOnline = otherParticipant.lastSeen ? (Date.now() - otherParticipant.lastSeen.toMillis() < 120000) : false;
+              const isOnline = otherParticipant?.lastSeen ? (Date.now() - otherParticipant.lastSeen.toMillis() < 120000) : false;
 
               // Unread count for current user
               const unreadCount = user ? (chat.unreadCounts?.[user.uid] || 0) : 0;
@@ -73,8 +72,8 @@ export function ConversationList({ chats, selectedChat, onSelectChat, isLoading 
                       "h-9 w-9 border-2 transition-all", 
                       isActive ? "border-white/40 scale-105" : "border-white/5 group-hover:border-primary/20"
                     )}>
-                        <AvatarImage src={otherParticipant.profilePictureUrl} />
-                        <AvatarFallback className="bg-neutral-800 font-bold text-[10px]">{otherParticipant.fullName?.charAt(0)}</AvatarFallback>
+                        <AvatarImage src={otherParticipant?.profilePictureUrl} />
+                        <AvatarFallback className="bg-neutral-800 font-bold text-[10px]">{otherParticipant?.fullName?.charAt(0) || '…'}</AvatarFallback>
                     </Avatar>
                     <div className={cn(
                       "absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 border-2 border-background rounded-full", 
@@ -87,9 +86,8 @@ export function ConversationList({ chats, selectedChat, onSelectChat, isLoading 
                       <p className={cn(
                         "font-black text-[12px] truncate uppercase tracking-tight leading-none", 
                         isActive ? "text-white" : "text-foreground"
-                      )}>
-                        {otherParticipant.fullName}
-                      </p>
+                      )}>                            {otherParticipant?.fullName || 'Conversation'}
+                          </p>
                       {chat.lastMessageTimestamp && (
                         <span className={cn(
                           "text-[8px] font-black uppercase shrink-0 ml-1.5 opacity-40", 

@@ -45,6 +45,8 @@ import type { UserProfile } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { useAdminComplaints, type ComplaintStatus } from '@/hooks/use-admin-complaints';
+import { PartyConversation } from '@/components/admin/party-conversation';
+import { MessagesSquare } from 'lucide-react';
 
 /**
  * Support & Moderation: seller/buyer issues.
@@ -117,6 +119,14 @@ export default function AdminSellerBuyerIssuesPage() {
   const [statusFilter, setStatusFilter] = React.useState<'all' | ComplaintStatus>('all');
   const [search, setSearch] = React.useState('');
   const [detailRow, setDetailRow] = React.useState<typeof rows[number] | null>(null);
+
+  /** A transcript only exists between two distinct, real accounts. */
+  const canShowConversation = React.useCallback((row: typeof rows[number] | null) => {
+    if (!row) return false;
+    const { complainantId, targetId } = row;
+    // 'unknown' is what createComplaint stores when there is no specific target.
+    return !!complainantId && !!targetId && complainantId !== 'unknown' && targetId !== 'unknown' && complainantId !== targetId;
+  }, []);
   const [pendingSuspend, setPendingSuspend] = React.useState<{
     row: typeof rows[number];
     next: 'suspended' | 'active';
@@ -231,6 +241,7 @@ export default function AdminSellerBuyerIssuesPage() {
             </h1>
             <p className="text-sm text-muted-foreground">
               Reports filed by sellers and buyers about users, orders, listings and the platform.
+              Open a report to read the full conversation between the two parties.
             </p>
           </div>
           <Button variant="outline" size="sm" onClick={() => void reload()} disabled={isLoading || !isAdmin}>
@@ -322,6 +333,12 @@ export default function AdminSellerBuyerIssuesPage() {
                         <DropdownMenuContent align="end">
                           <DropdownMenuLabel>Actions</DropdownMenuLabel>
                           <DropdownMenuItem onClick={() => setDetailRow(c)}>View details</DropdownMenuItem>
+                          {canShowConversation(c) && (
+                            <DropdownMenuItem onClick={() => setDetailRow(c)}>
+                              <MessagesSquare className="mr-2 h-4 w-4" />
+                              View conversation
+                            </DropdownMenuItem>
+                          )}
                           <DropdownMenuSeparator />
                           <DropdownMenuItem disabled={actionBusy} onClick={() => void handleStatusUpdate(c.id, 'investigating')}>
                             Mark as Investigating
@@ -398,7 +415,7 @@ export default function AdminSellerBuyerIssuesPage() {
       </AlertDialog>
 
       <Dialog open={!!detailRow} onOpenChange={(open) => !open && setDetailRow(null)}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Report details</DialogTitle>
             <DialogDescription>
@@ -435,6 +452,27 @@ export default function AdminSellerBuyerIssuesPage() {
               )}
               {detailRow.createdAt instanceof Date && (
                 <p className="text-xs text-muted-foreground">Filed {detailRow.createdAt.toLocaleString()}</p>
+              )}
+
+              {/* THE MISSING PIECE: what the two parties actually said to each
+                  other. The report only carries the reporter's summary; the
+                  dispute lives in their chat, and admins could read it in
+                  Firestore but had no screen for it. */}
+              {canShowConversation(detailRow) && (
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Conversation between the parties
+                  </p>
+                  <p className="mb-2 text-xs text-muted-foreground">
+                    Read-only. The full transcript of the chat between the reporter and the reported user.
+                  </p>
+                  <div className="h-96 overflow-hidden rounded-md border border-border/70">
+                    <PartyConversation
+                      userAId={detailRow.complainantId}
+                      userBId={detailRow.targetId}
+                    />
+                  </div>
+                </div>
               )}
             </div>
           )}

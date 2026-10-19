@@ -4,8 +4,9 @@
  * HOST PREVIEW STAGE (VIDNOV LIVE).
  *
  * One purpose only: while the seller is live, show THEM their own camera and
- * nothing else. No product shelf, no viewer list, no chat — the public
- * broadcast is the viewer's screen (LiveKitViewer / VideoSDKViewer).
+ * report the audience size. The chat rail, product shelf and pin controls are
+ * composed around this stage by SellerLiveStudio; the public broadcast itself
+ * is the viewer's screen (LiveKitViewer / VideoSDKViewer).
  *
  * Transport: LiveKit (`livekit-client`). The room name and websocket URL come
  * from POST /api/live-session together with a server-minted publish token;
@@ -36,6 +37,13 @@ interface HostPreviewProps {
   token: string;
   participantName: string;
   onEnd: () => void;
+  /**
+   * Live remote-participant (viewer) count, reported on every join/leave so
+   * the seller can see an audience is present — the studio shows it on the
+   * stage. Excluded from the effect deps on purpose: a parent that re-creates
+   * this callback each render must not trigger a room reconnect.
+   */
+  onViewerCount?: (count: number) => void;
   className?: string;
 }
 
@@ -47,15 +55,20 @@ function HostStage({
   token,
   participantName,
   onEnd,
+  onViewerCount,
 }: {
   wsUrl: string;
   roomName: string;
   token: string;
   participantName: string;
   onEnd: () => void;
+  onViewerCount?: (count: number) => void;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const roomRef = useRef<Room | null>(null);
+  /** Latest viewer-count callback, kept in a ref so it never re-connects the room. */
+  const onViewerCountRef = useRef(onViewerCount);
+  onViewerCountRef.current = onViewerCount;
   /** The camera track currently wired into the <video>, so re-attach events never double-attach. */
   const attachedTrackRef = useRef<{ detach: (el: HTMLMediaElement) => void } | null>(null);
 
@@ -128,10 +141,18 @@ function HostStage({
       setState('error');
     };
 
+    const reportViewers = () => {
+      if (cancelled) return;
+      // remoteParticipants excludes the seller's own (local) participant.
+      onViewerCountRef.current?.(room.remoteParticipants.size);
+    };
+
     room.on(RoomEvent.LocalTrackPublished, onPublished);
     room.on(RoomEvent.LocalTrackUnpublished, onUnpublished);
     room.on(RoomEvent.ConnectionStateChanged, onConnectionState);
     room.on(RoomEvent.Disconnected, onDisconnected);
+    room.on(RoomEvent.ParticipantConnected, reportViewers);
+    room.on(RoomEvent.ParticipantDisconnected, reportViewers);
 
     (async () => {
       try {
@@ -149,6 +170,8 @@ function HostStage({
       }
       if (cancelled) return;
       setState('live');
+      // Anyone who joined while we were connecting is already in the room.
+      reportViewers();
 
       // Publish the seller's camera and microphone. A denial is surfaced,
       // not fatal — the seller can fix permissions and retry from the stage.
@@ -331,7 +354,7 @@ function HostStage({
   );
 }
 
-export default function HostPreview({ wsUrl, roomName, token, participantName, onEnd, className }: HostPreviewProps) {
+export default function HostPreview({ wsUrl, roomName, token, participantName, onEnd, onViewerCount, className }: HostPreviewProps) {
   return (
     <div className={cn('h-full w-full', className)}>
       <HostStage
@@ -340,6 +363,7 @@ export default function HostPreview({ wsUrl, roomName, token, participantName, o
         token={token}
         participantName={participantName}
         onEnd={onEnd}
+        onViewerCount={onViewerCount}
       />
     </div>
   );

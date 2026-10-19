@@ -7,7 +7,7 @@ import { SellerLiveStudio } from '@/components/live/seller-live-studio';
  *
  * The same studio the website runs at `/dashboard/seller/live`, mounted inside
  * the app's seller shell rather than the website's. The camera, the 100-point
- * session cost, the VideoSDK room and the "you are live" toast are all the same
+ * session cost, the LiveKit room and the "you are live" toast are all the same
  * code path — only the chrome around it and where "Back" point differ, which is
  * why the component takes its back link as a prop instead of hard-coding the
  * website route.

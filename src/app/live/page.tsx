@@ -10,7 +10,6 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { BuyerLayout } from '@/components/layout/buyer-layout';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -30,6 +29,13 @@ interface LiveCard {
   category?: string | null;
   location?: string | null;
   viewerCount: number;
+  /** Studio session (liveSessions/{sellerId}) → watch page is /buyer/live/[id]. */
+  sessionBacked?: boolean;
+}
+
+/** Watch route for a card: session-backed lives watch on the buyer session page. */
+function watchHref(s: Pick<LiveCard, 'id' | 'sessionBacked'>): string {
+  return s.sessionBacked ? `/buyer/live/${s.id}` : `/live/${s.id}`;
 }
 
 const CATEGORIES = [
@@ -38,7 +44,6 @@ const CATEGORIES = [
 
 export default function LiveDiscoveryPage() {
   const { user, isLoading } = useUser();
-  const router = useRouter();
   const { toast } = useToast();
   const [streams, setStreams] = React.useState<LiveCard[] | null>(null);
   const [query, setQuery] = React.useState('');
@@ -80,10 +85,6 @@ export default function LiveDiscoveryPage() {
     }
     return true;
   });
-
-  const openStream = (id: string) => {
-    router.push(`/live/${id}`);
-  };
 
   return (
     <BuyerLayout>
@@ -148,7 +149,7 @@ export default function LiveDiscoveryPage() {
             {filtered.map((s) => (
               <Link
                 key={s.id}
-                href={`/live/${s.id}`}
+                href={watchHref(s)}
                 className="group overflow-hidden rounded-2xl border border-border bg-card vn-transition hover:border-foreground/40 hover:shadow-lg"
               >
                 {/* Tile */}

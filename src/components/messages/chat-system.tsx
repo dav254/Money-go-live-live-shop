@@ -88,15 +88,27 @@ export function ChatSystem() {
             getDocs(query(collection(firestore, 'userProfiles'), where('id', 'in', chunk)))
         );
         
-        const participantSnapshots = await Promise.all(participantPromises);
-        const fetchedParticipants = participantSnapshots.flatMap(snapshot =>
-            snapshot.docs.map(doc => doc.data() as UserProfile)
-        );
+        // This callback is driven by an async participant lookup, so a single
+      // rejected `getDocs` (network blip, or a rules denial on one chunk) must
+      // not abort the rest of the update. Before this guard, the rejection
+      // escaped the `await` and `setIsLoading(false)` below never ran — the
+      // inbox sat on the "SYNCING…" loader forever, which reads exactly like
+      // "my messages vanished". A failed lookup now falls back to whatever
+      // profiles are already cached, and the inbox still renders.
+      let fetchedParticipants: UserProfile[] = [];
+        try {
+          const participantSnapshots = await Promise.all(participantPromises);
+          fetchedParticipants = participantSnapshots.flatMap(snapshot =>
+              snapshot.docs.map(doc => doc.data() as UserProfile)
+          );
+        } catch (error) {
+          console.error('Could not load conversation participants:', error);
+        }
 
         setParticipants(prev => {
             const existingIds = new Set(prev.map(p => p.id));
             const newParticipants = fetchedParticipants.filter(p => !existingIds.has(p.id));
-            return [...prev, ...newParticipants];
+            return newParticipants.length ? [...prev, ...newParticipants] : prev;
         });
       }
       setIsLoading(false);

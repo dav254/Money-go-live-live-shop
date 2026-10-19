@@ -39,7 +39,6 @@ const ADMIN_CLIENT_READS = [
   'emailLogs',
   'devMailbox',
   'securityEvents',
-  'conversations',
   'resellActivities',
 ];
 

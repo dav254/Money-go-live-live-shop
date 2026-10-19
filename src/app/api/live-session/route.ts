@@ -7,6 +7,11 @@ import {
   createSellerToken,
   generateRoomName,
 } from '@/lib/live/service';
+import {
+  videosdkConfigured,
+  videosdkToken,
+  ensureVideoSdkMeeting,
+} from '@/lib/live/videosdk';
 import { activeSessionRemainingMs } from '@/lib/live/session-window';
 
 const GO_LIVE_COST = 100; // 100 points ($1.00 USD)
@@ -30,15 +35,21 @@ async function verifyUser(request: Request) {
 /**
  * POST handler to create a fresh live session.
  *
- * LiveKit is now the ONLY transport for new sessions (migration): the room
- * name is generated here, the seller's publish token is minted server-side,
- * and both are written onto the existing `liveSessions/{sellerId}` document
- * with `provider: "livekit"` — every other field this document has always
- * carried is preserved untouched.
+ * Preferred transport is LiveKit: the room name is generated here, the
+ * seller's publish token is minted server-side, and both are written onto the
+ * existing `liveSessions/{sellerId}` document with `provider: "livekit"` —
+ * every other field this document has always carried is preserved untouched.
+ *
+ * When LiveKit credentials are NOT configured but VideoSDK are (the original
+ * transport, still served on the buyer side by the legacy provider routing and
+ * /api/videosdk/token), the session falls back to VideoSDK instead of failing:
+ * a seller who taps Go live gets a working broadcast on the transport the
+ * server can actually run. Only when neither transport is configured does the
+ * route refuse with a clear CONFIG_MISSING error.
  *
  * Ordering matters (spec §9): configuration is validated and the token is
- * minted BEFORE anything is charged or marked live, so a broken LiveKit
- * setup can never cost points or leave a false "live" session behind.
+ * minted BEFORE anything is charged or marked live, so a broken setup can
+ * never cost points or leave a false "live" session behind.
  */
 export async function POST(request: Request) {
   const verification = await verifyUser(request);
@@ -48,15 +59,21 @@ export async function POST(request: Request) {
   const sellerId = verification.uid;
 
   try {
-    // No silent VideoSDK fallback (spec §3): a missing LiveKit config is a
-    // clear, safe error — existing/legacy sessions keep working through the
-    // buyer page's provider routing and /api/videosdk/token.
-    if (!livekitConfigured()) {
+    /*
+     * Transport selection. LiveKit first (the preferred, spec'd transport);
+     * VideoSDK as the working fallback when LiveKit keys are absent — the
+     * seller must never be stranded on a configuration error when the server
+     * can still run a broadcast. Existing/legacy sessions keep working through
+     * the buyer page's provider routing and /api/videosdk/token either way.
+     */
+    const useLiveKit = livekitConfigured();
+    const useVideoSdk = !useLiveKit && videosdkConfigured();
+    if (!useLiveKit && !useVideoSdk) {
       return NextResponse.json(
         {
           error: 'CONFIG_MISSING',
           message:
-            'Live streaming is not configured on this server. LIVEKIT_URL, LIVEKIT_API_KEY and LIVEKIT_API_SECRET must be set before a new broadcast can start.',
+            'Live streaming is not configured on this server. Set LIVEKIT_URL, LIVEKIT_API_KEY and LIVEKIT_API_SECRET (preferred), or VIDEOSDK_API_KEY and VIDEOSDK_SECRET_KEY, before a new broadcast can start.',
         },
         { status: 503 },
       );
@@ -73,23 +90,40 @@ export async function POST(request: Request) {
     const sellerName =
       userProfileDoc.data()?.shopName || userProfileDoc.data()?.fullName || 'Seller';
 
-    const roomName = generateRoomName();
+    // Mint BEFORE charging: a rejected configuration must cost nothing.
+    let roomName: string | null = null;
+    let sellerToken: string | null = null;
+    let videoSdkMeetingId: string | null = null;
+    let videoSdkSellerToken: string | null = null;
 
-    // Mint BEFORE charging: purely local HMAC signing, so if this throws the
-    // configuration is invalid and no points may be taken.
-    let sellerToken: string;
-    try {
-      sellerToken = await createSellerToken(sellerId, roomName, sellerName);
-    } catch (error) {
-      console.error('[live-session] LiveKit token minting failed:', error);
-      return NextResponse.json(
-        {
-          error: 'CONFIG_MISSING',
-          message:
-            'LiveKit rejected the server credentials. Check LIVEKIT_API_KEY / LIVEKIT_API_SECRET. No points were charged.',
-        },
-        { status: 503 },
-      );
+    if (useLiveKit) {
+      roomName = generateRoomName();
+      try {
+        sellerToken = await createSellerToken(sellerId, roomName, sellerName);
+      } catch (error) {
+        console.error('[live-session] LiveKit token minting failed:', error);
+        return NextResponse.json(
+          {
+            error: 'CONFIG_MISSING',
+            message:
+              'LiveKit rejected the server credentials. Check LIVEKIT_API_KEY / LIVEKIT_API_SECRET. No points were charged.',
+          },
+          { status: 503 },
+        );
+      }
+    } else {
+      videoSdkSellerToken = await videosdkToken(SESSION_LIMIT_MS / 1000).catch(() => null);
+      videoSdkMeetingId = await ensureVideoSdkMeeting().catch(() => null);
+      if (!videoSdkSellerToken || !videoSdkMeetingId) {
+        return NextResponse.json(
+          {
+            error: 'CONFIG_MISSING',
+            message:
+              'VideoSDK could not start a room on this server. Check VIDEOSDK_API_KEY / VIDEOSDK_SECRET_KEY. No points were charged.',
+          },
+          { status: 503 },
+        );
+      }
     }
 
     /*
@@ -126,7 +160,7 @@ export async function POST(request: Request) {
       const currentPoints = profile.aiPoints || 0;
       const existing = sessionSnap.exists ? sessionSnap.data() : undefined;
 
-      if (existing?.status === 'live' && existing?.livekitRoomName) {
+      if (existing?.status === 'live' && existing?.livekitRoomName && useLiveKit) {
         return {
           kind: 'retry',
           roomName: existing.livekitRoomName as string,
@@ -183,11 +217,12 @@ export async function POST(request: Request) {
         timeRemainingMs: SESSION_LIMIT_MS,
         activeOffer: null, // Clear old offers
         pinnedProductId: null, // Clear pinned products
-        provider: 'livekit',
-        livekitRoomName: roomName,
-        // Legacy field kept (nulled) so old readers and the transition
-        // period both see an honest value instead of a stale room.
-        videosdkMeetingId: null,
+        // Transport fields: the chosen provider is written, the other one is
+        // nulled so old readers and the transition period both see honest
+        // values instead of a stale room.
+        ...(useLiveKit
+          ? { provider: 'livekit', livekitRoomName: roomName, videosdkMeetingId: null }
+          : { provider: 'videosdk', videosdkMeetingId: videoSdkMeetingId, livekitRoomName: null }),
       });
 
       return { kind: 'created', newBalance: currentPoints - GO_LIVE_COST } as const;
@@ -236,15 +271,26 @@ export async function POST(request: Request) {
         });
       }
       case 'created':
-        return NextResponse.json({
-          success: true,
-          liveSessionId: sessionRef.id,
-          newBalance: result.newBalance,
-          provider: 'livekit',
-          livekitRoomName: roomName,
-          wsUrl: livekitUrl(),
-          token: sellerToken,
-        });
+        return NextResponse.json(
+          useLiveKit
+            ? {
+                success: true,
+                liveSessionId: sessionRef.id,
+                newBalance: result.newBalance,
+                provider: 'livekit',
+                livekitRoomName: roomName,
+                wsUrl: livekitUrl(),
+                token: sellerToken,
+              }
+            : {
+                success: true,
+                liveSessionId: sessionRef.id,
+                newBalance: result.newBalance,
+                provider: 'videosdk',
+                videosdkMeetingId: videoSdkMeetingId,
+                token: videoSdkSellerToken,
+              },
+        );
     }
   } catch (error: any) {
     console.error('Error creating live session:', error);

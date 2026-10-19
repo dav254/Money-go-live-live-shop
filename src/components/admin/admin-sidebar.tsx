@@ -328,6 +328,10 @@ export function AdminSidebar() {
             { href: 'help-center', label: 'Help Center Manager' },
             { href: 'tickets', label: 'Support Tickets', badge: supportStats.tickets },
             { href: 'chat-logs', label: 'Chat Logs' },
+            // The oversight view the moderation consoles were missing: every
+            // seller↔buyer chat, readable in place. Linked from Seller & Buyer
+            // Issues' "View conversation" action too.
+            { href: 'conversations', label: 'Seller & Buyer Chats' },
             { href: 'complaints', label: 'Resolve Complaints', badge: supportStats.complaints },
             { href: 'seller-buyer-issues', label: 'Seller & Buyer Issues' },
           ]}

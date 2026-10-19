@@ -104,6 +104,14 @@ export interface LiveCardView {
   location?: string | null;
   viewerCount: number;
   startedAt?: unknown;
+  /**
+   * Card is backed by a `liveSessions/{sellerId}` document (the seller
+   * studio's go-live path) rather than a `liveStreams/{id}` document. The
+   * id of such a card IS the seller id, and its watch page is
+   * `/buyer/live/[sellerId]` — not `/live/[id]`, which only understands
+   * `liveStreams` records.
+   */
+  sessionBacked?: boolean;
 }
 
 /** Report reasons (moderation). */

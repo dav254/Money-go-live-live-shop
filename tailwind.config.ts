@@ -71,6 +71,19 @@ export default {
           DEFAULT: 'hsl(var(--card))',
           foreground: 'hsl(var(--card-foreground))',
         },
+        // Dashboard drawers / mobile sheet. Mapped to the --sidebar-*
+        // variables in globals.css — before these entries existed every
+        // bg-sidebar/text-sidebar-* class in ui/sidebar.tsx was silently
+        // dropped by the compiler and the mobile sidebar rendered with no
+        // background and invisible labels.
+        sidebar: {
+          DEFAULT: 'hsl(var(--sidebar))',
+          foreground: 'hsl(var(--sidebar-foreground))',
+          accent: 'hsl(var(--sidebar-accent))',
+          'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
+          border: 'hsl(var(--sidebar-border))',
+          ring: 'hsl(var(--sidebar-ring))',
+        },
         chart: {
           '1': 'hsl(var(--chart-1))',
           '2': 'hsl(var(--chart-2))',

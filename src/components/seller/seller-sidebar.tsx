@@ -90,7 +90,7 @@ export function SellerSidebar() {
   return (
     <>
       <SidebarGroup>
-        <SidebarGroupLabel className="text-[11px] font-semibold tracking-widest uppercase text-white/40">Store Management</SidebarGroupLabel>
+        <SidebarGroupLabel className="text-[11px] font-semibold tracking-widest uppercase text-sidebar-foreground/40">Store Management</SidebarGroupLabel>
         <SidebarMenu>
           <SectionNavItem href="/dashboard/seller">
           <SidebarMenuItem>
@@ -98,11 +98,11 @@ export function SellerSidebar() {
               asChild
               size="sm"
               isActive={pathname === '/dashboard/seller'}
-              className="text-white"
+              className="text-sidebar-foreground"
             >
-              <Link href="/dashboard/seller" className="text-white">
-                <Home className="text-white" />
-                <span className="text-white">Overview</span>
+              <Link href="/dashboard/seller" className="text-sidebar-foreground">
+                <Home className="text-sidebar-foreground" />
+                <span className="text-sidebar-foreground">Overview</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -110,10 +110,10 @@ export function SellerSidebar() {
           
           <SectionNavItem href="/dashboard/products">
           <SidebarMenuItem>
-            <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/products')} className="text-white">
-              <Link href="/dashboard/products" className="text-white">
-                <ShoppingBag className="text-white" />
-                <span className="text-white">Inventory</span>
+            <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/products')} className="text-sidebar-foreground">
+              <Link href="/dashboard/products" className="text-sidebar-foreground">
+                <ShoppingBag className="text-sidebar-foreground" />
+                <span className="text-sidebar-foreground">Inventory</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -121,11 +121,11 @@ export function SellerSidebar() {
 
           <SectionNavItem href="/dashboard/seller/orders">
           <SidebarMenuItem>
-            <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/orders')} className="text-white">
-              <Link href="/dashboard/seller/orders" className="relative flex items-center justify-between w-full text-white">
+            <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/orders')} className="text-sidebar-foreground">
+              <Link href="/dashboard/seller/orders" className="relative flex items-center justify-between w-full text-sidebar-foreground">
                 <div className="flex items-center gap-2">
-                  <Package className="text-white" />
-                  <span className="text-white">Orders</span>
+                  <Package className="text-sidebar-foreground" />
+                  <span className="text-sidebar-foreground">Orders</span>
                 </div>
                 {activeOrdersCount > 0 && (
                     <Badge className="h-5 min-w-[1.25rem] px-1 bg-red-600 text-white border-none text-[10px] font-black shrink-0 flex items-center justify-center shadow-lg shadow-red-600/20">
@@ -139,10 +139,10 @@ export function SellerSidebar() {
 
           <SectionNavItem href="/dashboard/seller/analytics">
           <SidebarMenuItem>
-            <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/analytics')} className="text-white">
-              <Link href="/dashboard/seller/analytics" className="text-white">
-                <AreaChart className="text-white" />
-                <span className="text-white">Analytics</span>
+            <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/analytics')} className="text-sidebar-foreground">
+              <Link href="/dashboard/seller/analytics" className="text-sidebar-foreground">
+                <AreaChart className="text-sidebar-foreground" />
+                <span className="text-sidebar-foreground">Analytics</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -150,11 +150,11 @@ export function SellerSidebar() {
 
           <SectionNavItem href="/messages">
           <SidebarMenuItem>
-            <SidebarMenuButton size="sm" asChild isActive={isActive('/messages')} className="text-white">
-              <Link href="/messages" className="relative flex items-center justify-between w-full text-white">
+            <SidebarMenuButton size="sm" asChild isActive={isActive('/messages')} className="text-sidebar-foreground">
+              <Link href="/messages" className="relative flex items-center justify-between w-full text-sidebar-foreground">
                 <div className="flex items-center gap-2">
-                  <MessageSquare className="text-white" />
-                  <span className="text-white">Inbox</span>
+                  <MessageSquare className="text-sidebar-foreground" />
+                  <span className="text-sidebar-foreground">Inbox</span>
                 </div>
                 {unreadMessagesCount > 0 && (
                     <Badge className="h-5 min-w-[1.25rem] px-1 bg-primary text-white border-none text-[10px] font-black shrink-0 flex items-center justify-center shadow-lg shadow-primary/20">
@@ -173,13 +173,13 @@ export function SellerSidebar() {
         <SidebarMenu>
           <SectionNavItem href="/dashboard/seller/live">
           <SidebarMenuItem>
-            <SidebarMenuButton size="sm" asChild isActive={pathname === '/dashboard/seller/live'} className="text-white">
-              <Link href="/dashboard/seller/live" className="relative flex items-center justify-between w-full text-white">
+            <SidebarMenuButton size="sm" asChild isActive={pathname === '/dashboard/seller/live'} className="text-sidebar-foreground">
+              <Link href="/dashboard/seller/live" className="relative flex items-center justify-between w-full text-sidebar-foreground">
                 <div className="flex items-center gap-2">
                   <span className="flex h-6 w-6 items-center justify-center rounded-md bg-gradient-to-br from-red-600 to-orange-500 shadow-md shadow-red-600/25">
                     <Radio className="h-3.5 w-3.5 text-white" />
                   </span>
-                  <span className="font-semibold text-white">LIVE</span>
+                  <span className="font-semibold text-sidebar-foreground">LIVE</span>
                 </div>
                 <span className="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse" aria-hidden />
               </Link>
@@ -189,12 +189,12 @@ export function SellerSidebar() {
 
           <SectionNavItem href="/dashboard/seller/ai-studio">
           <SidebarMenuItem>
-            <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/ai-studio') || isActive('/dashboard/seller/ai-tools')} className="text-white">
-              <Link href="/dashboard/seller/ai-studio" className="text-white">
+            <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/ai-studio') || isActive('/dashboard/seller/ai-tools')} className="text-sidebar-foreground">
+              <Link href="/dashboard/seller/ai-studio" className="text-sidebar-foreground">
                 <span className="flex h-6 w-6 items-center justify-center rounded-md bg-gradient-to-br from-[#FF4D2E] to-[#0EA5E9] shadow-md shadow-primary/25">
                   <Sparkles className="h-3.5 w-3.5 text-white" />
                 </span>
-                <span className="font-semibold text-white">AI Studio</span>
+                <span className="font-semibold text-sidebar-foreground">AI Studio</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -202,10 +202,10 @@ export function SellerSidebar() {
 
           <SectionNavItem href="/dashboard/seller/points">
           <SidebarMenuItem>
-            <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/points')} className="text-white">
-              <Link href="/dashboard/seller/points" className="text-white">
-                <Coins className="text-white" />
-                <span className="text-white">AI Points</span>
+            <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/points')} className="text-sidebar-foreground">
+              <Link href="/dashboard/seller/points" className="text-sidebar-foreground">
+                <Coins className="text-sidebar-foreground" />
+                <span className="text-sidebar-foreground">AI Points</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -213,11 +213,11 @@ export function SellerSidebar() {
 
           <SectionNavItem href="/requests">
           <SidebarMenuItem>
-            <SidebarMenuButton size="sm" asChild isActive={isActive('/requests')} className="text-white">
-              <Link href="/requests" className="relative flex items-center justify-between w-full text-white">
+            <SidebarMenuButton size="sm" asChild isActive={isActive('/requests')} className="text-sidebar-foreground">
+              <Link href="/requests" className="relative flex items-center justify-between w-full text-sidebar-foreground">
                 <div className="flex items-center gap-2">
-                  <Inbox className="h-4 w-4 text-white" />
-                  <span className="text-white">Requests</span>
+                  <Inbox className="h-4 w-4 text-sidebar-foreground" />
+                  <span className="text-sidebar-foreground">Requests</span>
                 </div>
                 {liveOffersCount > 0 && (
                   <Badge className="h-5 min-w-[1.25rem] px-1 bg-cyan-500 text-white border-none text-[10px] font-black shrink-0 flex items-center justify-center shadow-lg shadow-cyan-500/20">
@@ -240,11 +240,11 @@ export function SellerSidebar() {
               size="sm"
               asChild
               isActive={isActive('/dashboard/seller/live-feed') && !searchParams?.get('view')}
-              className="text-white"
+              className="text-sidebar-foreground"
             >
-              <Link href="/dashboard/seller/live-feed" className="text-white">
-                <Video className="text-white" />
-                <span className="text-white">Discovery Feed</span>
+              <Link href="/dashboard/seller/live-feed" className="text-sidebar-foreground">
+                <Video className="text-sidebar-foreground" />
+                <span className="text-sidebar-foreground">Discovery Feed</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -253,11 +253,11 @@ export function SellerSidebar() {
               size="sm"
               asChild
               isActive={isActive('/dashboard/seller/live-feed') && searchParams?.get('view') === 'saved'}
-              className="text-white"
+              className="text-sidebar-foreground"
             >
-              <Link href="/dashboard/seller/live-feed?view=saved" className="text-white">
-                <Heart className="text-white" />
-                <span className="text-white">My Saved Items</span>
+              <Link href="/dashboard/seller/live-feed?view=saved" className="text-sidebar-foreground">
+                <Heart className="text-sidebar-foreground" />
+                <span className="text-sidebar-foreground">My Saved Items</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -268,7 +268,7 @@ export function SellerSidebar() {
       <SidebarMenu className="mt-auto">
         <Separator className="my-2" />
         <SidebarMenuItem className="px-2 pb-1">
-            <InstallAppButton className="w-full justify-center border-white/30 text-xs font-bold uppercase tracking-widest text-white" />
+            <InstallAppButton className="w-full justify-center border-sidebar-foreground/30 text-xs font-bold uppercase tracking-widest text-sidebar-foreground" />
         </SidebarMenuItem>
         <SectionNavItem href="/sellers">
         <SidebarMenuItem>
@@ -277,11 +277,11 @@ export function SellerSidebar() {
                 size="sm"
                 variant="outline"
                 isActive={isActive(`/sellers/${user?.uid}`)}
-                className="text-white"
+                className="text-sidebar-foreground"
             >
-                <Link href={`/sellers/${user?.uid}`} className="text-white">
-                    <Store className="text-white" />
-                    <span className="text-white">View My Shop</span>
+                <Link href={`/sellers/${user?.uid}`} className="text-sidebar-foreground">
+                    <Store className="text-sidebar-foreground" />
+                    <span className="text-sidebar-foreground">View My Shop</span>
                 </Link>
             </SidebarMenuButton>
         </SidebarMenuItem>
@@ -293,11 +293,11 @@ export function SellerSidebar() {
                 size="sm"
                 variant="outline"
                 isActive={isActive('/dashboard/seller/share')}
-                className="text-white"
+                className="text-sidebar-foreground"
             >
-                <Link href="/dashboard/seller/share" className="text-white">
-                    <QrCode className="text-white" />
-                    <span className="text-white">Share &amp; QR</span>
+                <Link href="/dashboard/seller/share" className="text-sidebar-foreground">
+                    <QrCode className="text-sidebar-foreground" />
+                    <span className="text-sidebar-foreground">Share &amp; QR</span>
                 </Link>
             </SidebarMenuButton>
         </SidebarMenuItem>
@@ -308,24 +308,24 @@ export function SellerSidebar() {
                 asChild
                 size="sm"
                 isActive={isActive('/dashboard/seller/wallet')}
-                className="text-white"
+                className="text-sidebar-foreground"
             >
-                <Link href="/dashboard/seller/wallet" className="text-white">
-                    <Wallet className="text-white" />
-                    <span className="text-white">Payments</span>
+                <Link href="/dashboard/seller/wallet" className="text-sidebar-foreground">
+                    <Wallet className="text-sidebar-foreground" />
+                    <span className="text-sidebar-foreground">Payments</span>
                 </Link>
             </SidebarMenuButton>
         </SidebarMenuItem>
         </SectionNavItem>
         <SectionNavItem href="/dashboard/account">
         <SidebarMenuItem>
-           <SidebarMenuButton asChild size="sm" isActive={isActive('/dashboard/account')} className="text-white">
-            <Link href="/dashboard/account" className="text-white">
+           <SidebarMenuButton asChild size="sm" isActive={isActive('/dashboard/account')} className="text-sidebar-foreground">
+            <Link href="/dashboard/account" className="text-sidebar-foreground">
               <Avatar className="h-6 w-6">
                 <AvatarImage src={userProfile?.profilePictureUrl} />
-                <AvatarFallback className="text-white">{userProfile?.fullName?.[0]}</AvatarFallback>
+                <AvatarFallback className="text-sidebar-foreground">{userProfile?.fullName?.[0]}</AvatarFallback>
               </Avatar>
-              <span className="truncate text-white">{userProfile?.fullName || "My Account"}</span>
+              <span className="truncate text-sidebar-foreground">{userProfile?.fullName || "My Account"}</span>
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>

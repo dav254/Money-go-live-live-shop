@@ -3,23 +3,36 @@
 /**
  * SELLER LIVE STUDIO — the only seller-facing live surface.
  *
- * One section, one job: preview your camera and go live. No setup form, no
- * product shelf, no chat rail, no analytics — buyers get all of that on the
- * viewer side. While you are live you see your own preview; nobody else does.
+ * One section, one job: go live, then run the show from the stage. While
+ * live the seller sees their own camera plus the controls a broadcast
+ * actually needs: the live comment thread (the same Firestore chat the buyer
+ * watch page writes to), their product shelf with one-tap pin/unpin (buyers
+ * see a pinned product on their screen instantly), a viewer count, and the
+ * session countdown.
  *
- * Transport: LiveKit. POST /api/live-session authenticates the seller, charges
- * the session, mints a server-side broadcaster token and returns the room name
- * + websocket URL in one response, so the API secret never reaches the
- * browser.
+ * Transport: LiveKit when the server has LIVEKIT_* configured — POST
+ * /api/live-session authenticates the seller, charges the session, mints a
+ * server-side broadcaster token and returns the room name + websocket URL in
+ * one response, so the API secret never reaches the browser. When LiveKit is
+ * not configured the same endpoint falls back to VideoSDK (the original
+ * transport, still served on the buyer side) so Go live always works on the
+ * transport the server can actually run.
  */
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
+import { doc, setDoc } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { useUser, useUserProfile } from '@/firebase';
+import { useUser, useUserProfile, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
+import { LiveChat } from '@/components/buyer/LiveChat';
+import { LiveProductShelf } from '@/components/studio/LiveProductShelf';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, BadgeCent, Camera, Loader2, Radio, Share2, Square } from 'lucide-react';
+import type { LiveSession, Product } from '@/lib/types';
+import {
+  ArrowLeft, BadgeCent, Camera, Loader2, MessageSquare, Radio, Share2,
+  ShoppingBag, Square, Users, X,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { MAX_LIVE_SECONDS } from '@/lib/listings/limits';
 
@@ -32,6 +45,22 @@ const HostPreview = dynamic(() => import('@/components/live/host-preview'), {
     </div>
   ),
 });
+
+/** VideoSDK fallback stage — used when the server has no LiveKit keys. */
+const VideosdkHostPreview = dynamic(() => import('@/components/live/videosdk-host-preview'), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-full w-full flex-col items-center justify-center gap-3 bg-black">
+      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <p className="text-[10px] font-black uppercase tracking-[0.3em] text-white/50">Opening your studio…</p>
+    </div>
+  ),
+});
+
+/** The connection a live broadcast runs on — provider-specific details. */
+type LiveConnection =
+  | { provider: 'livekit'; wsUrl: string; roomName: string; token: string }
+  | { provider: 'videosdk'; meetingId: string; token: string };
 
 const SESSION_COST = 100;
 
@@ -58,7 +87,7 @@ export function SellerLiveStudio({
 
   const [title, setTitle] = useState('');
   const [phase, setPhase] = useState<'idle' | 'starting' | 'live'>('idle');
-  const [session, setSession] = useState<{ wsUrl: string; roomName: string; token: string } | null>(null);
+  const [session, setSession] = useState<LiveConnection | null>(null);
   const [cameraDenied, setCameraDenied] = useState(false);
   /**
    * The server said "already live" (HTTP 200, no charge): a session of this
@@ -69,6 +98,56 @@ export function SellerLiveStudio({
 
   const points = userProfile?.aiPoints ?? 0;
   const canStart = points >= SESSION_COST && !cameraDenied;
+
+  /* ------------------------- live-stage controls ------------------------- */
+  /** Which overlay sheet the seller has open while broadcasting. */
+  const [panel, setPanel] = useState<'chat' | 'products' | null>('chat');
+  /** Live remote-participant count, fed by HostPreview off the LiveKit room. */
+  const [viewerCount, setViewerCount] = useState(0);
+
+  const firestore = useFirestore();
+  // The seller's own session document (id === sellerId): source of truth for
+  // the pinned product. Reactive, so the shelf's highlight follows pin/unpin.
+  const mySessionRef = useMemoFirebase(() => {
+    if (!firestore || !user?.uid || phase !== 'live') return null;
+    return doc(firestore, 'liveSessions', user.uid);
+  }, [firestore, user?.uid, phase]);
+  const { data: mySession } = useDoc<LiveSession>(mySessionRef);
+  const pinnedProductId = mySession?.pinnedProductId ?? null;
+
+  /**
+   * Pin/unpin write straight to the seller's own session document. Firestore
+   * rules already allow exactly this (`liveSessions` — owner or admin write),
+   * and the buyer watch page subscribes to that document, so a pin appears on
+   * every viewer's screen with no refresh.
+   */
+  const pinProduct = useCallback(async (product: Product) => {
+    if (!firestore || !user?.uid) return;
+    try {
+      await setDoc(
+        doc(firestore, 'liveSessions', user.uid),
+        { pinnedProductId: product.id },
+        { merge: true },
+      );
+      toast({ title: 'Product pinned', description: `${product.name} is now on screen for buyers.` });
+    } catch {
+      toast({ variant: 'destructive', title: 'Could not pin product.' });
+    }
+  }, [firestore, user?.uid, toast]);
+
+  const unpinProduct = useCallback(async () => {
+    if (!firestore || !user?.uid) return;
+    try {
+      await setDoc(
+        doc(firestore, 'liveSessions', user.uid),
+        { pinnedProductId: null },
+        { merge: true },
+      );
+      toast({ title: 'Product unpinned', description: 'The pinned card is off buyers\u2019 screens.' });
+    } catch {
+      toast({ variant: 'destructive', title: 'Could not unpin product.' });
+    }
+  }, [firestore, user?.uid, toast]);
 
   /** Idle preview: request the camera so the seller can check the shot. */
   useEffect(() => {
@@ -132,11 +211,22 @@ export function SellerLiveStudio({
         return;
       }
 
-      if (data.provider !== 'livekit' || !data.livekitRoomName || !data.token || !data.wsUrl) {
-        throw new Error('The server did not return LiveKit connection details. The broadcast was not started.');
+      // The server answers on whichever transport it can actually run:
+      // LiveKit (preferred) or VideoSDK (fallback). Anything else means no
+      // broadcast was started — surface that instead of half-mounting a stage.
+      if (data.provider === 'livekit') {
+        if (!data.livekitRoomName || !data.token || !data.wsUrl) {
+          throw new Error('The server did not return LiveKit connection details. The broadcast was not started.');
+        }
+        setSession({ provider: 'livekit', wsUrl: data.wsUrl, roomName: data.livekitRoomName, token: data.token });
+      } else if (data.provider === 'videosdk') {
+        if (!data.videosdkMeetingId || !data.token) {
+          throw new Error('The server did not return VideoSDK connection details. The broadcast was not started.');
+        }
+        setSession({ provider: 'videosdk', meetingId: data.videosdkMeetingId, token: data.token });
+      } else {
+        throw new Error('The server did not return a usable transport. The broadcast was not started.');
       }
-
-      setSession({ wsUrl: data.wsUrl, roomName: data.livekitRoomName, token: data.token });
       setTokenError(null);
       setAlreadyLive(null);
       setPhase('live');
@@ -229,27 +319,140 @@ export function SellerLiveStudio({
   /* ------------------------------ live ------------------------------ */
   if (phase === 'live' && session) {
     const urgent = secondsLeft <= 20;
+    const sellerName = userProfile?.shopName || userProfile?.fullName || 'Seller';
     return (
       <div className="relative h-full w-full overflow-hidden bg-black">
-        <HostPreview
-          wsUrl={session.wsUrl}
-          roomName={session.roomName}
-          token={session.token}
-          participantName={userProfile?.shopName || userProfile?.fullName || 'Seller'}
-          onEnd={endLive}
-        />
-        {/* Always visible, so the seller is never surprised by the cut. */}
-        <div
-          className={cn(
-            'pointer-events-none absolute left-3 top-3 z-20 rounded-full px-3 py-1.5 text-xs font-black tabular-nums backdrop-blur-md',
-            urgent ? 'bg-red-500/90 text-white' : 'bg-black/60 text-white',
+        {session.provider === 'livekit' ? (
+          <HostPreview
+            wsUrl={session.wsUrl}
+            roomName={session.roomName}
+            token={session.token}
+            participantName={sellerName}
+            onEnd={endLive}
+            onViewerCount={setViewerCount}
+          />
+        ) : (
+          <VideosdkHostPreview
+            meetingId={session.meetingId}
+            token={session.token}
+            participantName={sellerName}
+            onEnd={endLive}
+          />
+        )}
+
+        {/* Session clock + live audience, always visible over the camera. */}
+        <div className="pointer-events-none absolute left-3 top-3 z-20 flex items-center gap-2">
+          <span
+            className={cn(
+              'rounded-full px-3 py-1.5 text-xs font-black tabular-nums backdrop-blur-md',
+              urgent ? 'bg-red-500/90 text-white' : 'bg-black/60 text-white',
+            )}
+            role="timer"
+            aria-live="off"
+          >
+            {Math.floor(secondsLeft / 60)}:{String(secondsLeft % 60).padStart(2, '0')}
+            {urgent && <span className="ml-1.5 text-[10px] uppercase tracking-widest">wrap up</span>}
+          </span>
+          {/* Viewer count comes from the LiveKit room; the VideoSDK fallback
+              has no participant feed, so the badge is shown only when real
+              numbers exist rather than a false zero. */}
+          {session.provider === 'livekit' && (
+            <span
+              className="inline-flex items-center gap-1.5 rounded-full bg-black/60 px-3 py-1.5 text-xs font-bold text-white backdrop-blur-md"
+              title="Viewers watching now"
+            >
+              <Users className="h-3.5 w-3.5" />
+              {viewerCount}
+            </span>
           )}
-          role="timer"
-          aria-live="off"
-        >
-          {Math.floor(secondsLeft / 60)}:{String(secondsLeft % 60).padStart(2, '0')}
-          {urgent && <span className="ml-1.5 text-[10px] uppercase tracking-widest">wrap up</span>}
         </div>
+
+        {/* Stage controls sit above the camera/mic/end bar so nothing is covered. */}
+        {!panel && (
+          <div className="absolute bottom-24 right-3 z-40 flex flex-col gap-2.5">
+            <button
+              type="button"
+              onClick={() => setPanel('chat')}
+              className="flex h-12 w-12 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-md transition hover:bg-black/80"
+              aria-label="Open live comments"
+            >
+              <MessageSquare className="h-5 w-5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setPanel('products')}
+              className="relative flex h-12 w-12 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-md transition hover:bg-black/80"
+              aria-label="Open product shelf"
+            >
+              <ShoppingBag className="h-5 w-5" />
+              {pinnedProductId && (
+                <span className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full border-2 border-black bg-green-500" />
+              )}
+            </button>
+          </div>
+        )}
+
+        {/*
+          The comments + product shelf sheet. Opens on COMMENTS the moment the
+          seller goes live — the stage is a working broadcast desk, never a
+          blank camera. The bottom controls stay visible below the sheet, and
+          the sheet never traps the seller (X always closes it).
+        */}
+        {panel && user && (
+          <div className="absolute inset-x-0 bottom-24 z-30 flex h-[52%] flex-col overflow-hidden rounded-t-3xl border border-white/10 bg-neutral-950/95 shadow-2xl backdrop-blur-xl">
+            <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPanel('chat')}
+                  className={cn(
+                    'rounded-full px-3 py-1.5 text-[10px] font-black uppercase tracking-widest transition',
+                    panel === 'chat'
+                      ? 'bg-white text-black'
+                      : 'bg-white/10 text-white/60 hover:bg-white/15',
+                  )}
+                >
+                  Comments
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPanel('products')}
+                  className={cn(
+                    'rounded-full px-3 py-1.5 text-[10px] font-black uppercase tracking-widest transition',
+                    panel === 'products'
+                      ? 'bg-white text-black'
+                      : 'bg-white/10 text-white/60 hover:bg-white/15',
+                  )}
+                >
+                  Products
+                </button>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPanel(null)}
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-white/70 transition hover:bg-white/20 hover:text-white"
+                aria-label="Close panel"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="min-h-0 flex-1">
+              {panel === 'chat' ? (
+                /* The exact chat the buyer watch page reads and writes. */
+                <LiveChat streamId={user.uid} />
+              ) : (
+                /* Pinning writes liveSessions/{sellerId}.pinnedProductId — buyers see it instantly. */
+                <LiveProductShelf
+                  sellerId={user.uid}
+                  pinnedProductId={pinnedProductId}
+                  onPinProduct={pinProduct}
+                  onUnpinProduct={unpinProduct}
+                />
+              )}
+            </div>
+          </div>
+        )}
       </div>
     );
   }

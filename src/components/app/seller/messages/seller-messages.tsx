@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { useSearchParams } from 'next/navigation';
 import {
-  collection, getDocs, onSnapshot, query, where,
+  collection, doc, getDoc, onSnapshot, query, where,
 } from 'firebase/firestore';
 import { useFirestore, useUser } from '@/firebase';
 import type { Chat, UserProfile } from '@/lib/types';
@@ -83,17 +83,24 @@ export function SellerMessages() {
           });
         });
 
+        // One `getDoc` per profile, NOT a batched `where('id', 'in', …)`.
+        //
+        // `firestore.rules` allows anyone to `get` a userProfiles document but
+        // restricts `list` to self, referrer or admin, so a batched `in` query is
+        // denied the moment a seller reads a buyer's profile. That rejection used
+        // to be uncaught here, which aborted the whole `onSnapshot` callback and
+        // left the seller with an empty inbox that looked exactly like "the buyer
+        // never messaged me". `get` is public, so this is the only shape that
+        // works, and a rejected read can no longer take the inbox down with it.
         if (wanted.size > 0) {
-          const ids = Array.from(wanted);
-          for (let i = 0; i < ids.length; i += 30) {
-            const chunk = ids.slice(i, i + 30);
-            const part = await getDocs(
-              query(collection(firestore, 'userProfiles'), where('id', 'in', chunk)),
+          for (const id of wanted) {
+            const profileSnap = await getDoc(doc(firestore, 'userProfiles', id)).catch(
+              () => null,
             );
-            part.docs.forEach((d) => {
-              const profile = d.data() as UserProfile;
-              profilesRef.current.set(profile.id ?? d.id, profile);
-            });
+            const profile = profileSnap?.exists() ? (profileSnap.data() as UserProfile) : null;
+            // Cache even a miss, so a profile that will never resolve is not
+            // re-fetched on every snapshot.
+            profilesRef.current.set(id, profile ?? ({ id } as UserProfile));
           }
         }
 
