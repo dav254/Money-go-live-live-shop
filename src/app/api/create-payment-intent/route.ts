@@ -40,7 +40,18 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { amount, email, gateway, metadata, transactionType, orderId, channel } = body;
+    const { amount, email, gateway, metadata, transactionType, orderId, channel, returnTo } = body;
+
+    /*
+     * Where the gateway sends the buyer back to. Client-supplied, so it is
+     * validated to a same-site absolute path (`/…`, never `//host` and never
+     * an absolute URL) — otherwise this endpoint would be an open redirect
+     * through the payment provider. Defaults to the website checkout page.
+     */
+    const safeReturnTo =
+      typeof returnTo === 'string' && returnTo.startsWith('/') && !returnTo.startsWith('//')
+        ? returnTo
+        : `/checkout/${orderId ?? 'points'}`;
 
     if (!amount || !email || !gateway) {
       return NextResponse.json({ error: 'Missing required payment details.' }, { status: 400 });
@@ -87,6 +98,11 @@ export async function POST(request: NextRequest) {
               transactionType: transactionType || 'product-purchase',
               requestedChannel: requested || 'any',
             },
+            // Without this, Paystack redirects the buyer who just paid to the
+            // dashboard's default URL (usually the marketing site) and the
+            // order looks untouched. Send them back to the exact checkout
+            // screen they came from; the webhook still confirms the payment.
+            callback_url: publicUrl(safeReturnTo),
           }),
         });
         return response.json();
@@ -138,11 +154,10 @@ export async function POST(request: NextRequest) {
               transactionType: transactionType || 'product-purchase',
             }),
           },
-        ],
-        application_context: {
-          return_url: publicUrl(`/checkout/${orderId ?? 'points'}?status=success`),
-          cancel_url: publicUrl(`/checkout/${orderId ?? 'points'}?status=cancelled`),
-        },
+        ],            application_context: {
+              return_url: publicUrl(`${safeReturnTo}?status=success`),
+              cancel_url: publicUrl(`${safeReturnTo}?status=cancelled`),
+            },
       });
 
       try {

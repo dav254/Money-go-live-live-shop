@@ -241,6 +241,11 @@ export default function BuyerCheckoutPage() {
           gateway: method === 'paypal' ? 'paypal' : 'paystack',
           channel: method === 'paypal' ? undefined : method,
           transactionType: 'product-purchase',
+          // Where the gateway should send the buyer back to. Without this,
+          // Paystack falls back to the dashboard's default URL and the buyer
+          // who just paid lands on the marketing site believing nothing
+          // happened. The server validates this is a same-site path.
+          returnTo: `/app/buyer/checkout/${order.id}`,
         }),
       });
       const data = (await res.json()) as {
@@ -255,6 +260,11 @@ export default function BuyerCheckoutPage() {
           title: 'Could not start the payment',
           description: data.error || 'Please try again.',
         });
+        // CRITICAL: reset the busy state here. It used to stay set on every
+        // failed attempt, which left ALL payment buttons disabled after a
+        // single error — the buyer's taps did nothing from then on, which is
+        // exactly what "the Pay Now button is not working" looked like.
+        setPaying(null);
         return;
       }
 
@@ -273,11 +283,40 @@ export default function BuyerCheckoutPage() {
       // the browser tab Paystack returns to. Never an iframe or a popup —
       // card entry in a frame is blocked and looks like a phishing attempt.
       window.location.href = data.checkoutUrl;
+      // If the browser refuses the navigation (rare, some webviews), the
+      // buttons must come back instead of staying disabled forever.
+      setPaying(null);
     } catch {
       toast({ variant: 'destructive', title: 'Could not reach the payment server.' });
       setPaying(null);
     }
   };
+
+  /*
+   * Restoring from the back/forward cache can resurrect the exact JS state
+   * from before the redirect — including the busy flag that disables every
+   * payment button. Clear it whenever the page is restored, so a buyer who
+   * backs out of Paystack can simply try again.
+   */
+  React.useEffect(() => {
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) setPaying(null);
+    };
+    window.addEventListener('pageshow', onPageShow);
+    return () => window.removeEventListener('pageshow', onPageShow);
+  }, []);
+
+  /*
+   * Paystack returns the buyer here with ?reference= / ?trxref= once they
+   * finish (callback_url on the intent). The order document flips to PAID
+   * via the Paystack webhook — this strip just tells the buyer the wait is
+   * the confirmation step working, not a broken button.
+   */
+  const [returnedFromGateway, setReturnedFromGateway] = React.useState(false);
+  React.useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('reference') || params.get('trxref')) setReturnedFromGateway(true);
+  }, []);
 
   if (isLoading) {
     return (
@@ -472,6 +511,17 @@ export default function BuyerCheckoutPage() {
         </BuyerCard>
       </div>
 
+      {/* ------------------------------------------ returned from gateway */}
+      {returnedFromGateway && (
+        <div className="mb-3 px-4">
+          <p className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2.5 text-[11px] leading-relaxed text-emerald-600 dark:text-emerald-400">
+            Payment received — confirming with your bank now. This order flips to
+            <span className="font-bold"> PAID </span>
+            automatically; you can close this screen.
+          </p>
+        </div>
+      )}
+
       {/* ------------------------------------------------------- methods */}
       <div className="mt-4 px-4">
         <p className="vn-micro mb-2 px-1 text-[10px] font-bold uppercase tracking-[0.3em] text-cyan-500 dark:text-cyan-400">
@@ -498,7 +548,7 @@ export default function BuyerCheckoutPage() {
               <button
                 key={m.id}
                 type="button"
-                disabled={!!paying || !user?.email}
+                disabled={!!paying}
                 onClick={() => pay(m.id)}
                 className={cn(
                   'flex w-full items-center gap-3 rounded-2xl border border-border bg-card p-3 text-left transition',
