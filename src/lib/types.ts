@@ -400,10 +400,12 @@ export interface Payout {
  */
 export interface PayoutMethod {
   id: string;
-  type: 'paypal' | 'bank';
+  type: 'paypal' | 'bank' | 'phone';
   /** Human summary shown in the withdrawal picker, e.g. "KCB Bank - *...6789". */
   details: string;
   paypalEmail?: string;
+  /** Phone number (M-PESA) the payout is sent to, in international form. */
+  phoneNumber?: string;
   accountName?: string;
   accountNumber?: string;
   bankName?: string;

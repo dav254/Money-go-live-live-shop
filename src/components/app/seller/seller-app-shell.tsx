@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 
 import {
-  Bell, ChevronLeft, Home, Boxes, Plus, Package, Search,
+  Bell, Home, Boxes, Plus, Package, Search,
   Loader2, Menu, MessageSquare,
 } from 'lucide-react';
 import {
@@ -195,7 +195,6 @@ function useImmersiveRoute(): boolean {
 }
 
 function SellerTopBar({ onOpenNav, immersive = false }: { onOpenNav: () => void; immersive?: boolean }) {
-  const router = useRouter();
   const pathname = usePathname() ?? '';
   const onDiscovery = pathname === '/app/seller/discovery';
   const { user } = useUser();
@@ -222,14 +221,9 @@ function SellerTopBar({ onOpenNav, immersive = false }: { onOpenNav: () => void;
             <Menu className="h-5 w-5" />
           </button>
 
-          <button
-            type="button"
-            onClick={() => router.back()}
-            aria-label="Go back"
-            className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition hover:bg-secondary"
-          >
-            <ChevronLeft className="h-5 w-5" />
-          </button>
+          {/* No back arrow by design: `router.back()` is how sellers were
+              bounced out of the app whenever the back stack started on a
+              website route. Navigation stays in-section: tab bar + drawer. */}
 
           {/* Discovery's identity and search live HERE now — the section's own
               bar is gone, so this is the only header on the screen. */}

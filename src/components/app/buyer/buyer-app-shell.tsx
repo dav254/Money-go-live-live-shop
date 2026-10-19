@@ -6,7 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import type { ReactNode, SVGProps } from 'react';
 
 import {
-  Bell, ChevronLeft, Home, Search, ShoppingCart, Package, User,
+  Bell, Home, Search, ShoppingCart, Package, User,
   Loader2, Menu,
 } from 'lucide-react';
 import {
@@ -179,7 +179,6 @@ function BuyerTopBarInner({
   onOpenNav: () => void;
   immersive?: boolean;
 }) {
-  const router = useRouter();
   const pathname = usePathname() ?? '';
   const onDiscovery = pathname === '/app/buyer/discovery';
   const { user } = useUser();
@@ -206,14 +205,10 @@ function BuyerTopBarInner({
             <Menu className="h-5 w-5" />
           </button>
 
-          <button
-            type="button"
-            onClick={() => router.back()}
-            aria-label="Go back"
-            className="flex h-9 w-9 items-center justify-center rounded-full text-white/70 transition hover:bg-white/10"
-          >
-            <ChevronLeft className="h-5 w-5" />
-          </button>
+          {/* No back arrow here by design: `router.back()` is how buyers were
+              bounced out of the app — a back stack that starts on a website
+              route leaves the section entirely. Navigation inside the app is
+              the tab bar and the drawer, both of which stay in-section. */}
 
           {/* Discovery's identity and search live HERE now — the section's own
               bar is gone, so this is the only header on the screen. */}

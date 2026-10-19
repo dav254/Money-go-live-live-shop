@@ -8,8 +8,9 @@
  *
  * It is two things the seller never had inside the app:
  *
- *   1. The payout destinations the platform pays into — a bank account or a
- *      PayPal address — stored at `userProfiles/{uid}/payoutMethods`, so the
+ *   1. The payout destinations the platform pays into — a bank account, a
+ *      PayPal address, or a phone number (M-PESA) — stored at
+ *      `userProfiles/{uid}/payoutMethods`, so the
  *      admin finance console reads them through the seller id and never has to
  *      guess which account to pay. Nothing else in the app writes here, which
  *      is what makes this screen the single source of truth for "where do I
@@ -35,6 +36,7 @@ import {
   Landmark,
   Loader2,
   Plus,
+  Smartphone,
   Trash2,
   Wallet,
 } from 'lucide-react';
@@ -124,7 +126,7 @@ function PayoutStatusPill({ status }: { status: string }) {
 // Add destination
 // ---------------------------------------------------------------------------
 
-type DestinationKind = 'bank' | 'paypal';
+type DestinationKind = 'bank' | 'paypal' | 'phone';
 
 function AddDestinationSheet({
   open,
@@ -144,6 +146,7 @@ function AddDestinationSheet({
   const [accountName, setAccountName] = React.useState('');
   const [accountNumber, setAccountNumber] = React.useState('');
   const [paypalEmail, setPaypalEmail] = React.useState('');
+  const [phoneNumber, setPhoneNumber] = React.useState('');
   const [isSaving, setIsSaving] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
@@ -152,6 +155,7 @@ function AddDestinationSheet({
     setAccountName('');
     setAccountNumber('');
     setPaypalEmail('');
+    setPhoneNumber('');
     setError(null);
   };
 
@@ -167,10 +171,19 @@ function AddDestinationSheet({
     setError(null);
 
     const trimmedNumber = accountNumber.replace(/\s+/g, '');
+    // M-PESA numbers are normalised to international form before saving, so
+    // the finance team never has to guess the prefix when paying out.
+    const trimmedPhone = phoneNumber.replace(/[\s-]/g, '');
     if (kind === 'bank') {
       if (!bankCode) return setError('Choose the bank you hold this account with.');
       if (!accountName.trim()) return setError('Enter the name on the account.');
       if (trimmedNumber.length < 6) return setError('Enter a valid account number.');
+    } else if (kind === 'phone') {
+      if (!/^(?:\+?254|0)(7|1)\d{8}$/.test(trimmedPhone)) {
+        return setError(
+          'Enter a valid Kenyan phone number, e.g. 0712345678 or +254712345678.',
+        );
+      }
     } else if (!/^\S+@\S+\.\S+$/.test(paypalEmail.trim())) {
       return setError('Enter a valid PayPal email address.');
     }
@@ -191,6 +204,18 @@ function AddDestinationSheet({
           accountName: accountName.trim(),
           accountNumber: trimmedNumber,
           bankCode,
+          country: 'Kenya',
+        });
+      } else if (kind === 'phone') {
+        const normalized = trimmedPhone.startsWith('+')
+          ? trimmedPhone
+          : trimmedPhone.startsWith('0')
+            ? `+254${trimmedPhone.slice(1)}`
+            : `+254${trimmedPhone}`;
+        await addDoc(ref, {
+          type: 'phone',
+          details: `M-PESA - ${normalized}`,
+          phoneNumber: normalized,
           country: 'Kenya',
         });
       } else {
@@ -227,11 +252,12 @@ function AddDestinationSheet({
         </SheetHeader>
 
         <div className="mt-5 space-y-5">
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-3 gap-2">
             {(
               [
-                { key: 'bank' as const, label: 'Bank account', icon: Landmark },
+                { key: 'bank' as const, label: 'Bank', icon: Landmark },
                 { key: 'paypal' as const, label: 'PayPal', icon: Wallet },
+                { key: 'phone' as const, label: 'Phone', icon: Smartphone },
               ] as const
             ).map((option) => {
               const active = kind === option.key;
@@ -296,6 +322,23 @@ function AddDestinationSheet({
                   autoComplete="off"
                 />
               </div>
+            </div>
+          ) : kind === 'phone' ? (
+            <div className="space-y-2">
+              <Label htmlFor="pay-phone">Phone number (M-PESA)</Label>
+              <Input
+                id="pay-phone"
+                value={phoneNumber}
+                onChange={(e) => setPhoneNumber(e.target.value)}
+                inputMode="tel"
+                placeholder="0712345678"
+                className="h-11 bg-card font-grotesk tabular-nums"
+                autoComplete="off"
+              />
+              <p className="text-[11px] leading-relaxed text-muted-foreground">
+                Payouts are sent to this number via M-PESA. Use the number registered
+                to your ID — the finance team sees it the moment you save it.
+              </p>
             </div>
           ) : (
             <div className="space-y-2">
@@ -436,7 +479,11 @@ function WithdrawSheet({
               <SelectContent>
                 {methods.map((method) => (
                   <SelectItem key={method.id} value={method.id}>
-                    {method.type === 'bank' ? 'Bank' : 'PayPal'} — {method.details}
+                    {method.type === 'bank'
+                      ? 'Bank'
+                      : method.type === 'phone'
+                        ? 'Phone'
+                        : 'PayPal'} — {method.details}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -700,7 +747,9 @@ export default function SellerSectionPayments() {
                 className="vn-app-card flex items-center gap-3 rounded-2xl border border-border/80 bg-card p-3.5"
               >
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-secondary text-muted-foreground">
-                  {method.type === 'bank' ? (
+                  {method.type === 'phone' ? (
+                    <Smartphone className="h-4 w-4" />
+                  ) : method.type === 'bank' ? (
                     <Landmark className="h-4 w-4" />
                   ) : (
                     <Wallet className="h-4 w-4" />
@@ -708,7 +757,11 @@ export default function SellerSectionPayments() {
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                    {method.type === 'bank' ? 'Bank account' : 'PayPal'}
+                    {method.type === 'bank'
+                      ? 'Bank account'
+                      : method.type === 'phone'
+                        ? 'Phone (M-PESA)'
+                        : 'PayPal'}
                   </p>
                   <p className="truncate text-sm font-semibold text-foreground">
                     {method.details}
