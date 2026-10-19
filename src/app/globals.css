@@ -425,6 +425,23 @@ html[data-vidnov-surface='app']:has(.vn-buyer-scope) body {
 }
 
 /* ==========================================================================
+   SELLER DASHBOARD SIDEBAR (website, /dashboard/seller)
+
+   The drawer panel is white in light mode, so its labels must be BLACK —
+   and only that. This pins --sidebar-foreground on the sidebar element
+   itself, so no ancestor theme scope can flip the labels to white-on-white
+   again (that exact bug shipped once and made every nav label invisible).
+   Dark mode keeps the shared navy-panel / near-white label tokens.
+   ========================================================================== */
+
+.vn-seller-sidebar {
+  --sidebar-foreground: 0 0% 5%;
+}
+.dark .vn-seller-sidebar {
+  --sidebar-foreground: 210 40% 98%;
+}
+
+/* ==========================================================================
    DISCOVERY SECTION
    The customer-facing marketplace feed at `/buyer/discovery`. It is neither
    the seller scope nor the buyer scope: it is the one screen a signed-out

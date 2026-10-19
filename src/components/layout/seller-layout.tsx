@@ -52,7 +52,7 @@ export function SellerLayout({ children, fullWidth = false }: { children: React.
   return (
     <SidebarProvider>
       <div className="w-full max-w-full overflow-x-hidden flex min-h-screen">
-        <Sidebar side="left" collapsible="icon">
+        <Sidebar side="left" collapsible="icon" className="vn-seller-sidebar">
           <SidebarHeader className="border-b bg-card p-4">
             <Link href="/dashboard/seller">
               <Logo className="text-3xl text-primary cursor-pointer" />
