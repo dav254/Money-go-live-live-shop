@@ -347,11 +347,19 @@ export function BuyerMessages() {
                     className="vn-buyer-card flex w-full items-center gap-3 p-3 text-left transition active:scale-[0.99]"
                   >
                     <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-full border border-border">
+                      {/* `unoptimized`, not a style choice: profilePictureUrl is
+                          an arbitrary external URL (Google avatars live on
+                          lh3.googleusercontent.com), and next/image THROWS in
+                          production for any host missing from
+                          images.remotePatterns — which crashed this whole inbox
+                          into the error boundary. Unoptimized renders the src
+                          as-is, so no host can ever throw here. */}
                       <Image
                         src={profile?.profilePictureUrl || getPlaceholderImage()}
                         alt={profile?.fullName || 'Seller'}
                         fill
                         sizes="44px"
+                        unoptimized
                         className="object-cover"
                       />
                     </div>
@@ -517,11 +525,14 @@ function BuyerThread({
           <ArrowLeft className="h-5 w-5" />
         </button>
         <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full border border-border">
+          {/* Same reason as the inbox avatar: a dynamic external host must not
+              go through the optimizer, or an unlisted hostname throws. */}
           <Image
             src={other?.profilePictureUrl || getPlaceholderImage()}
             alt={other?.fullName || 'Seller'}
             fill
             sizes="36px"
+            unoptimized
             className="object-cover"
           />
         </div>

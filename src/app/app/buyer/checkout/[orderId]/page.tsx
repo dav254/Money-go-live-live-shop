@@ -458,11 +458,18 @@ export default function BuyerCheckoutPage() {
               <li key={item.key} className="flex items-center gap-3">
                 <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl border border-border">
                   {item.imageUrl ? (
+                    // `unoptimized` because this URL comes from order/product
+                    // data written at any time by any seller — next/image
+                    // throws in production for a host that is not listed in
+                    // images.remotePatterns, and that throw landed squarely on
+                    // this screen when a buyer tapped "Pay now". Rendering the
+                    // src as-is can never throw, whatever host it names.
                     <Image
                       src={item.imageUrl}
                       alt={item.name || 'Product'}
                       fill
                       sizes="56px"
+                      unoptimized
                       className="object-cover"
                     />
                   ) : (

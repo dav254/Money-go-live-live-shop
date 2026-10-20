@@ -94,6 +94,10 @@ const nextConfig = {
       { protocol: 'https', hostname: 'goearnvid.shop' }, // VPS-served media (relative /api/media URLs also work)
       { protocol: 'https', hostname: 'api.qrserver.com' },
       { protocol: 'https', hostname: 'firebasestorage.googleapis.com' },
+      // Google sign-in avatars (photoURL) — the most common
+      // profilePictureUrl on the platform, and a throw in next/image for any
+      // host missing here crashes the page that renders the avatar.
+      { protocol: 'https', hostname: 'lh3.googleusercontent.com' },
     ],
   },
   webpack: (config, { isServer }) => {
