@@ -69,6 +69,7 @@ import type { Order, UserProfile, Product, SellerShop } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Separator } from '@/components/ui/separator';
 import { Truck, Calendar, User, ShoppingCart, DollarSign, Home, Milestone, Camera, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
@@ -237,6 +238,30 @@ const RefundDialog = ({ order, isOpen, onOpenChange, onConfirm }: { order: Order
 
 
 export default function AdminAllOrdersPage() {
+  // `useSearchParams` must live under a Suspense boundary or the static
+  // prerender of this route fails (same pattern as /dashboard/products).
+  return (
+    <React.Suspense
+      fallback={
+        <AdminLayout>
+          <div className="flex-1 space-y-4 p-8 pt-6">
+            <DataTableSkeleton />
+          </div>
+        </AdminLayout>
+      }
+    >
+      <AdminAllOrdersInner />
+    </React.Suspense>
+  );
+}
+
+function AdminAllOrdersInner() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  // Set by "View Orders" on /dashboard/admin/users/buyers (and by any other
+  // screen that wants one buyer's orders): the table below narrows to that
+  // buyer and the banner says so, with a way back.
+  const buyerFilterId = searchParams?.get('buyerId') ?? '';
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
   const [rowSelection, setRowSelection] = React.useState({});
@@ -257,6 +282,23 @@ export default function AdminAllOrdersPage() {
   }, [firestore, isAdmin]);
 
   const { data: ordersData, isLoading: areOrdersLoading } = useCollection<Order>(ordersQuery);
+
+  // The buyer the banner should name — one doc read, admin-readable.
+  const filteredBuyerRef = useMemoFirebase(
+    () => (firestore && buyerFilterId ? doc(firestore, 'userProfiles', buyerFilterId) : null),
+    [firestore, buyerFilterId],
+  );
+  const { data: filteredBuyer } = useDoc<UserProfile>(filteredBuyerRef);
+
+  // Client-side narrowing over the data this page already loads: no second
+  // query, and the unfiltered table stays one code path.
+  const visibleOrders = React.useMemo(
+    () =>
+      buyerFilterId
+        ? (ordersData ?? []).filter((order) => order.buyerId === buyerFilterId)
+        : ordersData ?? [],
+    [ordersData, buyerFilterId],
+  );
 
   const isLoading = isProfileLoading || areOrdersLoading;
 
@@ -376,7 +418,7 @@ export default function AdminAllOrdersPage() {
 
 
   const table = useReactTable({
-    data: ordersData || [],
+    data: visibleOrders,
     columns,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
@@ -394,6 +436,24 @@ export default function AdminAllOrdersPage() {
         <h1 className="font-headline text-3xl font-bold tracking-tight">
           Orders & Transactions: All Orders
         </h1>
+        {buyerFilterId && (
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-cyan-400/40 bg-cyan-500/10 px-3 py-2.5 text-sm">
+            <span>
+              Showing only orders for{' '}
+              <span className="font-semibold">
+                {filteredBuyer?.fullName || 'the selected buyer'}
+              </span>{' '}
+              — {visibleOrders.length} {visibleOrders.length === 1 ? 'order' : 'orders'} found.
+            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => router.replace('/dashboard/admin/orders/all')}
+            >
+              Clear filter
+            </Button>
+          </div>
+        )}
         <div className="w-full">
           <div className="flex items-center py-4">
             <Input

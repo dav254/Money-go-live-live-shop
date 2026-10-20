@@ -1,7 +1,9 @@
 'use client';
 
 import * as React from 'react';
-import { Loader2, Search, ShieldCheck, ShieldOff, UserPlus } from 'lucide-react';
+import {
+  AlertTriangle, Loader2, RefreshCw, Search, ShieldCheck, ShieldOff, UserPlus, WifiOff,
+} from 'lucide-react';
 
 import { AdminLayout } from '@/components/layout/admin-layout';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -10,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCollection, useFirestore, useUser } from '@/firebase';
+import { FirestorePermissionError, FirestoreUnavailableError } from '@/firebase/errors';
 import { collection } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import type { UserProfile } from '@/lib/types';
@@ -20,8 +23,27 @@ import type { UserProfile } from '@/lib/types';
  * The platform starts with one admin. This is the screen that grows the team:
  * promote an existing registered user to admin, or demote one back. Every
  * change goes through `/api/admin/users/{uid}/role`, which enforces the two
- * rules rules-cannot express — you cannot change your own role, and the last
+ * rules rules cannot express — you cannot change your own role, and the last
  * admin cannot be demoted — so this screen stays a thin, honest list.
+ *
+ * ## Why the data layer was rebuilt
+ *
+ * The previous version ignored `useCollection`'s `error` entirely. Every
+ * failure — a rules denial, a quota blowout (`resource-exhausted`), a dead
+ * connection — collapsed into the same screen: a spinner that resolved into
+ * "No admins found — something is wrong with this account's role." That copy
+ * blamed the account for what was almost never the account, and it gave the
+ * operator no way to tell the three cases apart or to retry.
+ *
+ * The page now branches on the actual failure:
+ *
+ *   - `FirestorePermissionError` (rules said no)  → say which, and how to fix
+ *     the session (sign out/in; role must be `admin` on your profile).
+ *   - `FirestoreUnavailableError` (quota/offline) → say it is NOT permissions,
+ *     show the SDK code, offer Retry — which resubscribes the snapshot.
+ *   - Loaded and genuinely empty                  → the impossible case (you
+ *     passed the admin gate, so your own profile must be in the list), stated
+ *     as such instead of a vague accusation.
  *
  * Admins are found by `userRole` with the legacy `role` field as fallback
  * (`userRole || role`), the same resolution the rest of the app uses.
@@ -36,12 +58,15 @@ export default function AdminTeamPage() {
 
   const [search, setSearch] = React.useState('');
   const [pendingUid, setPendingUid] = React.useState<string | null>(null);
+  // Bumped by Retry: a fresh collection ref makes useCollection tear down the
+  // failed snapshot listener and subscribe again.
+  const [retryToken, setRetryToken] = React.useState(0);
 
-  // Same single read the admin sidebar already does — one snapshot of
-  // userProfiles, then everything on this page is derived from it.
-  const { data: users, isLoading } = useCollection<UserProfile>(
-    firestore ? collection(firestore, 'userProfiles') : null,
+  const usersQuery = React.useMemo(
+    () => (firestore ? collection(firestore, 'userProfiles') : null),
+    [firestore, retryToken],
   );
+  const { data: users, isLoading, error } = useCollection<UserProfile>(usersQuery);
 
   const allUsers = users ?? [];
   const admins = React.useMemo(
@@ -49,9 +74,13 @@ export default function AdminTeamPage() {
     [allUsers],
   );
 
+  const permissionDenied = error instanceof FirestorePermissionError;
+  const unavailable = error instanceof FirestoreUnavailableError;
+  const sdkCode = unavailable ? (error as FirestoreUnavailableError).code : null;
+
   const suggestions = React.useMemo(() => {
     const needle = search.trim().toLowerCase();
-    if (!needle) return [];
+    if (!needle || error) return [];
     return allUsers
       .filter((u) => u.id !== user?.uid && roleOf(u) !== 'admin')
       .filter(
@@ -61,7 +90,7 @@ export default function AdminTeamPage() {
           (u.username || '').toLowerCase().includes(needle),
       )
       .slice(0, 8);
-  }, [allUsers, search, user?.uid]);
+  }, [allUsers, search, user?.uid, error]);
 
   const setRole = async (uid: string, role: 'admin' | 'buyer' | 'seller' | 'reseller') => {
     if (!user) return;
@@ -94,6 +123,125 @@ export default function AdminTeamPage() {
     }
   };
 
+  /* ------------------------------------------------------------------ states */
+
+  const retry = () => setRetryToken((t) => t + 1);
+
+  const errorCard = error && !isLoading && (
+    <div className="m-5 rounded-xl border border-orange-500/40 bg-orange-500/5 p-5">
+      <div className="flex items-start gap-3">
+        {permissionDenied ? (
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-orange-500" />
+        ) : (
+          <WifiOff className="mt-0.5 h-4 w-4 shrink-0 text-orange-500" />
+        )}
+        <div className="min-w-0 flex-1 space-y-1">
+          <p className="text-xs font-black uppercase tracking-widest text-orange-600">
+            {permissionDenied
+              ? 'Firestore denied this read'
+              : 'Data service unreachable'}
+          </p>
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            {permissionDenied ? (
+              <>
+                The security rules refused to list <code className="font-mono">userProfiles</code>{' '}
+                for this session. Sign out and back in so your admin role is on the token; if it
+                still fails, your profile document may not have <code className="font-mono">userRole: &quot;admin&quot;</code>.
+              </>
+            ) : (
+              <>
+                The request never reached Firestore{sdkCode ? ` (code: ${sdkCode})` : ''} — this is
+                a connection or quota problem, <span className="font-semibold">not</span> a
+                permissions problem, and it is not your account&apos;s role. If it persists, check
+                the project&apos;s Firestore quota/billing in the Firebase console.
+              </>
+            )}
+          </p>
+        </div>
+        <Button variant="outline" size="sm" onClick={retry}>
+          <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+          Retry
+        </Button>
+      </div>
+    </div>
+  );
+
+  const body = () => {
+    if (isLoading) {
+      return (
+        <div className="space-y-3 p-5">
+          {[0, 1].map((i) => (
+            <Skeleton key={i} className="h-12 w-full rounded-xl" />
+          ))}
+        </div>
+      );
+    }
+    if (error) return errorCard;
+    if (admins.length === 0) {
+      // You passed AdminLayout's role gate to get here, so a successfully
+      // loaded list that contains no admin can only mean your own profile
+      // document is missing or unreadable — say exactly that.
+      return (
+        <div className="space-y-3 p-5">
+          <p className="text-sm text-muted-foreground">
+            The users list loaded but contains no admin profile — your own account should appear
+            here. Sign out and in again; if it persists, your <code className="font-mono">userProfiles</code>{' '}
+            document is missing its admin role.
+          </p>
+          <Button variant="outline" size="sm" onClick={retry}>
+            <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+            Reload
+          </Button>
+        </div>
+      );
+    }
+    return (
+      <div className="divide-y divide-border">
+        {admins.map((admin) => {
+          const isSelf = admin.id === user?.uid;
+          return (
+            <div key={admin.id} className="flex items-center gap-3 px-5 py-3">
+              <Avatar className="h-9 w-9">
+                <AvatarImage src={admin.profilePictureUrl} />
+                <AvatarFallback>{(admin.fullName || '?').charAt(0)}</AvatarFallback>
+              </Avatar>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium">
+                  {admin.fullName || 'Unnamed user'}
+                  {isSelf && <span className="ml-2 text-xs text-muted-foreground">(you)</span>}
+                </p>
+                <p className="truncate text-xs text-muted-foreground">{admin.email}</p>
+              </div>
+              <Badge variant="outline" className="shrink-0 text-primary">
+                <ShieldCheck className="mr-1 h-3 w-3" /> Admin
+              </Badge>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={isSelf || pendingUid === admin.id}
+                title={
+                  isSelf
+                    ? 'You cannot change your own role — ask another admin.'
+                    : 'Remove admin access'
+                }
+                onClick={() => setRole(admin.id, 'buyer')}
+              >
+                {pendingUid === admin.id ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <ShieldOff className="mr-1 h-3 w-3" />
+                )}
+                Remove
+              </Button>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  /* -------------------------------------------------------------------- view */
+
   return (
     <AdminLayout>
       <div className="flex-1 space-y-6 p-8 pt-6 max-w-4xl">
@@ -107,66 +255,21 @@ export default function AdminTeamPage() {
 
         {/* Current admins */}
         <section className="rounded-2xl border border-border bg-card">
-          <div className="flex items-center gap-2 border-b border-border px-5 py-4">
-            <ShieldCheck className="h-4 w-4 text-primary" />
-            <h2 className="text-sm font-semibold uppercase tracking-wider">
-              Current admins ({admins.length})
-            </h2>
-          </div>
-          <div className="divide-y divide-border">
-            {isLoading && (
-              <div className="space-y-3 p-5">
-                {[0, 1].map((i) => (
-                  <Skeleton key={i} className="h-12 w-full rounded-xl" />
-                ))}
-              </div>
+          <div className="flex items-center justify-between gap-2 border-b border-border px-5 py-4">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4 text-primary" />
+              <h2 className="text-sm font-semibold uppercase tracking-wider">
+                Current admins {error || isLoading ? '' : `(${admins.length})`}
+              </h2>
+            </div>
+            {!isLoading && !error && (
+              <Button variant="ghost" size="sm" onClick={retry} title="Reload the list">
+                <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+                Refresh
+              </Button>
             )}
-            {!isLoading && admins.length === 0 && (
-              <p className="p-5 text-sm text-muted-foreground">
-                No admins found — something is wrong with this account&apos;s role.
-              </p>
-            )}
-            {!isLoading &&
-              admins.map((admin) => {
-                const isSelf = admin.id === user?.uid;
-                return (
-                  <div key={admin.id} className="flex items-center gap-3 px-5 py-3">
-                    <Avatar className="h-9 w-9">
-                      <AvatarImage src={admin.profilePictureUrl} />
-                      <AvatarFallback>{(admin.fullName || '?').charAt(0)}</AvatarFallback>
-                    </Avatar>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">
-                        {admin.fullName || 'Unnamed user'}
-                        {isSelf && <span className="ml-2 text-xs text-muted-foreground">(you)</span>}
-                      </p>
-                      <p className="truncate text-xs text-muted-foreground">{admin.email}</p>
-                    </div>
-                    <Badge variant="outline" className="shrink-0 text-primary">
-                      <ShieldCheck className="mr-1 h-3 w-3" /> Admin
-                    </Badge>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={isSelf || pendingUid === admin.id}
-                      title={
-                        isSelf
-                          ? 'You cannot change your own role — ask another admin.'
-                          : 'Remove admin access'
-                      }
-                      onClick={() => setRole(admin.id, 'buyer')}
-                    >
-                      {pendingUid === admin.id ? (
-                        <Loader2 className="h-3 w-3 animate-spin" />
-                      ) : (
-                        <ShieldOff className="mr-1 h-3 w-3" />
-                      )}
-                      Remove
-                    </Button>
-                  </div>
-                );
-              })}
           </div>
+          {body()}
         </section>
 
         {/* Promote someone */}
@@ -219,7 +322,7 @@ export default function AdminTeamPage() {
                 ))}
               </div>
             )}
-            {search.trim() && suggestions.length === 0 && !isLoading && (
+            {search.trim() && suggestions.length === 0 && !isLoading && !error && (
               <p className="rounded-xl border border-dashed border-border p-4 text-center text-sm text-muted-foreground">
                 No registered users match “{search.trim()}”.
               </p>
