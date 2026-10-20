@@ -6,7 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import type { ReactNode, SVGProps } from 'react';
 
 import {
-  Bell, Home, Search, ShoppingCart, Package, User,
+  Home, Search, ShoppingCart, Package, User,
   Loader2, Menu,
 } from 'lucide-react';
 import {
@@ -15,6 +15,7 @@ import {
 import { collection } from 'firebase/firestore';
 import type { CartItem } from '@/lib/types';
 import { Logo } from '@/components/logo';
+import { NotificationsBell } from '@/components/notifications/notifications-bell';
 import { BuyerNavDrawer } from '@/components/app/buyer/buyer-nav-drawer';
 import { resolveRole } from '@/lib/auth/roles';
 import { cn } from '@/lib/utils';
@@ -213,17 +214,27 @@ function BuyerTopBarInner({
           {/* Discovery's identity and search live HERE now — the section's own
               bar is gone, so this is the only header on the screen. */}
           {onDiscovery && <Logo className="ml-1 text-lg" />}
-          {onDiscovery && (
-            <button
-              type="button"
-              onClick={() => window.dispatchEvent(new CustomEvent('vidnov:open-search'))}
-              aria-label="Search & filters"
-              title="Search & filters"
-              className="ml-auto flex h-9 w-9 items-center justify-center rounded-full text-white/70 transition hover:bg-white/10"
-            >
-              <Search className="h-5 w-5" />
-            </button>
-          )}
+          {/* The bell rides in the right-hand action cluster so it survives
+              both discovery (next to search) and immersive non-discovery
+              screens (where it is the only action on the right). */}
+          <div className="ml-auto flex items-center gap-1">
+            <NotificationsBell
+              href="/app/buyer/notifications"
+              className="text-white/70 hover:bg-white/10"
+              iconClassName="h-5 w-5"
+            />
+            {onDiscovery && (
+              <button
+                type="button"
+                onClick={() => window.dispatchEvent(new CustomEvent('vidnov:open-search'))}
+                aria-label="Search & filters"
+                title="Search & filters"
+                className="flex h-9 w-9 items-center justify-center rounded-full text-white/70 transition hover:bg-white/10"
+              >
+                <Search className="h-5 w-5" />
+              </button>
+            )}
+          </div>
         </div>
       </header>
     );
@@ -244,6 +255,12 @@ function BuyerTopBarInner({
         {/* `ml-auto` was on the section pill; with the pill gone the logo takes
             over pushing the actions right, so the bar keeps its shape. */}
         <Logo className="ml-auto text-xl" />
+
+        <NotificationsBell
+          href="/app/buyer/notifications"
+          className="text-white/60 hover:bg-white/10"
+          iconClassName="h-4 w-4"
+        />
       </div>
     </header>
   );

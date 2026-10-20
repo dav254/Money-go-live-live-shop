@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 
 import {
-  Bell, Home, Boxes, Plus, Package, Search,
+  Home, Boxes, Plus, Package, Search,
   Loader2, Menu, MessageSquare,
 } from 'lucide-react';
 import {
@@ -14,6 +14,7 @@ import {
 import { collection, query, where } from 'firebase/firestore';
 import type { Order } from '@/lib/types';
 import { Logo } from '@/components/logo';
+import { NotificationsBell } from '@/components/notifications/notifications-bell';
 import { SellerNavDrawer } from '@/components/app/seller/seller-nav-drawer';
 import { resolveRole } from '@/lib/auth/roles';
 import { cn } from '@/lib/utils';
@@ -260,13 +261,10 @@ function SellerTopBar({ onOpenNav, immersive = false }: { onOpenNav: () => void;
             over pushing the actions right, so the bar keeps its shape. */}
         <Logo className="ml-auto text-xl" />
 
-        <Link
+        <NotificationsBell
           href="/app/seller/notifications"
-          aria-label="Notifications"
-          className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition hover:bg-secondary"
-        >
-          <Bell className="h-4 w-4" />
-        </Link>
+          label="Notifications"
+        />
 
         <Link
           href="/app/seller/account"

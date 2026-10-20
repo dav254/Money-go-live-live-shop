@@ -1,14 +1,27 @@
 'use client';
 
-import { BuyerLayout } from '@/components/layout/buyer-layout';
+/**
+ * WEBSITE · BUYER NOTIFICATIONS.
+ *
+ * This route used to render a "Feature Removed" placeholder — the inbox had
+ * been declared dead while the header had no way to reach any inbox at all,
+ * which left website buyers with notifications they could never read (the app
+ * copy lives at `/app/buyer/notifications`, reachable only from inside the PWA
+ * section).
+ *
+ * Rather than duplicate 300 lines of list/filter/mark-read logic, this page is
+ * the shared notification centre (`/dashboard/notifications`) rendered inside
+ * the buyer chrome. The inbox itself queries only the signed-in user's own
+ * documents — the same equality-filtered query the Firestore rules allow.
+ */
 
-export default function RemovedPage() {
+import { BuyerLayout } from '@/components/layout/buyer-layout';
+import NotificationCenterPage from '@/app/dashboard/notifications/page';
+
+export default function BuyerNotificationsPage() {
   return (
     <BuyerLayout>
-      <div className="flex flex-col items-center justify-center h-full text-center p-8">
-        <h1 className="text-2xl font-bold uppercase tracking-tighter">Feature Removed</h1>
-        <p className="text-muted-foreground mt-2 font-medium">Notifications are no longer available in this section.</p>
-      </div>
+      <NotificationCenterPage />
     </BuyerLayout>
   );
 }

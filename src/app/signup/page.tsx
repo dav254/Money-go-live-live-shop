@@ -23,6 +23,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
   SelectContent,
@@ -40,13 +41,63 @@ import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { Loader2, Sparkles } from 'lucide-react';
 import { claimSignupReferral, claimFailureMessage } from '@/lib/referrals/claim';
 
-const formSchema = z.object({
-  fullName: z.string().min(2, { message: 'Full name must be at least 2 characters.' }),
-  username: z.string().min(2, { message: 'Username must be at least 2 characters.' }),
-  email: z.string().email({ message: 'Please enter a valid email address.' }),
-  password: z.string().min(6, { message: 'Password must be at least 6 characters.' }),
-  role: z.enum(['buyer', 'seller'], { required_error: 'You must select a role.' }),
-});
+/**
+ * Phone rules, in one place because they depend on TWO other fields:
+ *
+ * - **Sellers must give a number.** Buyers and support reach sellers on it, and
+ *   the admin Buyers table shows it — an empty column helps nobody.
+ * - **Buyers may skip it**, but if they type one it must be real, and if they
+ *   type one they must also tick the consent box (a number stored without
+ *   consent to message it is a liability, not a feature).
+ * - Ticking consent with no number is also rejected — otherwise the user
+ *   believes alerts are coming when there is nowhere to send them.
+ */
+const formSchema = z
+  .object({
+    fullName: z.string().min(2, { message: 'Full name must be at least 2 characters.' }),
+    username: z.string().min(2, { message: 'Username must be at least 2 characters.' }),
+    email: z.string().email({ message: 'Please enter a valid email address.' }),
+    password: z.string().min(6, { message: 'Password must be at least 6 characters.' }),
+    role: z.enum(['buyer', 'seller'], { required_error: 'You must select a role.' }),
+    phone: z.string().max(30, { message: 'That phone number looks too long.' }),
+    notifyConsent: z.boolean(),
+  })
+  .superRefine((values, ctx) => {
+    const raw = values.phone.trim();
+    const digits = raw.replace(/\D/g, '');
+    const hasPhone = raw.length > 0;
+    // Optional +, digits, spaces, dashes and parentheses — the shapes people
+    // actually paste. The digit count is what must look like a real number.
+    const looksValid = /^\+?[\d\s()-]+$/.test(raw) && digits.length >= 7 && digits.length <= 15;
+
+    if (values.role === 'seller' && !hasPhone) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['phone'],
+        message: 'Sellers must add a phone number — buyers and support contact you on it.',
+      });
+    } else if (hasPhone && !looksValid) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['phone'],
+        message: 'Enter a valid phone number with 7–15 digits (you can start with +).',
+      });
+    }
+
+    if (hasPhone && !values.notifyConsent) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['notifyConsent'],
+        message: 'Please agree to receive order and account alerts, or remove the number.',
+      });
+    } else if (!hasPhone && values.notifyConsent) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['phone'],
+        message: 'Add your phone number to receive alerts on it.',
+      });
+    }
+  });
 
 /**
  * Human wording for the auth errors signup can actually hit.
@@ -103,6 +154,8 @@ function SignupFormContent() {
       email: '',
       password: '',
       role: defaultRole,
+      phone: '',
+      notifyConsent: false,
     },
   });
 
@@ -122,6 +175,20 @@ function SignupFormContent() {
 
   async function handleGoogleSignup() {
     const selectedRole = form.getValues('role');
+
+    // The phone + consent fields live in the email form below, so the Google
+    // button has to validate them itself — otherwise a seller could skip the
+    // required number just by signing up through Google instead.
+    const phoneFieldsValid = await form.trigger(['phone', 'notifyConsent']);
+    if (!phoneFieldsValid) {
+      toast({
+        variant: 'destructive',
+        title: 'Check your phone number',
+        description: 'Sellers must add a reachable phone number before signing up.',
+      });
+      return;
+    }
+
     setIsGoogleLoading(true);
     try {
       const provider = new GoogleAuthProvider();
@@ -131,6 +198,7 @@ function SignupFormContent() {
       const userDocSnap = await getDoc(userDocRef);
 
       if (!userDocSnap.exists()) {
+        const googlePhone = form.getValues('phone').trim();
         const profile = {
           id: signedUpUser.uid,
           uid: signedUpUser.uid,
@@ -143,7 +211,12 @@ function SignupFormContent() {
           role: selectedRole,
           aiPoints: selectedRole === 'seller' ? 1000 : 0, 
           status: 'active',
-          freePointsAwardedAt: selectedRole === 'seller' ? new Date().toISOString() : null
+          freePointsAwardedAt: selectedRole === 'seller' ? new Date().toISOString() : null,
+          // `phoneNumber` is exactly what the admin Buyers table reads
+          // (see dashboard/admin/users/buyers) — keep the field name in sync.
+          ...(googlePhone
+            ? { phoneNumber: googlePhone, phoneConsentAt: new Date().toISOString() }
+            : {}),
         };
         await setDoc(userDocRef, profile);
         // Fire the welcome flow (in-app notification + welcome email) without blocking signup.
@@ -182,6 +255,7 @@ function SignupFormContent() {
       const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
       const signedUpUser = userCredential.user;
       const userDocRef = doc(firestore, "userProfiles", signedUpUser.uid);
+      const phone = values.phone.trim();
       const profile = {
         id: signedUpUser.uid,
         uid: signedUpUser.uid,
@@ -193,7 +267,10 @@ function SignupFormContent() {
         role: values.role,
         aiPoints: values.role === 'seller' ? 1000 : 0, 
         status: 'active',
-        freePointsAwardedAt: values.role === 'seller' ? new Date().toISOString() : null
+        freePointsAwardedAt: values.role === 'seller' ? new Date().toISOString() : null,
+        // `phoneNumber` is exactly what the admin Buyers table reads
+        // (see dashboard/admin/users/buyers) — keep the field name in sync.
+        ...(phone ? { phoneNumber: phone, phoneConsentAt: new Date().toISOString() } : {}),
       };
       await setDoc(userDocRef, profile);
       // Fire the welcome flow (in-app notification + welcome email) without blocking signup.
@@ -299,6 +376,60 @@ function SignupFormContent() {
               <FormField control={form.control} name="password" render={({ field }) => (
                   <FormItem><FormLabel>Password</FormLabel><FormControl><Input type="password" {...field} /></FormControl><FormMessage /></FormItem>
               )} />
+              <FormField
+                control={form.control}
+                name="phone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="flex items-center justify-between">
+                      <span>Phone number</span>
+                      <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">
+                        {form.watch('role') === 'seller' ? 'Required' : 'Optional'}
+                      </span>
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        type="tel"
+                        inputMode="tel"
+                        autoComplete="tel"
+                        placeholder="+254 712 345 679"
+                        {...field}
+                      />
+                    </FormControl>
+                    <p className="text-[11px] leading-relaxed text-muted-foreground">
+                      {form.watch('role') === 'seller'
+                        ? 'Buyers and platform support reach you on this number — it shows on your admin profile too.'
+                        : 'Add it to get order and delivery alerts on your phone. We only message you about your orders and security.'}
+                    </p>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="notifyConsent"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-start gap-3 space-y-0 rounded-xl border border-primary/15 bg-primary/5 p-3">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        className="mt-0.5"
+                      />
+                    </FormControl>
+                    <div className="space-y-1">
+                      <FormLabel className="text-xs font-medium leading-relaxed">
+                        Send me order, delivery and account alerts by phone
+                      </FormLabel>
+                      <p className="text-[11px] leading-relaxed text-muted-foreground">
+                        Only about your own orders and security — never marketing spam.
+                        You can turn this off later in notification settings.
+                      </p>
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <Button type="submit" className="w-full h-12 font-black uppercase tracking-widest shadow-xl shadow-primary/20" disabled={form.formState.isSubmitting || isGoogleLoading}>
                 {form.formState.isSubmitting ? 'Creating Account...' : 'Create Account'}
               </Button>

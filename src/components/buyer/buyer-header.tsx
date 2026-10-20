@@ -17,6 +17,7 @@ import { collection, query, where } from 'firebase/firestore';
 import type { Chat, LiveSession } from '@/lib/types';
 import { Logo } from '../logo';
 import { Badge } from '../ui/badge';
+import { NotificationsBell } from '@/components/notifications/notifications-bell';
 
 export function BuyerHeader() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -129,6 +130,12 @@ export function BuyerHeader() {
             <Search className="h-5 w-5" />
             <span className="sr-only">Search</span>
         </Button>
+        <NotificationsBell
+          href="/buyer/notifications"
+          label="Notifications"
+          className="flex h-9 w-9"
+          iconClassName="h-5 w-5"
+        />
         <Button variant="ghost" size="icon" asChild title="Messages" className="relative">
           <Link href="/messages">
             <MessageSquare className="h-5 w-5" />

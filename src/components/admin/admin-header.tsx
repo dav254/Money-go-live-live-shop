@@ -1,7 +1,7 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { Bell, MessageSquare, Menu } from 'lucide-react';
+import { MessageSquare, Menu } from 'lucide-react';
 import Link from 'next/link';
 import { UserNav } from '../layout/user-nav';
 import { Skeleton } from '../ui/skeleton';
@@ -9,6 +9,7 @@ import { SidebarTrigger } from '../ui/sidebar';
 import { useUser, useUserProfile, useFirestore } from '@/firebase';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '../ui/sheet';
 import { Logo } from '../logo';
+import { NotificationsBell } from '@/components/notifications/notifications-bell';
 import { AdminSidebar } from './admin-sidebar';
 
 
@@ -64,12 +65,15 @@ export function AdminHeader() {
         </div>
       </div>
       <div className="flex items-center gap-2">
-        <Button variant="ghost" size="icon" asChild>
-          <Link href="/dashboard/admin/notifications">
-            <Bell />
-            <span className="sr-only">Notifications</span>
-          </Link>
-        </Button>
+        {/* Route check: `/dashboard/admin/notifications` did not exist — the old
+            link 404'd. The route now renders the shared inbox inside the admin
+            chrome, and the bell carries the live unread badge. */}
+        <NotificationsBell
+          href="/dashboard/admin/notifications"
+          label="Notifications"
+          className="flex h-9 w-9"
+          iconClassName="h-5 w-5"
+        />
         <Button variant="ghost" size="icon" asChild>
            <Link href="/messages">
             <MessageSquare />
