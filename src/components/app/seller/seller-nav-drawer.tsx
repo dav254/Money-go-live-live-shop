@@ -8,6 +8,7 @@ import {
   Bell,
   BellRing,
   ChevronRight,
+  Clapperboard,
   Coins,
   Compass,
   CreditCard,
@@ -17,6 +18,7 @@ import {
   Inbox,
   MapPin,
   MessageSquare,
+  Palette,
   QrCode,
   Radio,
   Sparkles,
@@ -127,6 +129,23 @@ const GROUPS: DrawerGroup[] = [
         href: '/app/seller/ai-studio',
         icon: Sparkles,
         tone: 'ai',
+      },
+      // Classic Studio — the real photo editor + promotional design tool.
+      // Sits beside AI Studio: one edits photos you shot, the other generates
+      // new ones, and both end in the same media pipeline.
+      {
+        key: 'studio',
+        label: 'Classic Studio',
+        href: '/app/seller/studio',
+        icon: Palette,
+        tone: 'ai',
+      },
+      // Living Pictures — a still photo published with optional licensed music.
+      {
+        key: 'living-pictures',
+        label: 'Living Pictures',
+        href: '/app/seller/living-pictures/new',
+        icon: Clapperboard,
       },
       // Incoming briefs from buyers. A plain link, like every other entry here —
       // see the note above about this menu never reading data.

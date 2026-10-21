@@ -103,6 +103,14 @@ const formSchema = z.object({
 interface ProductUploadFormProps {
   productToEdit?: Product;
   onFormSubmit?: () => void;
+  /**
+   * Studio handoff: already-uploaded server URLs (e.g. a Classic Studio edit)
+   * to pre-attach as the first photos. The studio saves its export through the
+   * media pipeline first, so these are real stored URLs, not blobs — seeding
+   * them here is what makes "Use in a product listing" actually attach the
+   * edited photo instead of opening an empty tray.
+   */
+  initialImageUrls?: string[];
 }
 
 const STEPS = [
@@ -122,7 +130,7 @@ interface MediaItem {
   thumbnailUrl?: string;
 }
 
-export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUploadFormProps) {
+export function ProductUploadForm({ productToEdit, onFormSubmit, initialImageUrls }: ProductUploadFormProps) {
   const { user } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
@@ -184,6 +192,21 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
    * listing. Without this an edit opens with an empty photo tray and
    * publishing overwrites imageUrl/videoUrls with nothing.
    */
+  /*
+   * Studio handoff: seed the tray with the edited photos the studio already
+   * stored. Runs once (guarded by the empty-slot check) so a later re-render
+   * never clobbers photos the seller has since arranged.
+   */
+  useEffect(() => {
+    if (!initialImageUrls?.length) return;
+    const urls = initialImageUrls
+      .map((u) => (typeof u === 'string' ? u.trim() : ''))
+      .filter((u): u is string => u !== '' && !u.startsWith('blob:'))
+      .slice(0, MAX_IMAGES);
+    setImagePreviews((prev) => prev.map((cur, i) => cur ?? urls[i] ?? null));
+    setImageThumbUrls((prev) => prev.map((cur, i) => cur ?? urls[i] ?? null));
+  }, [initialImageUrls]);
+
   useEffect(() => {
     if (!productToEdit) return;
     const clean = (list: (string | undefined | null)[] | undefined) =>

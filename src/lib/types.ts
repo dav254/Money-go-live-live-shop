@@ -224,6 +224,33 @@ export interface Product {
     hasVideo?: boolean;
     updatedAt?: any;
     /**
+     * What kind of media leads this listing.
+     *
+     * ADDITIVE: absent means an ordinary product/photo, so every existing
+     * listing is unchanged. `livingPicture` marks a still photo published with
+     * OPTIONAL licensed music (Classic Studio → Living Pictures). Discovery
+     * reads it to render the playback control and a distinct badge, keeping an
+     * ordinary photo, a Living Picture and a video visually separate (spec B4).
+     */
+    mediaKind?: 'photo' | 'livingPicture';
+    /**
+     * The licensed music attached to a Living Picture, if any.
+     *
+     * OPTIONAL and snapshotted at publish: a Living Picture with NO music
+     * simply omits this (music is never required). The snapshot carries the
+     * licence id + licensor so the attribution travels with the document even
+     * if the catalogue entry later changes. The stream URL is a same-origin
+     * path the browser caches, so a re-view does not re-download the track.
+     */
+    musicTrack?: {
+        id: string;
+        title: string;
+        artist: string;
+        streamUrl: string;
+        licenceId: string;
+        licensor: string;
+    };
+    /**
      * Stock-keeping unit for a sized/variant product.
      *
      * Additive: a single-size listing just leaves this off and the product

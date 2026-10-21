@@ -195,6 +195,17 @@ export const APP_SECTIONS: AppSection[] = [
     prefixes: ['/dashboard/seller/ai-studio', '/dashboard/seller/ai-tools', '/ai-studio'],
   },
   {
+    id: 'seller-studio',
+    label: 'Classic Studio & Living Pictures',
+    description: 'Photo editing, promotional design, and music-backed Living Pictures.',
+    roles: ['seller'],
+    // Classic Studio (`/app/seller/studio`) and the Living Pictures flow
+    // (`/app/seller/living-pictures/new`) are one creative suite, so one
+    // toggle governs both — otherwise switching "studio" off would leave the
+    // Living Pictures publisher still reachable and the toggle a lie.
+    prefixes: ['/app/seller/studio', '/app/seller/living-pictures'],
+  },
+  {
     id: 'seller-live',
     label: 'Go live & streams',
     description: 'Broadcast setup, live control and saved streams.',
