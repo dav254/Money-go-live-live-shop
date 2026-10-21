@@ -43,6 +43,7 @@ import { cn } from '@/lib/utils';
 import type { Comment, Product } from '@/lib/types';
 import { isService, listingPriceDisplay } from '@/components/listings/service-badge';
 import { availabilityLabel, isPurchasable, listingCover, listingMedia, sellerListingCover, timeAgo } from '@/lib/discovery';
+import { LivingPicturePlayer, type LivingPictureTrack } from '@/components/studio/living-picture-player';
 export interface DiscoverySeller {
   id: string;
   name: string;
@@ -396,6 +397,22 @@ export function DiscoveryVideoPost({
   const place = listing.location || listing.vendorLocation || listing.serviceArea;
   const purchasable = isPurchasable(listing);
   const coverImage = cover ?? sellerListingCover(listing);
+  /*
+   * A Living Picture is a still photo with OPTIONAL licensed music. It is NOT
+   * a video (no moving picture), so it renders through the image branch — but
+   * with the playback control layered on. No track means it is an ordinary
+   * photo and the player renders nothing extra, so music is never forced.
+   */
+  const livingTrack: LivingPictureTrack | null =
+    listing.mediaKind === 'livingPicture' && listing.musicTrack
+      ? {
+          id: listing.musicTrack.id,
+          title: listing.musicTrack.title,
+          artist: listing.musicTrack.artist,
+          streamUrl: listing.musicTrack.streamUrl,
+        }
+      : null;
+  const isLivingPicture = listing.mediaKind === 'livingPicture';
   const tags = (listing.tags ?? '').trim();
   const caption = [
     listing.description?.trim(),
@@ -469,6 +486,23 @@ export function DiscoveryVideoPost({
               )}
             />
           </>
+        ) : isLivingPicture ? (
+          /*
+           * A Living Picture — a still photo with OPTIONAL licensed music. It
+           * renders through the playback component, which never autoplays and
+           * keeps the photo fully visible if the audio fails. With no track it
+           * is an ordinary photo (the player degrades to a plain image).
+           */
+          <LivingPicturePlayer
+            imageUrl={
+              coverFailed
+                ? '/placeholder-image.svg'
+                : (current?.url ?? coverImage) || '/placeholder-image.svg'
+            }
+            alt={listing.name}
+            track={livingTrack}
+            className="absolute inset-0"
+          />
         ) : (
           <Image
             /* `(current?.url ?? coverImage) || placeholder`: with no playable
@@ -485,6 +519,17 @@ export function DiscoveryVideoPost({
             fill
             sizes="100vw"
             priority={active}
+            /*
+             * The upload pipeline already stores this WebP at q92 (≤2048px) —
+             * the seller's photo, essentially untouched. `next/image` would
+             * otherwise re-encode the delivered copy at its DEFAULT quality
+             * (75), which is where the feed's soft, "compressed" look came
+             * from: sharp text and product edges went mushy on the full-screen
+             * post. Matching the stored quality keeps the delivered bytes as
+             * close to the original as the format allows without shipping the
+             * whole file on a phone connection.
+             */
+            quality={90}
             className="object-cover"
             onError={() => {
               if (current) markFailed(current.url);
@@ -534,6 +579,22 @@ export function DiscoveryVideoPost({
       {sponsored && (
         <span className="absolute left-4 top-4 z-20 rounded-full bg-white/15 px-2.5 py-1 text-[10px] font-semibold text-white backdrop-blur-md">
           Sponsored
+        </span>
+      )}
+
+      {/*
+        Living Picture marker — keeps a music-backed still visibly distinct
+        from an ordinary photo and from a video in the same feed (spec B4).
+        Positioned under the Sponsored chip so the two never overlap.
+      */}
+      {isLivingPicture && (
+        <span
+          className={cn(
+            'absolute left-4 z-20 rounded-full bg-black/45 px-2.5 py-1 text-[10px] font-semibold text-white backdrop-blur-md',
+            sponsored ? 'top-12' : 'top-4',
+          )}
+        >
+          {livingTrack ? 'Living Picture · Music' : 'Living Picture'}
         </span>
       )}
 

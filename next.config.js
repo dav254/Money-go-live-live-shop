@@ -86,6 +86,15 @@ const nextConfig = {
   },
   images: {
     dangerouslyAllowSVG: true,
+    /*
+     * NOTE: Next 15 has no global `images.quality` (or `images.qualities`) —
+     * quality is a per-`<Image>` `quality` prop whose DEFAULT is 75. That
+     * default is what softened uploaded product photos (the "blurry in
+     * Discovery" complaint): the upload pipeline already stores a clean q92
+     * WebP, and the image optimizer was re-encoding it at 75 on the way to the
+     * screen. Discovery surfaces therefore pass an explicit high `quality`
+     * prop on the images buyers actually look at (see discovery-video-post).
+     */
     remotePatterns: [
       { protocol: 'https', hostname: 'placehold.co' },
       { protocol: 'https', hostname: 'images.unsplash.com' },
