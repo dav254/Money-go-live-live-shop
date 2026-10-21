@@ -11,7 +11,7 @@ import { ProductGrid } from '@/components/products/product-grid';
 import Link from 'next/link';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
 import type { Product, UserProfile } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -20,6 +20,7 @@ function SearchResults() {
     const searchParams = useSearchParams();
     const queryTerm = searchParams?.get('q')?.toLowerCase() || '';
     const firestore = useFirestore();
+    const { user } = useUser();
 
     // Fetch all products to filter locally (Firestore doesn't do substring search well)
     const productsQuery = useMemoFirebase(() => {
@@ -27,11 +28,13 @@ function SearchResults() {
         return collection(firestore, 'products');
     }, [firestore]);
 
-    // Fetch all sellers to filter locally
+    // Sellers listing requires a signed-in caller (Firestore rules deny the
+    // list for guests), so the query stays null until there is a session —
+    // visitors still get full product results instead of a permission error.
     const sellersQuery = useMemoFirebase(() => {
-        if (!firestore) return null;
+        if (!firestore || !user) return null;
         return query(collection(firestore, 'userProfiles'), where('userRole', '==', 'seller'));
-    }, [firestore]);
+    }, [firestore, user]);
 
     const { data: allProducts, isLoading: areProductsLoading } = useCollection<Product>(productsQuery);
     const { data: allSellers, isLoading: areSellersLoading } = useCollection<UserProfile>(sellersQuery);
@@ -144,8 +147,10 @@ function SearchResults() {
 }
 
 export default function SearchPage() {
+  // Guests may search products: the catalogue is public, and the seller tab
+  // simply stays empty until signed in (see the gated query above).
   return (
-    <BuyerLayout>
+    <BuyerLayout isGuestAllowed>
       <Suspense fallback={<div className="p-8 text-white">Loading Search...</div>}>
         <SearchResults />
       </Suspense>
