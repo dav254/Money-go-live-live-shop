@@ -18,6 +18,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useUser } from '@/firebase';
 
 interface EmailStatus {
   mode: 'development' | 'production';
@@ -34,15 +35,24 @@ interface EmailStatus {
 
 export default function AdminEmailSettingsPage() {
   const { toast } = useToast();
+  const { user } = useUser();
   const [status, setStatus] = React.useState<EmailStatus | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [recipient, setRecipient] = React.useState('');
   const [sending, setSending] = React.useState(false);
 
+  // The API is admin-gated on a Bearer token — without it the request gets a
+  // 403 and the page reported "status unavailable" no matter what env keys
+  // existed, which read like a credentials problem when it was an auth one.
   const load = React.useCallback(async () => {
+    if (!user) return;
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/email-status');
+      const token = await user.getIdToken();
+      const res = await fetch('/api/admin/email-status', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.status === 403) throw new Error('This account is not an admin.');
       if (!res.ok) throw new Error('Could not load email status.');
       setStatus((await res.json()) as EmailStatus);
     } catch (error) {
@@ -54,19 +64,20 @@ export default function AdminEmailSettingsPage() {
     } finally {
       setLoading(false);
     }
-  }, [toast]);
+  }, [toast, user]);
 
   React.useEffect(() => {
     void load();
   }, [load]);
 
   const sendTest = async () => {
-    if (!recipient.trim()) return;
+    if (!recipient.trim() || !user) return;
     setSending(true);
     try {
+      const token = await user.getIdToken();
       const res = await fetch('/api/admin/email-test', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ to: recipient.trim(), templateKey: 'welcome' }),
       });
       const data = await res.json().catch(() => ({}));

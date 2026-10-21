@@ -92,7 +92,47 @@ function toStatus(entry: SocketEntry | undefined): WhatsAppStatus {
 }
 
 export function whatsappStatusFor(uid: string): WhatsAppStatus {
+  maybeResumeSavedSessions();
   return toStatus(registry.get(uid));
+}
+
+// ---------------------------------------------------------------------------
+// Auto-resume — why pairing survives a deploy.
+//
+// The socket lives in memory, but the credentials live on disk
+// (`.whatsapp-sessions/<uid>/creds.json`). Without this, every `pm2 reload`
+// or VPS restart reset the state machine to `idle`, and admin alerts silently
+// stopped until somebody noticed and pressed Connect again. On first status
+// read we now find every saved session and bring its socket back — no QR
+// re-scan needed, because WhatsApp recognises the restored linked device.
+// ---------------------------------------------------------------------------
+let resumeStarted = false;
+
+function maybeResumeSavedSessions(): void {
+  if (resumeStarted) return;
+  resumeStarted = true;
+  void (async () => {
+    let entries: string[] = [];
+    try {
+      entries = await fs.readdir(SESSION_ROOT);
+    } catch {
+      return; // No sessions yet — first run.
+    }
+    for (const uid of entries) {
+      if (registry.has(uid)) continue;
+      try {
+        await fs.access(path.join(SESSION_ROOT, uid, 'creds.json'));
+      } catch {
+        continue; // Directory without credentials — nothing to resume.
+      }
+      const entry: SocketEntry = { state: 'connecting', sock: null, stopped: false };
+      registry.set(uid, entry);
+      void startSocket(uid, entry).catch((err) => {
+        entry.state = 'error';
+        entry.error = err instanceof Error ? err.message : 'Could not resume WhatsApp connection.';
+      });
+    }
+  })();
 }
 
 /** True when at least one admin phone is paired — used to skip work entirely. */
@@ -109,6 +149,7 @@ export function isWhatsAppAlertingEnabled(): boolean {
  * `whatsappStatusFor` until `state` leaves `connecting`.
  */
 export async function connectWhatsAppFor(uid: string): Promise<WhatsAppStatus> {
+  maybeResumeSavedSessions();
   const existing = registry.get(uid);
   if (existing && existing.state !== 'error' && !existing.stopped) {
     return toStatus(existing);
@@ -173,6 +214,11 @@ async function startSocket(uid: string, entry: SocketEntry): Promise<void> {
       if (entry.stopped || loggedOut) {
         entry.state = 'idle';
         entry.sock = null;
+        if (loggedOut) {
+          // The phone unlinked us — the saved credentials are dead. Drop them
+          // so auto-resume doesn't loop on a session that can never reconnect.
+          await fs.rm(path.join(SESSION_ROOT, uid), { recursive: true, force: true }).catch(() => {});
+        }
         return;
       }
 

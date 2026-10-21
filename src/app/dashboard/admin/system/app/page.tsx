@@ -18,6 +18,7 @@ import {
   Smartphone,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useUser } from '@/firebase';
 import { APP_SECTIONS, type SectionToggles } from '@/lib/app-sections';
 
 /**
@@ -34,15 +35,23 @@ import { APP_SECTIONS, type SectionToggles } from '@/lib/app-sections';
  */
 export default function AdminAppManagerPage() {
   const { toast } = useToast();
+  const { user } = useUser();
   const [toggles, setToggles] = React.useState<SectionToggles>({});
   const [saved, setSaved] = React.useState<SectionToggles>({});
   const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
 
+  // Admin-gated API: the Bearer token is required, otherwise this page 403s
+  // and looks broken even when configuration is perfectly healthy.
   const load = React.useCallback(async () => {
+    if (!user) return;
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/app-config');
+      const token = await user.getIdToken();
+      const res = await fetch('/api/admin/app-config', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.status === 403) throw new Error('This account is not an admin.');
       if (!res.ok) throw new Error('Could not load app configuration.');
       const data = (await res.json()) as { sections?: SectionToggles };
       const next = data.sections ?? {};
@@ -57,7 +66,7 @@ export default function AdminAppManagerPage() {
     } finally {
       setLoading(false);
     }
-  }, [toast]);
+  }, [toast, user]);
 
   React.useEffect(() => {
     void load();
@@ -74,11 +83,13 @@ export default function AdminAppManagerPage() {
   );
 
   async function save() {
+    if (!user) return;
     setSaving(true);
     try {
+      const token = await user.getIdToken();
       const res = await fetch('/api/admin/app-config', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ sections: toggles }),
       });
       const data = await res.json();

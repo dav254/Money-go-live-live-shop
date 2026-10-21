@@ -14,6 +14,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
+import { useUser } from '@/firebase';
 
 type HealthState = 'operational' | 'degraded' | 'outage';
 
@@ -70,14 +71,24 @@ function StateIcon({ state }: { state: HealthState }) {
  * tile links straight to the page where an admin fixes that subsystem.
  */
 export function PlatformHealthStrip({ enabled }: { enabled: boolean }) {
+  const { user } = useUser();
   const [health, setHealth] = useState<PlatformHealth | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // The endpoint is admin-gated on a Bearer token; a bare fetch got a 403 and
+  // the strip rendered "Request failed (403)" on an otherwise healthy admin
+  // dashboard.
   const load = useCallback(async () => {
+    if (!user) return;
     setError(null);
     try {
-      const res = await fetch('/api/admin/platform-health', { cache: 'no-store' });
+      const token = await user.getIdToken();
+      const res = await fetch('/api/admin/platform-health', {
+        cache: 'no-store',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.status === 403) throw new Error('This account is not an admin.');
       if (!res.ok) throw new Error(`Request failed (${res.status})`);
       setHealth((await res.json()) as PlatformHealth);
     } catch (e) {
@@ -85,15 +96,15 @@ export function PlatformHealthStrip({ enabled }: { enabled: boolean }) {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [user]);
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled || !user) return;
     load();
-  }, [enabled, load]);
+  }, [enabled, user, load]);
 
   // Never issue admin-gated requests before the role is confirmed.
-  if (!enabled) return null;
+  if (!enabled || !user) return null;
 
   const state = health?.state ?? 'operational';
   const styles = STATE_STYLES[state];
