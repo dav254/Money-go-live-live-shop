@@ -3,20 +3,38 @@
 import Link from 'next/link';
 import { Logo } from '../logo';
 
-const COLUMNS = [
+/**
+ * LANDING FOOTER — compact, per the homepage spec.
+ *
+ * Every link points at a route that exists today. The "Contact" entry links
+ * to the help centre rather than inventing an email address that is not
+ * configured anywhere in the product.
+ */
+
+const COLUMNS: { title: string; links: { label: string; href: string }[] }[] = [
   {
     title: 'PLATFORM',
     links: [
-      { label: 'Discover', href: '/buyer/dashboard' },
-      { label: 'Start a Business', href: '/signup?role=seller' },
-      { label: 'AI Studio', href: '/dashboard/seller/ai-studio' },
-      { label: 'Request Marketplace', href: '/requests' },
+      { label: 'About Vidnov', href: '/about' },
+      { label: 'Marketplace', href: '/categories' },
+      { label: 'AI Studio', href: '/ai-studio' },
+      { label: 'Shops & services', href: '/search' },
     ],
   },
   {
-    title: 'COMPANY',
+    title: 'GET STARTED',
     links: [
-      { label: 'How It Works', href: '/how-it-works' },
+      { label: 'Become a Seller', href: '/signup?role=seller' },
+      { label: 'How it works', href: '/how-it-works' },
+      { label: 'Pricing', href: '/pricing' },
+      { label: 'Sign in', href: '/login' },
+    ],
+  },
+  {
+    title: 'SUPPORT',
+    links: [
+      { label: 'Help & Support', href: '/faq' },
+      { label: 'Contact', href: '/faq' },
       { label: 'Privacy Policy', href: '/privacy' },
       { label: 'Terms of Service', href: '/terms' },
     ],
@@ -26,69 +44,45 @@ const COLUMNS = [
 export function LandingFooter() {
   return (
     <footer className="border-t border-border bg-background">
-      <div className="container max-w-7xl mx-auto px-4 lg:px-8 pt-16 pb-10">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
-          {/* Brand column */}
-          <div className="space-y-6">
-            <Link href="/" className="block" aria-label="Vidnov home">
-              <Logo className="text-4xl" withTagline />
+      <div className="container mx-auto max-w-7xl px-4 py-14 lg:px-8">
+        <div className="grid grid-cols-2 gap-10 md:grid-cols-4">
+          <div className="col-span-2 space-y-5 md:col-span-1">
+            <Link href="/" aria-label="Vidnov home">
+              <Logo className="text-3xl" />
             </Link>
-            <p className="text-sm text-muted-foreground leading-relaxed max-w-xs">
-              A different way to connect businesses and people. Built for speed, structure and reach.
+            <p className="max-w-xs text-sm leading-relaxed text-muted-foreground">
+              Create. Discover. Sell. Grow. One platform for products, services
+              and the content that sells them.
             </p>
-            <div className="space-y-2 pt-2">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-muted-foreground">Support</p>
-              <ul className="space-y-2 text-sm">
-                <li>
-                  <Link href="/dashboard/account?tab=security" className="text-foreground/80 hover:text-foreground vn-transition">
-                    Account &amp; security
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/faq" className="text-foreground/80 hover:text-foreground vn-transition">
-                    Help Center
-                  </Link>
-                </li>
-              </ul>
-            </div>
           </div>
 
           {COLUMNS.map((col) => (
-            <div key={col.title}>
-              <h4 className="text-[10px] font-semibold uppercase tracking-[0.3em] text-muted-foreground mb-6">
+            <nav key={col.title} aria-label={col.title}>
+              <h4 className="text-[10px] font-semibold uppercase tracking-[0.3em] text-muted-foreground">
                 {col.title}
               </h4>
-              <ul className="space-y-3.5">
+              <ul className="mt-5 space-y-3">
                 {col.links.map((link) => (
                   <li key={link.label}>
-                    <Link href={link.href} className="text-sm text-foreground/80 hover:text-foreground vn-transition">
+                    <Link
+                      href={link.href}
+                      className="text-sm text-foreground/80 vn-transition hover:text-foreground"
+                    >
                       {link.label}
                     </Link>
                   </li>
                 ))}
               </ul>
-            </div>
+            </nav>
           ))}
-
-          {/* Status column */}
-          <div>
-            <h4 className="text-[10px] font-semibold uppercase tracking-[0.3em] text-muted-foreground mb-6">NETWORK</h4>
-            <div className="rounded-xl border border-border p-5 bg-card">
-              <div className="flex items-center gap-2.5">
-                <span className="vn-dot vn-dot-active" />
-                <span className="text-[11px] font-semibold uppercase tracking-[0.2em]">All systems operational</span>
-              </div>
-              <p className="text-[11px] text-muted-foreground mt-3">Marketplace · Payments · AI</p>
-            </div>
-          </div>
         </div>
 
-        <div className="mt-16 pt-8 border-t border-border flex flex-col md:flex-row justify-between items-center gap-4">
-          <p className="text-[11px] font-medium text-muted-foreground tracking-wide">
-            © 2026 VIDNOV
+        <div className="mt-12 flex flex-col items-center justify-between gap-3 border-t border-border pt-6 md:flex-row">
+          <p className="text-[11px] font-medium tracking-wide text-muted-foreground">
+            © 2026 Vidnov
           </p>
           <p className="text-[10px] font-semibold uppercase tracking-[0.35em] text-muted-foreground">
-            Create · Connect · Move
+            Create · Discover · Sell · Grow
           </p>
         </div>
       </div>
