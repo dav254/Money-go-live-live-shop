@@ -218,13 +218,30 @@ function SignupFormContent() {
             ? { phoneNumber: googlePhone, phoneConsentAt: new Date().toISOString() }
             : {}),
         };
-        await setDoc(userDocRef, profile);
-        // Fire the welcome flow (in-app notification + welcome email) without blocking signup.
-        fetch('/api/auth/welcome', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: profile.fullName, role: selectedRole }),
-        }).catch(() => {});
+        // Best-effort client write — the welcome call below is the real
+        // guarantee (server-side, both stores). A failed client write must
+        // not strand the account with no profile.
+        try {
+          await setDoc(userDocRef, profile);
+        } catch (writeError) {
+          console.error('[signup] client profile write failed:', writeError);
+        }
+        // Server-side profile guarantee + welcome flow (email + admin
+        // WhatsApp alert), without blocking signup.
+        signedUpUser.getIdToken().then((token) =>
+          fetch('/api/auth/welcome', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({
+              name: profile.fullName,
+              role: selectedRole,
+              email: profile.email,
+              username: profile.username,
+              phone: googlePhone || undefined,
+              profilePictureUrl: profile.profilePictureUrl || undefined,
+            }),
+          }),
+        ).catch(() => {});
         toast({ title: selectedRole === 'seller' ? 'Welcome Bonus Awarded! 🎁' : 'Account Created!' });
 
         // Referral capture. Fire-and-forget: the account already exists, so a
@@ -272,13 +289,29 @@ function SignupFormContent() {
         // (see dashboard/admin/users/buyers) — keep the field name in sync.
         ...(phone ? { phoneNumber: phone, phoneConsentAt: new Date().toISOString() } : {}),
       };
-      await setDoc(userDocRef, profile);
-      // Fire the welcome flow (in-app notification + welcome email) without blocking signup.
-      fetch('/api/auth/welcome', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: values.fullName, role: values.role }),
-      }).catch(() => {});
+      // Best-effort client write — the welcome call below is the real
+      // guarantee (server-side, both stores). A failed client write must
+      // not strand the account with no profile.
+      try {
+        await setDoc(userDocRef, profile);
+      } catch (writeError) {
+        console.error('[signup] client profile write failed:', writeError);
+      }
+      // Server-side profile guarantee + welcome flow (email + admin
+      // WhatsApp alert), without blocking signup.
+      signedUpUser.getIdToken().then((token) =>
+        fetch('/api/auth/welcome', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({
+            name: profile.fullName,
+            role: profile.userRole,
+            email: profile.email,
+            username: profile.username,
+            phone: phone || undefined,
+          }),
+        }),
+      ).catch(() => {});
       toast({ title: values.role === 'seller' ? 'Welcome Bonus Awarded! 🎁' : 'Account Created!' });
 
       // Same referral capture as the Google path above — see the comment there

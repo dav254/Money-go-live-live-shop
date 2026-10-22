@@ -41,7 +41,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { AdminLayout } from '@/components/layout/admin-layout';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { useCollection, useFirestore, useMemoFirebase, errorEmitter } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase, useUser, errorEmitter } from '@/firebase';
 import { collection, query, where, doc, updateDoc, increment, deleteDoc } from 'firebase/firestore';
 import type { UserProfile } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -242,6 +242,37 @@ export default function AdminSellersPage() {
   }, [firestore]);
 
   const { data: sellersData, isLoading } = useCollection<UserProfile>(sellersQuery);
+
+  // Users that exist only in the LOCAL VPS store (their Firestore write
+  // failed at signup) still have to show up here — the server returns them
+  // and we merge them in, deduped by uid.
+  const [vpsOnlySellers, setVpsOnlySellers] = React.useState<SellerRow[]>([]);
+  const { user: adminUser } = useUser();
+  React.useEffect(() => {
+    if (!adminUser) return;
+    adminUser.getIdToken().then((token) =>
+      fetch('/api/admin/users/list?role=seller', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data) => {
+          const rows: SellerRow[] = (data?.extraProfiles ?? []).map((p: any) => ({
+            id: String(p.uid),
+            businessName: p.username || p.fullName || '—',
+            ownerName: p.fullName || '—',
+            email: p.email || 'N/A',
+            phone: p.phoneNumber || undefined,
+            totalSales: 0,
+            productCount: 0,
+            status: p.status || 'active',
+            avatarUrl: p.profilePictureUrl || undefined,
+            aiPoints: 0,
+          }));
+          setVpsOnlySellers(rows);
+        })
+        .catch(() => {}),
+    ).catch(() => {});
+  }, [adminUser]);
   
   const handleVerificationUpdate = async (userId: string, newStatus: 'verified' | 'rejected') => {
     if (!firestore) return;
@@ -291,8 +322,7 @@ export default function AdminSellersPage() {
   };
 
   const data: SellerRow[] = React.useMemo(() => {
-    if (!sellersData) return [];
-    return sellersData.map(profile => ({
+    const fsRows = (sellersData ?? []).map(profile => ({
       id: profile.id,
       businessName: profile.shopName || profile.username,
       ownerName: profile.fullName,
@@ -305,7 +335,9 @@ export default function AdminSellersPage() {
       avatarUrl: profile.profilePictureUrl,
       aiPoints: profile.aiPoints || 0,
     }));
-  }, [sellersData]);
+    const fsIds = new Set(fsRows.map((r) => r.id));
+    return [...fsRows, ...vpsOnlySellers.filter((r) => !fsIds.has(r.id))];
+  }, [sellersData, vpsOnlySellers]);
   
     const columns: ColumnDef<SellerRow>[] = React.useMemo(() => [
     {

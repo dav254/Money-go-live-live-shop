@@ -42,7 +42,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { AdminLayout } from '@/components/layout/admin-layout';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { useCollection, useFirestore, useMemoFirebase, errorEmitter } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase, useUser, errorEmitter } from '@/firebase';
 import { collection, query, where, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import type { UserProfile } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -283,9 +283,38 @@ function AdminBuyersInner() {
 
   const { data: buyersData, isLoading } = useCollection<UserProfile>(buyersQuery);
 
+  // Users that exist only in the LOCAL VPS store (their Firestore write
+  // failed at signup) still have to show up here — the server returns them
+  // and we merge them in, deduped by uid.
+  const [vpsOnlyBuyers, setVpsOnlyBuyers] = React.useState<Buyer[]>([]);
+  const { user: adminUser } = useUser();
+  React.useEffect(() => {
+    if (!adminUser) return;
+    adminUser.getIdToken().then((token) =>
+      fetch('/api/admin/users/list?role=buyer', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data) => {
+          const rows: Buyer[] = (data?.extraProfiles ?? []).map((p: any) => ({
+            id: String(p.uid),
+            name: p.fullName || '—',
+            email: p.email || '',
+            phone: p.phoneNumber || undefined,
+            ordersCount: 0,
+            walletBalance: 0.0,
+            joinedDate: p.joinDate || new Date().toISOString(),
+            status: p.status || 'active',
+            avatarUrl: p.profilePictureUrl || undefined,
+          }));
+          setVpsOnlyBuyers(rows);
+        })
+        .catch(() => {}),
+    ).catch(() => {});
+  }, [adminUser]);
+
   const data: Buyer[] = React.useMemo(() => {
-    if (!buyersData) return [];
-    return buyersData.map(profile => ({
+    const fsRows = (buyersData ?? []).map(profile => ({
       id: profile.id,
       name: profile.fullName,
       email: profile.email || '',
@@ -296,7 +325,9 @@ function AdminBuyersInner() {
       status: profile.status || 'active',
       avatarUrl: profile.profilePictureUrl,
     }));
-  }, [buyersData]);
+    const fsIds = new Set(fsRows.map((r) => r.id));
+    return [...fsRows, ...vpsOnlyBuyers.filter((r) => !fsIds.has(r.id))];
+  }, [buyersData, vpsOnlyBuyers]);
 
   React.useEffect(() => {
     if (isLoading || !linkUserId || handledLinkRef.current) return;

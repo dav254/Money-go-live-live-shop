@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { signOut } from 'firebase/auth';
 import { useAuth, useSurface, useUser, useUserProfile } from '@/firebase';
 import {
@@ -61,7 +61,18 @@ export function SurfaceBoundary({ children }: { children: React.ReactNode }) {
   const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
   const [blocked, setBlocked] = useState<null | 'app' | 'admin'>(null);
 
-  const role = resolveRole(userProfile);
+  // Fallback profile read SERVER-side (Firestore → local VPS store) when the
+  // client-side read comes back empty — real sellers were stuck on the retry
+  // screen because the browser's Firestore read failed while the profile
+  // existed (or could be created) on the server.
+  const [serverProfile, setServerProfile] = useState<{ userRole?: string; role?: string } | null>(null);
+  // True once the server read has confirmed the profile is missing EVERYWHERE
+  // — only then is "complete your account" offered (a role must never be
+  // guessed for an account that already has one).
+  const [needsRepair, setNeedsRepair] = useState(false);
+  const serverLookupDone = useRef(false);
+
+  const role = resolveRole(userProfile) ?? resolveRole(serverProfile);
   // `surface === null` means the surface is not known yet (SSR / first paint).
   // Blocking on it would sign people out before we know which app they are in.
   const settled = surface !== null && !isLoading && !isProfileLoading;
@@ -79,6 +90,48 @@ export function SurfaceBoundary({ children }: { children: React.ReactNode }) {
   // Nobody is signed out for this — the session is fine, the profile is not —
   // so offer a retry instead of a "wrong role" verdict that cannot be trusted.
   const unreadable = !!user && settled && !roleResolved;
+
+  // One server-side lookup per mount when the client read came up empty.
+  useEffect(() => {
+    if (!user || !unreadable || serverLookupDone.current) return;
+    serverLookupDone.current = true;
+    user
+      .getIdToken()
+      .then((token) =>
+        fetch('/api/auth/profile', { headers: { Authorization: `Bearer ${token}` } }),
+      )
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.profile) setServerProfile(data.profile);
+        else setNeedsRepair(true);
+      })
+      .catch(() => setNeedsRepair(true));
+  }, [user, unreadable]);
+
+  // Repair path for an account with NO profile in either store (the old
+  // client-side signup write failed after Auth had already created the
+  // account). The user picks the section they signed up for; the server
+  // creates the profile in both stores and the reload lands them there.
+  const completeProfile = (chosenRole: 'buyer' | 'seller') => {
+    if (!user) return;
+    user
+      .getIdToken()
+      .then((token) =>
+        fetch('/api/auth/profile', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ role: chosenRole, name: user.displayName || undefined }),
+        }),
+      )
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.profile) window.location.reload();
+      })
+      .catch(() => {});
+  };
 
   // Which surface, if any, this role has no business being on.
   const forbidden =
@@ -118,6 +171,35 @@ export function SurfaceBoundary({ children }: { children: React.ReactNode }) {
           Try again
           <ArrowRight className="ml-2 h-4 w-4" />
         </Button>
+
+        {/* Only after the server has confirmed the profile is missing in
+            BOTH stores: let the person finish the account they already own
+            by saying which section they signed up for. This is what un-sticks
+            accounts stranded by a failed signup write. */}
+        {needsRepair && (
+          <div className="mx-auto max-w-sm space-y-3 rounded-xl border border-border bg-card p-4 text-left">
+            <p className="text-sm font-medium text-foreground">
+              This account was created but its profile was never saved.
+              Which section did you sign up for?
+            </p>
+            <div className="flex gap-2">
+              <Button className="flex-1" onClick={() => completeProfile('seller')}>
+                Seller
+              </Button>
+              <Button
+                className="flex-1"
+                variant="secondary"
+                onClick={() => completeProfile('buyer')}
+              >
+                Buyer
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Your account and login stay exactly the same — this only restores
+              your profile.
+            </p>
+          </div>
+        )}
       </div>
     );
   }
