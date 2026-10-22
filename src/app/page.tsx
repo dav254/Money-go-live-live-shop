@@ -1,20 +1,12 @@
 'use client';
 
 import Link from 'next/link';
-import {
-  ArrowRight,
-  CirclePlay,
-  Flame,
-  Radio,
-  ShieldCheck,
-  Sparkles,
-  Star,
-  TrendingUp,
-  Users,
-} from 'lucide-react';
+import { ArrowRight, ArrowUpRight, CirclePlay, Flame, Radio, ShieldCheck, Sparkles, Star, TrendingUp, Users } from 'lucide-react';
 
 import { LandingLayout } from '@/components/layout/landing-layout';
 import { Button } from '@/components/ui/button';
+
+const featurePills = ['Live drops', 'Luxury goods', 'Creator brands', 'Private access'];
 
 const livePeople = [
   { name: 'Ava', tone: 'bg-[#ff5a36]' },
@@ -23,28 +15,26 @@ const livePeople = [
   { name: 'Kai', tone: 'bg-[#d9d9d9]' },
 ];
 
-const featurePills = ['Live drops', 'Luxury goods', 'Creator brands', 'Private access'];
-
-const shopperStats = [
+const stats = [
   { value: '12.4k', label: 'Watching live' },
   { value: '+28%', label: 'Conversion lift' },
   { value: '9m 42s', label: 'Avg. watch time' },
 ];
 
-const showcaseCards = [
+const cards = [
   {
     title: 'Luxury drops',
-    text: 'From high-end essentials to rare product moments — every drop feels exclusive.',
+    text: 'Limited-run product moments designed to feel rare, premium, and impossible to pass by.',
     icon: Flame,
   },
   {
     title: 'Creator-led sales',
-    text: 'Trust grows faster when people see the real product, the real energy, and the real moment.',
+    text: 'Trust is built through live product energy, direct storytelling, and real-time buyer reactions.',
     icon: Users,
   },
   {
     title: 'Live commerce engine',
-    text: 'Short-form demand, direct sales, premium storytelling, and instant conversion in one flow.',
+    text: 'Short-form demand, instant intent, and premium storytelling in a single seamless flow.',
     icon: TrendingUp,
   },
 ];
@@ -53,7 +43,7 @@ export default function VidnovHomePage() {
   return (
     <LandingLayout>
       <div className="relative overflow-hidden bg-[#090909] text-[#f9f5ee]">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(255,82,54,0.22),transparent_25%),radial-gradient(circle_at_bottom_right,_rgba(255,255,255,0.08),transparent_30%),linear-gradient(180deg,#090909_0%,#101010_100%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(255,82,54,0.22),transparent_22%),radial-gradient(circle_at_bottom_right,_rgba(255,255,255,0.08),transparent_28%),linear-gradient(180deg,#090909_0%,#101010_100%)]" />
 
         <section className="relative mx-auto max-w-7xl px-4 pb-16 pt-10 sm:px-6 lg:px-8 lg:pb-24 lg:pt-14">
           <div className="grid items-center gap-10 lg:grid-cols-[1.03fr_0.97fr]">
@@ -156,7 +146,7 @@ export default function VidnovHomePage() {
                 </div>
 
                 <div className="mt-4 grid grid-cols-3 gap-3">
-                  {shopperStats.map((item) => (
+                  {stats.map((item) => (
                     <div key={item.label} className="rounded-[18px] border border-white/10 bg-white/5 p-3">
                       <div className="font-grotesk text-2xl font-black leading-none text-white">{item.value}</div>
                       <div className="mt-1 text-[9px] uppercase tracking-[0.14em] text-[#d5cdc5]">{item.label}</div>
@@ -183,7 +173,7 @@ export default function VidnovHomePage() {
             </div>
 
             <div className="mt-10 grid gap-5 md:grid-cols-3">
-              {showcaseCards.map(({ title, text, icon: Icon }) => (
+              {cards.map(({ title, text, icon: Icon }) => (
                 <div key={title} className="rounded-[28px] border border-[#ff5a36]/20 bg-[linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01))] p-6 shadow-[0_18px_40px_rgba(0,0,0,0.25)]">
                   <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-[#ff5a36]/20 bg-[#ff5a36]/10 text-[#ffb7a1]">
                     <Icon className="h-5 w-5" />
@@ -213,23 +203,19 @@ export default function VidnovHomePage() {
                   {[
                     {
                       title: 'Luxury brand rooms',
-                      image:
-                        "url('https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=1000&q=80')",
+                      image: "url('https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=1000&q=80')",
                     },
                     {
                       title: 'Creator-led reveals',
-                      image:
-                        "url('https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=1000&q=80')",
+                      image: "url('https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=1000&q=80')",
                     },
                     {
                       title: 'Private drops',
-                      image:
-                        "url('https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1000&q=80')",
+                      image: "url('https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1000&q=80')",
                     },
                     {
                       title: 'Collector edits',
-                      image:
-                        "url('https://images.unsplash.com/photo-1523170335258-f5ed11844a49?auto=format&fit=crop&w=1000&q=80')",
+                      image: "url('https://images.unsplash.com/photo-1523170335258-f5ed11844a49?auto=format&fit=crop&w=1000&q=80')",
                     },
                   ].map((item) => (
                     <div key={item.title} className="group overflow-hidden rounded-[24px] border border-white/10 bg-[#121212] p-2 shadow-[0_18px_40px_rgba(0,0,0,0.3)]">
