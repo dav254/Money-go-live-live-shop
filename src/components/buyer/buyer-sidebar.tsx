@@ -86,7 +86,7 @@ export function BuyerSidebar() {
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
-        {/* ONE live surface only — VIDNOV LIVE (VideoSDK transport). The old
+        {/* ONE live surface only — VIDNOV LIVE (LiveKit transport). The old
             "Live Feed" / "Live Now" product feeds were removed. */}
         <SectionNavItem href="/live">
         <SidebarMenuItem>

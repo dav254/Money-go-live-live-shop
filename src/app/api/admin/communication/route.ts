@@ -3,6 +3,7 @@ import { db } from '@/firebase/server';
 import { verifyAdminUid } from '@/lib/notifications/server';
 import { EMAIL_TEMPLATES } from '@/lib/notifications';
 import { getVidnovConfig } from '@/lib/notifications';
+import { pbListDevMailbox, pbListEmailLogs } from '@/lib/pocketbase/email-logs';
 
 export const runtime = 'nodejs';
 
@@ -39,6 +40,9 @@ export async function GET(request: NextRequest) {
   }
 
   if (box === 'dev-mailbox') {
+    // Self-hosting migration: PocketBase first, Firestore fallback.
+    const pbMessages = await pbListDevMailbox(limit);
+    if (pbMessages) return NextResponse.json({ ok: true, messages: pbMessages });
     const snap = await db
       .collection('devMailbox')
       .orderBy('capturedAt', 'desc')
@@ -59,7 +63,10 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  // Default: delivery logs
+  // Default: delivery logs — PocketBase first, Firestore fallback.
+  const pbLogs = await pbListEmailLogs(limit, status);
+  if (pbLogs) return NextResponse.json({ ok: true, logs: pbLogs });
+
   let q: any = db.collection('emailLogs').orderBy('createdAt', 'desc').limit(limit);
   if (status) q = db.collection('emailLogs').where('status', '==', status).orderBy('createdAt', 'desc').limit(limit);
   const snap = await q.get();

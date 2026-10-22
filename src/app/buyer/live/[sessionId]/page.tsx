@@ -19,20 +19,9 @@ import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/firebase';
 import Link from 'next/link';
 
-// Legacy transport — sessions created before the LiveKit migration remain
-// watchable during the transition (they still carry videosdkMeetingId).
-const VideoSDKViewer = dynamic(() => import('@/components/buyer/VideoSDKViewer'), {
-  ssr: false,
-  loading: () => (
-    <div className="h-full w-full flex flex-col items-center justify-center bg-black text-center p-8">
-      <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
-      <p className="text-white font-black uppercase tracking-widest text-[10px]">Syncing 4K Data Pipe...</p>
-    </div>
-  ),
-});
-
 // Current transport: subscribe-only LiveKit viewer for sessions created with
-// `provider: "livekit"`.
+// `provider: "livekit"`. (The legacy VideoSDK viewer is gone — the server
+// runs self-hosted LiveKit only.)
 const LiveKitViewer = dynamic(() => import('@/components/buyer/LiveKitViewer'), {
   ssr: false,
   loading: () => (
@@ -62,12 +51,11 @@ export default function BuyerLiveSessionPage(props: { params: Promise<{ sessionI
 
   const { data: session, isLoading: isSessionLoading } = useDoc<LiveSession>(sessionRef);
 
-  // Which transport backs this session record? LiveKit sessions carry
+  // Which transport backs this session record? LiveKit only — sessions carry
   // `livekitRoomName` (written by the session-creation API together with
-  // `provider`); anything else is a legacy VideoSDK session with
-  // `videosdkMeetingId` and must stay watchable during the transition.
-  const isLiveKitSession = session?.provider === 'livekit';
-  const connectionRoom = isLiveKitSession ? session?.livekitRoomName : session?.videosdkMeetingId;
+  // `provider`). A legacy session without a LiveKit room has no watchable
+  // transport anymore and redirects to the lobby below, same as an ended one.
+  const connectionRoom = session?.livekitRoomName;
 
   // Unread chat notification logic
   useEffect(() => {
@@ -177,11 +165,7 @@ export default function BuyerLiveSessionPage(props: { params: Promise<{ sessionI
       <div className="relative h-[calc(100vh-4rem)] w-full bg-black overflow-hidden flex">
         <div className="flex-1 relative overflow-hidden">
           <div className="absolute inset-0 z-0">
-            {isLiveKitSession ? (
-              <LiveKitViewer sessionId={sessionId} />
-            ) : (
-              <VideoSDKViewer meetingId={session.videosdkMeetingId as string} />
-            )}
+            <LiveKitViewer sessionId={sessionId} />
           </div>
 
           {session.activeOffer && (

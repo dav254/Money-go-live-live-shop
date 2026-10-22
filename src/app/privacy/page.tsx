@@ -61,7 +61,15 @@ export default function PrivacyPolicyPage() {
                         <h2 className="mb-4">8. Changes to This Policy</h2>
                         <p>We may update this Privacy Policy from time to time. We will notify you of any changes by posting the new policy on this page and updating the "Last updated" date.</p>
 
-                        <h2 className="mb-4">9. Contact Us</h2>
+                        <h2 className="mb-4">9. Cookies</h2>
+                        <p>We use cookies and similar storage on vidnov.com in two categories:</p>
+                        <ul>
+                            <li><strong>Essential (always on):</strong> first-party cookies that keep you signed in, protect your account, remember your theme and language settings, and store this cookie choice. These do not require consent because the site cannot function without them.</li>
+                            <li><strong>Analytics (optional, Google Analytics):</strong> loaded only if you press “Accept” in the cookie banner. IP addresses are anonymised. If you press “Decline” — or never answer — this cookie is never set and no analytics script is loaded.</li>
+                        </ul>
+                        <p>Your cookie choice is stored for 180 days and can be changed at any time via the “Cookie settings” link in the website footer, which reopens the banner. You can also clear stored cookies through your browser settings at any time.</p>
+
+                        <h2 className="mb-4">10. Contact Us</h2>
                         <p>If you have any questions about this Privacy Policy, please contact us at: <a href="mailto:support@goearn.com">support@goearn.com</a>.</p>
                     </CardContent>
                 </Card>

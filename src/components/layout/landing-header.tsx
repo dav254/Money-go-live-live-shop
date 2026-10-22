@@ -34,12 +34,9 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
  */
 
 const NAV_ITEMS = [
-  { label: 'Home', href: '/' },
   { label: 'Discover', href: '/buyer/discovery' },
-  { label: 'Marketplace', href: '/categories' },
-  { label: 'AI Studio', href: '/ai-studio' },
-  { label: 'Shops', href: '/search?q=shop' },
-  { label: 'Services', href: '/requests' },
+  { label: 'Create Studio', href: '/ai-studio' },
+  { label: 'How It Works', href: '/how-it-works' },
 ] as const;
 
 function UniversalSearch({ className }: { className?: string }) {
@@ -87,7 +84,7 @@ function AccountArea() {
           <Link href="/login">Sign in</Link>
         </Button>
         <Button asChild className="rounded-lg px-5 text-[12px] font-semibold uppercase tracking-[0.12em]">
-          <Link href="/signup">Get started</Link>
+          <Link href="/signup">Get Started</Link>
         </Button>
       </div>
     );

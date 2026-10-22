@@ -36,7 +36,6 @@
         "@radix-ui/react-tooltip": "^1.1.8",
         "@tanstack/react-table": "^8.17.3",
         "@types/formidable": "^3.4.6",
-        "@videosdk.live/react-sdk": "^0.1.96",
         "@whiskeysockets/baileys": "^7.0.0-rc14",
         "axios": "^1.4.0",
         "class-variance-authority": "^0.7.1",
@@ -825,10 +824,6 @@
     "@types/webxr": ["@types/webxr@0.5.24", "", {}, "sha512-h8fgEd/DpoS9CBrjEQXR+dIDraopAEfu4wYVNY2tEPwk60stPWhvZMf4Foo5FakuQ7HFZoa8WceaWFervK2Ovg=="],
 
     "@types/yauzl": ["@types/yauzl@2.10.3", "", { "dependencies": { "@types/node": "*" } }, "sha512-oJoftv0LSuaDZE3Le4DbKX+KS9G36NzOeSap90UIK0yMA/NhKJhqlSGtNDORNRaIbQfzjXDrQa0ytJ6mNRGz/Q=="],
-
-    "@videosdk.live/js-sdk": ["@videosdk.live/js-sdk@0.0.101", "", {}, "sha512-LMmCCiZQYJUCIchCgU4LozmRL5ETjNxBixgXERm1SxGUPuYuRW1g11+VLPT10E7m8Ryz9Byrwst389xPfVz/jQ=="],
-
-    "@videosdk.live/react-sdk": ["@videosdk.live/react-sdk@0.1.105", "", { "dependencies": { "@videosdk.live/js-sdk": "0.0.101", "events": "^3.3.0" }, "peerDependencies": { "react": "^16.13.1 || ^17 || ^18" } }, "sha512-fYZ1G2rgSHOsK9f566yAlZjHCRM9c4uvUEbuQyDtFLGIdYwwjQnXyj0xJKY8kaSmvedWjiJsEurDzzDmS5IDAA=="],
 
     "@webgpu/types": ["@webgpu/types@0.1.70", "", {}, "sha512-LFiNHHKMvmAEvwVew3JLJmTdShhbdwRFSImUshGhE2mGE8ybQzIo63l5uRp+YKnNx+8Qno8Kf6gN+DKMreIJCA=="],
 

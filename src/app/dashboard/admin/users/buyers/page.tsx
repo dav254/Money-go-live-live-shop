@@ -435,8 +435,47 @@ function AdminBuyersInner() {
       accessorKey: 'status',
       header: 'Status',
       cell: ({ row }) => {
-          const status = row.getValue('status') as string;
-          return <Badge variant={status === 'active' ? 'default' : 'destructive'} className={status === 'active' ? 'bg-green-600/80' : ''}>{status}</Badge>;
+          const buyer = row.original;
+          const status = buyer.status;
+          return (
+            <div className="flex items-center gap-2">
+              <Badge variant={status === 'active' ? 'default' : 'destructive'} className={status === 'active' ? 'bg-green-600/80' : ''}>{status}</Badge>
+              {status === 'suspended' ? (
+                <Button variant="outline" size="sm" onClick={() => handleStatusUpdate(buyer.id, 'active')}>
+                  Unsuspend
+                </Button>
+              ) : (
+                // Visible right in the row — suspending a buyer who breaks the
+                // rules is a routine moderation action, so it must not be
+                // reachable only through the ⋯ menu.
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="outline" size="sm" className="border-yellow-500/40 text-yellow-600 hover:bg-yellow-500/10 hover:text-yellow-600">
+                      Suspend
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Suspend {buyer.name || 'this buyer'}?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        The buyer will not be able to sign in until you reinstate the account.
+                        Use this when someone does not comply with the platform rules.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        className="bg-destructive hover:bg-destructive/90"
+                        onClick={() => handleStatusUpdate(buyer.id, 'suspended')}
+                      >
+                        Suspend account
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
+            </div>
+          );
       },
     },
     {

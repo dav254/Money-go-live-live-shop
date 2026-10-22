@@ -19,7 +19,6 @@
  *     same endpoint the website's watch page calls.
  *   • `useLiveRoom('viewer')` — the LiveKit client wrapper. It owns transport,
  *     reconnection and track attachment; it knows nothing about Vidnov routes.
- *   • `VideoSDKViewer` — the fallback transport when LiveKit is not configured.
  *   • `LiveChatPanel` — chat over the existing live-chat endpoint.
  *
  * None of those is a link to a website route; they are API calls and shared
@@ -54,11 +53,6 @@ import { useLiveRoom } from '@/components/live/use-live-room';
 import { LiveChatPanel } from '@/components/live/live-chat-panel';
 import type { LiveStream } from '@/lib/live/types';
 
-// The VideoSDK browser SDK must never run during SSR.
-const VideoSDKViewer = dynamic(() => import('@/components/buyer/VideoSDKViewer'), {
-  ssr: false,
-});
-
 export default function BuyerSectionLiveWatch() {
   const params = useParams<{ id: string }>();
   const id = params?.id ?? '';
@@ -67,7 +61,6 @@ export default function BuyerSectionLiveWatch() {
   const videoRef = React.useRef<HTMLVideoElement>(null);
   const live = useLiveRoom('viewer', videoRef);
 
-  const [videoSdkMeetingId, setVideoSdkMeetingId] = React.useState<string | null>(null);
   const [stream, setStream] = React.useState<LiveStream | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [ended, setEnded] = React.useState(false);
@@ -107,11 +100,7 @@ export default function BuyerSectionLiveWatch() {
         }
 
         setStream(data as LiveStream);
-        if (data.provider === 'videosdk') {
-          setVideoSdkMeetingId(data.meetingId);
-        } else {
-          await live.connect(data.wsUrl, data.token);
-        }
+        await live.connect(data.wsUrl, data.token);
       } catch {
         if (alive) setError('Could not open this live.');
       }
@@ -188,11 +177,7 @@ export default function BuyerSectionLiveWatch() {
     <div className="relative flex h-[calc(100dvh-3.5rem)] flex-col overflow-hidden bg-black">
       {/* Stage */}
       <div className="relative min-h-0 flex-1">
-        {videoSdkMeetingId ? (
-          <VideoSDKViewer meetingId={videoSdkMeetingId} />
-        ) : (
-          <video ref={videoRef} autoPlay playsInline className="h-full w-full object-cover" />
-        )}
+        <video ref={videoRef} autoPlay playsInline className="h-full w-full object-cover" />
 
         <div className="absolute left-3 top-3 flex items-center gap-2">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-red-600 px-2.5 py-1 font-sans text-[9px] font-black uppercase tracking-widest text-white">

@@ -19,6 +19,7 @@ import { getFirestore } from 'firebase-admin/firestore';
 import { getAuth } from 'firebase-admin/auth';
 import * as fs from 'fs';
 import * as path from 'path';
+import { pbSetAdmin } from '../src/lib/pocketbase/admins';
 
 function init() {
   if (getApps().length > 0) return;
@@ -106,7 +107,15 @@ async function main() {
     await adminsRef.delete().catch(() => undefined);
   }
 
-  console.log(`${promote ? '✅ Promoted' : '⬇️  Demoted'} ${uid}: userProfile.userRole=${promote ? 'admin' : 'buyer'}${promote ? ' + admins marker' : ''}.`);
+  // Mirror the grant onto the local (VPS) PocketBase store, which the app's
+  // admin gates check first. No-op when PocketBase env vars are unset.
+  const profileData = profileSnap.data() ?? {};
+  const mirrored = await pbSetAdmin(uid, promote, {
+    email: (profileData.email as string | undefined) ?? (target.includes('@') ? target : undefined),
+    name: (profileData.fullName as string | undefined) ?? (profileData.displayName as string | undefined),
+  });
+
+  console.log(`${promote ? '✅ Promoted' : '⬇️  Demoted'} ${uid}: userProfile.userRole=${promote ? 'admin' : 'buyer'}${promote ? ' + admins marker' : ''}.${mirrored ? ' Mirrored to local PocketBase (admins collection).' : ' (PocketBase not configured — set POCKETBASE_URL/ADMIN_EMAIL/ADMIN_PASSWORD on the VPS to mirror grants locally.)'}`);
 }
 
 main().catch((err) => {

@@ -16,6 +16,23 @@ import * as path from 'path';
  *  4. Fall back to ADC (works on Firebase App Hosting / Cloud Run / GCE)
  */
 function loadCredential(): { credential?: ReturnType<typeof cert>; usingAdc: boolean } {
+  // 0. Leading whitespace or accidental quoting from a pasted env var is the
+  // single most common way server calls die with "Internal Server Error" —
+  // trim it and strip wrapping quotes so Firebase Admin still initializes.
+  for (const name of ['GOOGLE_APPLICATION_CREDENTIALS', 'FIREBASE_SERVICE_ACCOUNT_JSON']) {
+    const v = process.env[name];
+    if (typeof v === 'string' && v.trim() !== v) process.env[name] = v.trim();
+  }
+  const inlineRaw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+  if (
+    typeof inlineRaw === 'string' &&
+    inlineRaw.length > 1 &&
+    (inlineRaw.startsWith('"') || inlineRaw.startsWith("'")) &&
+    inlineRaw.slice(1).endsWith(inlineRaw[0])
+  ) {
+    process.env.FIREBASE_SERVICE_ACCOUNT_JSON = inlineRaw.slice(1, -1);
+  }
+
   // 1. Standard ADC file path
   const adcPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
   if (adcPath && fs.existsSync(adcPath)) {

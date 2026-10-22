@@ -7,9 +7,6 @@ import {
   createLiveStream,
 } from '@/lib/live/service';
 import { sellerIdentity } from '@/lib/live/service';
-import { videosdkConfigured, videosdkToken, ensureVideoSdkMeeting } from '@/lib/live/videosdk';
-import { db } from '@/firebase/server';
-import { LIVESTREAMS_COLLECTION } from '@/lib/live/types';
 
 export const runtime = 'nodejs';
 export const maxDuration = 30;
@@ -30,9 +27,8 @@ export async function POST(request: NextRequest) {
   if (user.role !== 'seller' && user.role !== 'admin') {
     return NextResponse.json({ error: 'Only business accounts can go live.' }, { status: 403 });
   }
-  // LiveKit is the primary transport; VideoSDK is used when LiveKit is not
-  // configured (that is the account currently connected to this project).
-  if (!livekitConfigured() && !videosdkConfigured()) {
+  // LiveKit is the only transport.
+  if (!livekitConfigured()) {
     return NextResponse.json(
       { error: 'Live streaming is starting up. Please try again shortly.' },
       { status: 503 },
@@ -70,29 +66,6 @@ export async function POST(request: NextRequest) {
     });
 
     const displayName = user.businessName || user.name || 'Vidnov Business';
-
-    if (!livekitConfigured()) {
-      const meetingId = await ensureVideoSdkMeeting();
-      const token = await videosdkToken();
-      if (!meetingId || !token) {
-        return NextResponse.json(
-          { error: 'Live streaming is starting up. Please try again shortly.' },
-          { status: 503 },
-        );
-      }
-      // Remember the room on the stream so viewers join the same session.
-      await db.collection(LIVESTREAMS_COLLECTION).doc(stream.id).set(
-        { videoSdkMeetingId: meetingId },
-        { merge: true },
-      ).catch(() => undefined);
-      return NextResponse.json({
-        provider: 'videosdk',
-        stream: { ...stream, videoSdkMeetingId: meetingId },
-        meetingId,
-        token,
-        identity: user.uid,
-      });
-    }
 
     const token = await createSellerToken(user.uid, stream.roomName, displayName);
 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/firebase/server';
 import { verifyUserUid } from '@/lib/notifications/server';
 import { notify } from '@/lib/notifications';
+import { broadcastAdminAlert } from '@/lib/whatsapp/bridge';
 
 export const runtime = 'nodejs';
 
@@ -30,6 +31,14 @@ export async function POST(request: NextRequest) {
       : undefined,
     db,
   });
+
+  // Admin alert on the VPS WhatsApp bridge (Baileys) — a silent no-op until
+  // a phone is paired. Fire-and-forget: a WhatsApp hiccup must never fail
+  // the welcome flow.
+  void broadcastAdminAlert(
+    role === 'seller' ? '🆕 New seller registered' : '🆕 New user registered',
+    `${name || 'Someone'} just created a ${role} account${email ? ` (${email})` : ''}.`,
+  ).catch(() => undefined);
 
   return NextResponse.json({ ok: true });
 }

@@ -10,13 +10,12 @@
  * see a pinned product on their screen instantly), a viewer count, and the
  * session countdown.
  *
- * Transport: LiveKit when the server has LIVEKIT_* configured — POST
- * /api/live-session authenticates the seller, charges the session, mints a
- * server-side broadcaster token and returns the room name + websocket URL in
- * one response, so the API secret never reaches the browser. When LiveKit is
- * not configured the same endpoint falls back to VideoSDK (the original
- * transport, still served on the buyer side) so Go live always works on the
- * transport the server can actually run.
+ * Transport: LiveKit only — POST /api/live-session authenticates the seller,
+ * charges the session, mints a server-side broadcaster token and returns the
+ * room name + websocket URL in one response, so the API secret never reaches
+ * the browser. (VideoSDK, the old fallback transport, has been removed; the
+ * server runs self-hosted LiveKit and refuses to start a broadcast when
+ * LIVEKIT_* is not configured.)
  */
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
@@ -46,21 +45,9 @@ const HostPreview = dynamic(() => import('@/components/live/host-preview'), {
   ),
 });
 
-/** VideoSDK fallback stage — used when the server has no LiveKit keys. */
-const VideosdkHostPreview = dynamic(() => import('@/components/live/videosdk-host-preview'), {
-  ssr: false,
-  loading: () => (
-    <div className="flex h-full w-full flex-col items-center justify-center gap-3 bg-black">
-      <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      <p className="text-[10px] font-black uppercase tracking-[0.3em] text-white/50">Opening your studio…</p>
-    </div>
-  ),
-});
-
-/** The connection a live broadcast runs on — provider-specific details. */
+/** The connection a live broadcast runs on — LiveKit connection details. */
 type LiveConnection =
-  | { provider: 'livekit'; wsUrl: string; roomName: string; token: string }
-  | { provider: 'videosdk'; meetingId: string; token: string };
+  { provider: 'livekit'; wsUrl: string; roomName: string; token: string };
 
 const SESSION_COST = 100;
 
@@ -211,32 +198,32 @@ export function SellerLiveStudio({
         return;
       }
 
-      // The server answers on whichever transport it can actually run:
-      // LiveKit (preferred) or VideoSDK (fallback). Anything else means no
-      // broadcast was started — surface that instead of half-mounting a stage.
+      // LiveKit is the only transport. Anything else means no broadcast was
+      // started — surface that instead of half-mounting a stage.
       if (data.provider === 'livekit') {
         if (!data.livekitRoomName || !data.token || !data.wsUrl) {
           throw new Error('The server did not return LiveKit connection details. The broadcast was not started.');
         }
         setSession({ provider: 'livekit', wsUrl: data.wsUrl, roomName: data.livekitRoomName, token: data.token });
-      } else if (data.provider === 'videosdk') {
-        if (!data.videosdkMeetingId || !data.token) {
-          throw new Error('The server did not return VideoSDK connection details. The broadcast was not started.');
-        }
-        setSession({ provider: 'videosdk', meetingId: data.videosdkMeetingId, token: data.token });
       } else {
         throw new Error('The server did not return a usable transport. The broadcast was not started.');
       }
       setTokenError(null);
       setAlreadyLive(null);
       setPhase('live');
-      toast({ title: 'You are live', description: 'Buyers can now watch you in VIDNOV LIVE.' });
-    } catch (error) {
+      toast({ title: 'You are live', description: 'Buyers can now watch you in VIDNOV LIVE.' });      } catch (error) {
       setPhase('idle');
+      // "Internal Server Error" tells the seller nothing. Explain what likely
+      // happened and what to do, per the mandatory INCOMPLETE_SENTENCE_FIXES
+      // requirement: a retryable 5xx leaves the button usable with guidance.
+      const message = error instanceof Error ? error.message : '';
+      const isServerError = !message || /internal server error/i.test(message);
       toast({
         variant: 'destructive',
-        title: 'Could not go live',
-        description: error instanceof Error ? error.message : 'Please try again.',
+        title: isServerError ? 'Connection problem' : 'Could not go live',
+        description: isServerError
+          ? 'The server had a temporary problem starting your broadcast — your points were not charged. Wait a moment and press Go live again.'
+          : message,
       });
     }
   }, [user, title, toast]);
@@ -322,23 +309,14 @@ export function SellerLiveStudio({
     const sellerName = userProfile?.shopName || userProfile?.fullName || 'Seller';
     return (
       <div className="relative h-full w-full overflow-hidden bg-black">
-        {session.provider === 'livekit' ? (
-          <HostPreview
-            wsUrl={session.wsUrl}
-            roomName={session.roomName}
-            token={session.token}
-            participantName={sellerName}
-            onEnd={endLive}
-            onViewerCount={setViewerCount}
-          />
-        ) : (
-          <VideosdkHostPreview
-            meetingId={session.meetingId}
-            token={session.token}
-            participantName={sellerName}
-            onEnd={endLive}
-          />
-        )}
+        <HostPreview
+          wsUrl={session.wsUrl}
+          roomName={session.roomName}
+          token={session.token}
+          participantName={sellerName}
+          onEnd={endLive}
+          onViewerCount={setViewerCount}
+        />
 
         {/* Session clock + live audience, always visible over the camera. */}
         <div className="pointer-events-none absolute left-3 top-3 z-20 flex items-center gap-2">
@@ -353,18 +331,14 @@ export function SellerLiveStudio({
             {Math.floor(secondsLeft / 60)}:{String(secondsLeft % 60).padStart(2, '0')}
             {urgent && <span className="ml-1.5 text-[10px] uppercase tracking-widest">wrap up</span>}
           </span>
-          {/* Viewer count comes from the LiveKit room; the VideoSDK fallback
-              has no participant feed, so the badge is shown only when real
-              numbers exist rather than a false zero. */}
-          {session.provider === 'livekit' && (
-            <span
-              className="inline-flex items-center gap-1.5 rounded-full bg-black/60 px-3 py-1.5 text-xs font-bold text-white backdrop-blur-md"
-              title="Viewers watching now"
-            >
-              <Users className="h-3.5 w-3.5" />
-              {viewerCount}
-            </span>
-          )}
+          {/* Viewer count comes from the LiveKit room. */}
+          <span
+            className="inline-flex items-center gap-1.5 rounded-full bg-black/60 px-3 py-1.5 text-xs font-bold text-white backdrop-blur-md"
+            title="Viewers watching now"
+          >
+            <Users className="h-3.5 w-3.5" />
+            {viewerCount}
+          </span>
         </div>
 
         {/* Stage controls sit above the camera/mic/end bar so nothing is covered. */}

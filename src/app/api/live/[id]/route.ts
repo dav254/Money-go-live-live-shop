@@ -12,7 +12,6 @@ import {
   endLiveStream,
 } from '@/lib/live/service';
 import { LIVESTREAMS_COLLECTION, type LiveStream } from '@/lib/live/types';
-import { videosdkConfigured, videosdkToken, ensureVideoSdkMeeting } from '@/lib/live/videosdk';
 
 export const runtime = 'nodejs';
 export const maxDuration = 30;
@@ -31,7 +30,7 @@ export async function GET(
 ) {
   const user = await verifyUserContext(request);
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  if (!livekitConfigured() && !videosdkConfigured()) {
+  if (!livekitConfigured()) {
     return NextResponse.json({ error: 'Live streaming is starting up.' }, { status: 503 });
   }
 
@@ -61,38 +60,6 @@ export async function GET(
   }
 
   try {
-    // VideoSDK transport (used when LiveKit is not configured).
-    if (!livekitConfigured()) {
-      const meetingId = stream.videoSdkMeetingId ?? (await ensureVideoSdkMeeting());
-      const token = await videosdkToken(60 * 60 * 4);
-      if (!meetingId || !token) {
-        return NextResponse.json({ error: 'Live streaming is starting up.' }, { status: 503 });
-      }
-
-      // Presence + analytics (§37, §40).
-      const streamRef = db.collection(LIVESTREAMS_COLLECTION).doc(id);
-      await db.runTransaction(async (tx) => {
-        const fresh = await tx.get(streamRef);
-        if (!fresh.exists) return;
-        const data = fresh.data() as LiveStream;
-        const nextCount = (data.viewerCount ?? 0) + 1;
-        tx.update(streamRef, {
-          viewerCount: FieldValue.increment(1),
-          totalJoins: FieldValue.increment(1),
-          peakViewers: Math.max(data.peakViewers ?? 0, nextCount),
-          updatedAt: new Date(),
-        });
-      }).catch(() => undefined);
-
-      return NextResponse.json({
-        ...stream,
-        provider: 'videosdk',
-        meetingId,
-        token,
-        identity: user.uid,
-      });
-    }
-
     const token = await createViewerToken(
       user.uid,
       stream.roomName,

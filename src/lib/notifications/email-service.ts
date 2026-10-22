@@ -13,6 +13,7 @@
  */
 
 import { getVidnovConfig, appLink, mailboxFor, type EmailCategory } from './config';
+import { pbWriteDevMailbox, pbWriteEmailLog } from '@/lib/pocketbase/email-logs';
 import { getTemplate, type EmailTemplateDef } from './templates';
 import { renderTemplate } from './renderer';
 import { getEmailProvider, type OutgoingEmail } from './email-provider';
@@ -117,6 +118,11 @@ export interface SendTemplateResult {
 }
 
 async function writeEmailLog(entry: Omit<EmailLogEntry, 'id' | 'createdAt'>): Promise<string | undefined> {
+  // Self-hosting migration: when PocketBase is configured on this server the
+  // delivery log lives there; otherwise (and on any PB failure) Firestore
+  // keeps receiving it exactly as before.
+  const pbId = await pbWriteEmailLog(entry);
+  if (pbId) return pbId;
   const db = getDb();
   if (!db) return undefined;
   try {
@@ -167,14 +173,28 @@ export async function sendTemplateEmail(options: SendTemplateOptions): Promise<S
       capturedAt: new Date(),
       devMode: true,
     };
-    const db = getDb();
+    // Prefer PocketBase capture when configured; fall back to Firestore.
     let id: string | undefined;
-    if (db) {
-      try {
-        const ref = await (db.collection as any)('devMailbox').add(devDoc);
-        id = ref.id;
-      } catch (error) {
-        console.error('[email] failed to capture dev mail:', error);
+    id = (await pbWriteDevMailbox({
+      to: message.to,
+      from: message.from,
+      replyTo: message.replyTo,
+      subject: message.subject,
+      text: message.text,
+      html: message.html,
+      templateKey: tpl.key,
+      category: tpl.category,
+      userId: options.userId ?? null,
+    })) ?? undefined;
+    if (!id) {
+      const db = getDb();
+      if (db) {
+        try {
+          const ref = await (db.collection as any)('devMailbox').add(devDoc);
+          id = ref.id;
+        } catch (error) {
+          console.error('[email] failed to capture dev mail:', error);
+        }
       }
     }
     await writeEmailLog({

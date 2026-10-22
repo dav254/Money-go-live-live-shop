@@ -371,7 +371,17 @@ export default function BuyerCheckoutPage() {
    * "no image" rather than as a real picture, and a video product falls back
    * to its poster frame so the buyer sees the thing they are buying.
    */
-  const lines = React.useMemo(() => {
+  /*
+   * Deliberately NOT a `React.useMemo`: this block sits BELOW the early
+   * returns above, so a hook here only runs once the order has loaded. That
+   * changes the hook count between renders, React throws "Rendered more hooks
+   * than during the previous render", and the buyer lands on the SYSTEM
+   * SIGNAL error screen the moment their order snapshot arrives — which is
+   * exactly what "Pay now crashes" looked like. A plain computation at this
+   * size costs nothing.
+   */
+  const lines = (() => {
+    if (!order) return [];
     type Row = {
       productId: string;
       name: string;
@@ -421,7 +431,7 @@ export default function BuyerCheckoutPage() {
         isVideo: !usable(row.imageUrl) && Boolean(livePoster),
       };
     });
-  }, [order, product]);
+  })();
 
   return (
     <div className="vn-page-enter pb-8">

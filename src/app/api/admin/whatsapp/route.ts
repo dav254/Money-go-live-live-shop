@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db, auth } from '@/firebase/server';
+import { verifyAdminUid } from '@/lib/notifications/server';
 import {
   connectWhatsAppFor,
   disconnectWhatsAppFor,
@@ -11,21 +11,13 @@ import {
  * GET  → current pairing status for THIS admin (state + QR while pairing).
  * POST → { action: 'connect' | 'disconnect' | 'test' }.
  *
- * Admin-only. The bridge itself lives in `lib/whatsapp/bridge.ts` and holds
+ * Admin-only, via the shared gate (local VPS role store first, Firestore
+ * fallback). The bridge itself lives in `lib/whatsapp/bridge.ts` and holds
  * one WhatsApp Web session per admin uid on the server's disk.
  */
 
 async function requireAdmin(request: NextRequest): Promise<string | null> {
-  const authHeader = request.headers.get('Authorization');
-  if (!authHeader || !authHeader.startsWith('Bearer ')) return null;
-  try {
-    const { uid } = await auth.verifyIdToken(authHeader.split('Bearer ')[1]);
-    const profile = await db.collection('userProfiles').doc(uid).get();
-    if (profile.data()?.userRole !== 'admin') return null;
-    return uid;
-  } catch {
-    return null;
-  }
+  return verifyAdminUid(request);
 }
 
 export async function GET(request: NextRequest) {

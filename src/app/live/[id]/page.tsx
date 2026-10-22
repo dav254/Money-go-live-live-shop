@@ -25,13 +25,7 @@ import { useUser, useFirestore } from '@/firebase';
 import { collection, doc, getDoc, getDocs, query, where, setDoc, serverTimestamp } from 'firebase/firestore';
 import type { LiveStream } from '@/lib/live/types';
 import { LIVE_REPORT_REASONS } from '@/lib/live/types';
-import dynamic from 'next/dynamic';
 import { useLiveRoom } from '@/components/live/use-live-room';
-
-// The VideoSDK browser SDK must never run during SSR.
-const VideoSDKViewer = dynamic(() => import('@/components/buyer/VideoSDKViewer'), {
-  ssr: false,
-});
 import { LiveChatPanel } from '@/components/live/live-chat-panel';
 import {
   Radio, Eye, Loader2, ArrowLeft, MessageSquare, Share2, Flag,
@@ -48,8 +42,6 @@ export default function LiveWatchPage() {
 
   const videoRef = React.useRef<HTMLVideoElement>(null);
   const live = useLiveRoom('viewer', videoRef);
-  // VideoSDK transport (used when LiveKit is not configured).
-  const [videoSdkMeetingId, setVideoSdkMeetingId] = React.useState<string | null>(null);
 
   const [stream, setStream] = React.useState<LiveStream | null>(null);
   const [error, setError] = React.useState<{ code: number; message: string } | null>(null);
@@ -82,11 +74,7 @@ export default function LiveWatchPage() {
           return;
         }
         setStream(data as LiveStream);
-        if (data.provider === 'videosdk') {
-          setVideoSdkMeetingId(data.meetingId);
-        } else {
-          await live.connect(data.wsUrl, data.token);
-        }
+        await live.connect(data.wsUrl, data.token);
       } catch {
         if (alive) setError({ code: 500, message: 'Could not open this live.' });
       }
@@ -262,11 +250,7 @@ export default function LiveWatchPage() {
         {/* Stage */}
         <div className="relative flex flex-col bg-black">
           <div className="relative flex-1">
-            {videoSdkMeetingId ? (
-              <VideoSDKViewer meetingId={videoSdkMeetingId} />
-            ) : (
-              <video ref={videoRef} autoPlay playsInline className="h-full w-full object-cover" />
-            )}
+            <video ref={videoRef} autoPlay playsInline className="h-full w-full object-cover" />
 
             {/* Overlays */}
             <div className="absolute left-4 top-4 flex items-center gap-2">

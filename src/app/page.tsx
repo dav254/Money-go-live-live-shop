@@ -3,474 +3,146 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import {
-  ArrowRight, Check, Search, Sparkles, Video, Store, MapPin, Wrench,
-  ShoppingBag, Clapperboard, Wand2, Images, Film, Layers, Tag, Radio,
-  ShieldCheck, Lock, BadgePercent, Flag, HandHeart, Megaphone, Package,
-  Truck, BarChart3, MessageSquare, Palette, Camera, GraduationCap,
-  Loader2, Heart, Eye, Inbox,
-} from 'lucide-react';
+import { ArrowRight, Play } from 'lucide-react';
 
 import { LandingLayout } from '@/components/layout/landing-layout';
 import { Button } from '@/components/ui/button';
-import { LogoMark } from '@/components/logo';
-import { useUser, useUserProfile, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, doc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
-import { ROLE_HOME, resolveRole } from '@/lib/auth/roles';
-import { listingPriceTag, createdMs } from '@/lib/discovery';
-import { isService } from '@/components/listings/service-badge';
-import { getPlaceholderImage } from '@/lib/placeholder-images';
-import { PRODUCT_CATEGORIES } from '@/lib/constants';
-import { useToast } from '@/hooks/use-toast';
-import type { Product, SellerShop } from '@/lib/types';
+import { VidnovLogo } from '@/components/logo';
+import {
+  PLAYGROUND, PaperTexture, Reveal, StampSeal,
+  SneakerArt, HeadphonesArt, CoffeeBagArt, SkincareArt, WatchArt, LampArt,
+  ToteArt, PosterArt, VideoStillArt,
+} from '@/components/home/playground-art';
+import { BeforeAfterSlider } from '@/components/home/before-after-slider';
 
 /**
- * VIDNOV HOME — Create. Discover. Sell. Grow.
+ * THE VIDNOV PLAYGROUND — the production homepage.
  *
- * The page answers three questions in order: what can I discover here
- * (the live marketplace below), what can I create or sell (AI Studio and
- * the launchpad), and how does that become real (escrow, verification, one
- * honest fee line).
+ * Vidnov is at launch: there is no seller base to showcase, so the page is
+ * honest about what it is — an art-directed playground of clearly-labelled
+ * DEMO content built from original vector artwork, alongside the real routes
+ * a visitor can actually take today (Discovery, Create Studio, How It Works,
+ * sign-in). No fake sellers, prices, stock, reviews or engagement numbers
+ * appear anywhere, and nothing demo is wired to a purchase flow.
  *
- * Everything below the hero is REAL data read from the platform itself —
- * products, shops and help articles from Firestore, filtered client-side.
- * No invented products, sellers, quotes, ratings or viewer counts anywhere.
- * The only money claim on the page is the platform's actual pricing: free
- * to start, 3% only when you sell. Nothing else — a visitor who has to
- * parse a fee waterfall before understanding the product never gets to
- * the product.
+ * Identity: warm ivory paper, deep ink type, electric coral for signature
+ * actions, cobalt for creative elements, acid lime as a sparing highlight.
+ * Display type is Space Grotesk (already loaded), body is Inter, editorial
+ * accents are Instrument Serif italic. Motion is CSS-only, once-per-element,
+ * and fully disabled under prefers-reduced-motion.
  */
 
-/* ── Static, truthful content ─────────────────────────────────────────── */
+const C = PLAYGROUND;
 
-const QUICK_ACTIONS = [
-  { label: 'Create a video', href: '/ai-studio', icon: Video },
-  { label: 'Design a poster', href: '/app/seller/studio', icon: Palette },
-  { label: 'Launch a shop', href: '/signup?role=seller', icon: Store },
-  { label: 'Find a service', href: '/buyer/discovery', icon: Wrench },
-  { label: 'Start selling', href: '/signup?role=seller', icon: Tag },
-] as const;
+/* ── Buttons ──────────────────────────────────────────────────────────── */
 
-const AI_TOOLS = [
-  { name: 'Text → Video', body: 'Describe a scene, get a cinematic clip for your listing or ad.', icon: Clapperboard, grad: 'vn-grad-coral' },
-  { name: 'Image → Video', body: 'Animate a product photo into a slow commercial camera move.', icon: Film, grad: 'vn-grad-ocean' },
-  { name: 'Text → Image', body: 'Studio-grade images for ads, listings and social posts.', icon: Wand2, grad: 'vn-grad-violet' },
-  { name: 'Image → Image', body: 'New backgrounds, variations and ad layouts from one photo.', icon: Images, grad: 'vn-grad-ember' },
-] as const;
-
-const LAUNCH_STEPS = [
-  { n: '01', title: 'Create a shop', body: 'Your public storefront with a verified badge, catalogue and contacts.', href: '/signup?role=seller', icon: Store },
-  { n: '02', title: 'Add products or services', body: 'Photos, video, price and stock — from phone or desktop.', href: '/dashboard/products', icon: Package },
-  { n: '03', title: 'Generate promo material', body: 'AI Studio turns a product photo into video, captions and ad variants.', href: '/ai-studio', icon: Sparkles },
-  { n: '04', title: 'Share your listings', body: 'One link per product for WhatsApp, Instagram or your status.', href: '/dashboard/seller/share', icon: Megaphone },
-  { n: '05', title: 'Answer enquiries', body: 'Buyer questions and requests land in one inbox.', href: '/messages', icon: MessageSquare },
-  { n: '06', title: 'Track orders', body: 'Escrow-held payments release the moment delivery is confirmed.', href: '/dashboard/seller/orders', icon: BarChart3 },
-] as const;
-
-const TRUST_POINTS = [
-  { icon: ShieldCheck, title: 'Verified sellers', body: 'A human reviews every ID and permit behind the tick.' },
-  { icon: Lock, title: 'Escrow payments', body: 'Money is held until delivery is confirmed — both sides protected.' },
-  { icon: BadgePercent, title: 'One fee, one line', body: 'Free to start. 3% only when you sell. No listing or monthly fees.' },
-  { icon: Flag, title: 'Everything is reportable', body: 'Every listing, seller and order has a reporting path.' },
-] as const;
-
-const DISCOVERY_TABS = [
-  { id: 'for-you', label: 'For You' },
-  { id: 'nearby', label: 'Nearby' },
-  { id: 'products', label: 'Products' },
-  { id: 'services', label: 'Services' },
-  { id: 'learn', label: 'Learn' },
-] as const;
-
-type DiscoveryTabId = (typeof DISCOVERY_TABS)[number]['id'];
-
-/* ── Shared bits ──────────────────────────────────────────────────────── */
-
-function SectionHeading({
-  eyebrow,
-  title,
-  lede,
-  align = 'center',
-}: {
-  eyebrow: string;
-  title: React.ReactNode;
-  lede?: string;
-  align?: 'center' | 'left';
-}) {
+function CoralCta({ href, children, className = '' }: { href: string; children: React.ReactNode; className?: string }) {
   return (
-    <div className={align === 'center' ? 'mx-auto max-w-3xl text-center' : 'max-w-2xl text-left'}>
-      <span className="vn-phase text-primary">{eyebrow}</span>
-      <h2 className="vn-display mt-4 text-balance text-3xl text-foreground sm:text-4xl lg:text-5xl">
-        {title}
-      </h2>
-      {lede && (
-        <p className="mt-4 text-pretty text-base leading-relaxed text-muted-foreground">
-          {lede}
-        </p>
-      )}
-    </div>
+    <Button
+      asChild
+      size="lg"
+      className={`rounded-full border-2 border-[#171717] bg-[#FF4D36] font-bold text-[#171717] shadow-[3px_3px_0_0_#171717] transition-all hover:-translate-y-0.5 hover:bg-[#FF4D36] hover:shadow-[4px_4px_0_0_#171717] active:translate-y-0 active:shadow-[2px_2px_0_0_#171717] ${className}`}
+    >
+      <Link href={href}>{children}</Link>
+    </Button>
   );
 }
 
-/* ── Product card (real listings only) ────────────────────────────────── */
-
-function HomeProductCard({
-  product,
-  shop,
-  saved,
-  onSave,
-}: {
-  product: Product;
-  shop?: SellerShop;
-  saved: boolean;
-  onSave: (product: Product, next: boolean) => void;
-}) {
-  const tag = listingPriceTag(product);
-  const cover =
-    product.thumbnailUrls?.[0] ||
-    product.imageUrl ||
-    getPlaceholderImage();
-
+function InkOutlineCta({ href, children, className = '', invert = false }: { href: string; children: React.ReactNode; className?: string; invert?: boolean }) {
   return (
-    <article className="group overflow-hidden rounded-2xl border border-border bg-card vn-transition hover:border-primary/40 hover:shadow-lg">
-      <div className="relative aspect-[4/5] overflow-hidden bg-muted">
-        <img
-          src={cover}
-          alt={product.name || 'Product'}
-          loading="lazy"
-          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-          onError={(e) => {
-            const el = e.currentTarget;
-            if (el.dataset.fallbackApplied === 'true') return;
-            el.dataset.fallbackApplied = 'true';
-            el.src = getPlaceholderImage();
-          }}
-        />
-        {isService(product) && (
-          <span className="absolute left-3 top-3 rounded-full bg-black/70 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white">
-            Service
-          </span>
-        )}
-        <button
-          type="button"
-          onClick={() => onSave(product, !saved)}
-          aria-label={saved ? 'Remove from saved' : 'Save listing'}
-          aria-pressed={saved}
-          className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur vn-transition hover:bg-black/80"
-        >
-          <Heart className={`h-4 w-4 ${saved ? 'fill-primary text-primary' : ''}`} />
-        </button>
-      </div>
-
-      <div className="space-y-2 p-4">
-        <div className="flex items-start justify-between gap-2">
-          <h3 className="line-clamp-2 min-w-0 flex-1 text-sm font-semibold leading-snug text-foreground">
-            {product.name || 'Untitled listing'}
-          </h3>
-          <p className="shrink-0 text-sm font-bold text-primary">
-            {tag.quote ? tag.primary : `${tag.primary}${tag.secondary ?? ''}`}
-          </p>
-        </div>
-
-        {shop && (
-          <p className="flex items-center gap-1.5 truncate text-xs text-muted-foreground">
-            <Store className="h-3 w-3 shrink-0" />
-            <span className="truncate">{shop.shopName}</span>
-            {shop.isVerified && (
-              <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold text-primary">
-                <Check className="h-2.5 w-2.5" /> Verified
-              </span>
-            )}
-          </p>
-        )}
-
-        <div className="flex items-center justify-between pt-1">
-          <Link
-            href={`/products/${product.id}`}
-            className="inline-flex items-center gap-1 text-xs font-semibold text-foreground vn-transition hover:text-primary"
-          >
-            <Eye className="h-3.5 w-3.5" /> View product
-          </Link>
-          {product.location && (
-            <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-              <MapPin className="h-3 w-3" /> {product.location}
-            </span>
-          )}
-        </div>
-      </div>
-    </article>
+    <Button
+      asChild
+      size="lg"
+      variant="outline"
+      className={`rounded-full border-2 font-bold transition-all ${
+        invert
+          ? 'border-[#F5F0E6] bg-transparent text-[#F5F0E6] hover:bg-[#F5F0E6] hover:text-[#171717]'
+          : 'border-[#171717] bg-transparent text-[#171717] hover:bg-[#171717] hover:text-[#F5F0E6]'
+      } ${className}`}
+    >
+      <Link href={href}>{children}</Link>
+    </Button>
   );
 }
 
-/* ── Discovery band (real Firestore data) ─────────────────────────────── */
-
-function DiscoveryBand() {
-  const firestore = useFirestore();
-  const { user } = useUser();
-  const { userProfile } = useUserProfile(user?.uid);
-  const { toast } = useToast();
-  const router = useRouter();
-
-  const [tab, setTab] = React.useState<DiscoveryTabId>('for-you');
-  // Client-only rendering: price strings are locale-formatted, and the server
-  // locale is not the browser's. Skeletons until mount avoid the mismatch.
-  const [mounted, setMounted] = React.useState(false);
-  React.useEffect(() => setMounted(true), []);
-
-  const productsQuery = useMemoFirebase(
-    () => (firestore ? collection(firestore, 'products') : null),
-    [firestore],
+function SectionLabel({ children, tone = 'ink' }: { children: React.ReactNode; tone?: 'ink' | 'lime' | 'ivory' }) {
+  const styles =
+    tone === 'lime'
+      ? 'bg-[#D9F36A] text-[#171717]'
+      : tone === 'ivory'
+        ? 'bg-transparent text-[#F5F0E6] ring-1 ring-[#F5F0E6]/40'
+        : 'bg-[#171717] text-[#F5F0E6]';
+  return (
+    <span className={`inline-block rounded-full px-3.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.32em] ${styles}`}>
+      {children}
+    </span>
   );
-  const shopsQuery = useMemoFirebase(
-    () => (firestore ? collection(firestore, 'sellerShops') : null),
-    [firestore],
-  );
-  const helpQuery = useMemoFirebase(
-    () => (firestore ? collection(firestore, 'helpArticles') : null),
-    [firestore],
-  );
+}
 
-  const { data: products, isLoading: loadingProducts, error: productsError } =
-    useCollection<Product>(productsQuery);
-  const { data: shops } = useCollection<SellerShop>(shopsQuery);
-  const { data: helpArticles } = useCollection<{
-    id: string;
-    question?: string;
-    title?: string;
-    answer?: string;
-    category?: string;
-  }>(helpQuery);
+/* ── Motion tile (one real demo clip + labelled stills) ───────────────── */
 
-  const shopBySeller = React.useMemo(() => {
-    const map = new Map<string, SellerShop>();
-    for (const shop of shops ?? []) map.set(shop.sellerId, shop);
-    return map;
-  }, [shops]);
+const DEMO_CLIP_SRC =
+  '/Maximalist%20Caregiver%20Service%20Flyer%20Us%20Legal%20-%20Made%20with%20PosterMyWall.mp4';
 
-  const newest = React.useMemo(() => {
-    const rows = [...(products ?? [])];
-    rows.sort((a, b) => createdMs(b) - createdMs(a));
-    return rows;
-  }, [products]);
-
-  const visible = React.useMemo(() => {
-    switch (tab) {
-      case 'nearby':
-        return newest.filter((p) => (p.location || p.vendorLocation || p.serviceArea || '').trim() !== '').slice(0, 8);
-      case 'products':
-        return newest.filter((p) => !isService(p)).slice(0, 8);
-      case 'services':
-        return newest.filter((p) => isService(p)).slice(0, 8);
-      case 'for-you':
-      default:
-        return newest.slice(0, 8);
-    }
-  }, [newest, tab]);
-
-  const savedIds = React.useMemo(
-    () => new Set((userProfile as { wishlist?: string[] })?.wishlist ?? []),
-    [userProfile],
-  );
-
-  const handleSave = React.useCallback(
-    async (product: Product, next: boolean) => {
-      if (!user || !firestore) {
-        toast({
-          title: 'Sign in to save',
-          description: 'Saving keeps listings ready for you in your wishlist.',
-        });
-        router.push('/login?returnTo=/');
-        return;
-      }
-      try {
-        await updateDoc(doc(firestore, 'userProfiles', user.uid), {
-          wishlist: next ? arrayUnion(product.id) : arrayRemove(product.id),
-        });
-        toast({ title: next ? 'Saved' : 'Removed from saved' });
-      } catch {
-        toast({ variant: 'destructive', title: 'Could not update saved items' });
-      }
-    },
-    [user, firestore, toast, router],
-  );
-
-  const emptyCopy: Record<DiscoveryTabId, { title: string; body: string }> = {
-    'for-you': { title: 'The marketplace is just opening', body: 'Be the first to list something real.' },
-    nearby: { title: 'Nothing nearby yet', body: 'Listings with a location appear here. Set yours when you open a shop.' },
-    products: { title: 'No products listed yet', body: ' Sellers publish products from their dashboard — yours could be first.' },
-    services: { title: 'No services listed yet', body: 'Photographers, tailors, designers and repairers can list their trade here.' },
-    learn: { title: 'No help articles yet', body: 'The full help centre is always available.' },
-  };
+function MotionClipTile() {
+  const [playing, setPlaying] = React.useState(false);
 
   return (
-    <section id="discover" className="mx-auto max-w-7xl px-4 py-20 md:py-24 lg:px-8">
-      <SectionHeading
-        eyebrow="Discover"
-        title="Real listings, right now"
-        lede="Products, services and shops straight from the marketplace. No staged photos of a business that does not exist."
-      />
-
-      <div
-        role="tablist"
-        aria-label="Discovery filters"
-        className="mt-10 flex flex-wrap justify-center gap-2"
-      >
-        {DISCOVERY_TABS.map((t) => (
-          <button
-            key={t.id}
-            role="tab"
-            aria-selected={tab === t.id}
-            onClick={() => setTab(t.id)}
-            className={`rounded-full border px-4 py-2 text-xs font-semibold vn-transition ${
-              tab === t.id
-                ? 'border-primary bg-primary text-primary-foreground'
-                : 'border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground'
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
-
-      <div className="mt-8" role="tabpanel" aria-label={DISCOVERY_TABS.find((t) => t.id === tab)?.label}>
-        {tab === 'learn' ? (
-          <div className="grid gap-4 md:grid-cols-3">
-            {(helpArticles ?? []).slice(0, 6).map((article) => (
-              <Link
-                key={article.id}
-                href="/faq"
-                className="rounded-2xl border border-border bg-card p-5 vn-transition hover:border-primary/40"
-              >
-                <GraduationCap className="h-5 w-5 text-primary" aria-hidden />
-                <h3 className="mt-3 text-sm font-semibold text-foreground">
-                  {article.question || article.title || 'Help article'}
-                </h3>
-                {article.answer && (
-                  <p className="mt-2 line-clamp-3 text-xs leading-relaxed text-muted-foreground">
-                    {article.answer}
-                  </p>
-                )}
-                {article.category && (
-                  <p className="mt-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                    {article.category}
-                  </p>
-                )}
-              </Link>
-            ))}
-            {!mounted || loadingProducts ? (
-              Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="vn-skeleton h-40 rounded-2xl" aria-hidden />
-              ))
-            ) : null}
-            {mounted && (helpArticles ?? []).length === 0 && (
-              <div className="col-span-full rounded-2xl border border-dashed border-border p-10 text-center">
-                <p className="text-sm font-semibold text-foreground">{emptyCopy.learn.title}</p>
-                <p className="mt-1 text-sm text-muted-foreground">{emptyCopy.learn.body}</p>
-                <Button asChild variant="outline" className="mt-5">
-                  <Link href="/faq">Open the help centre</Link>
-                </Button>
-              </div>
-            )}
-          </div>
-        ) : !mounted || (loadingProducts && !products) ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4" aria-hidden>
-            {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="vn-skeleton aspect-[4/5] rounded-2xl" />
-            ))}
-          </div>
-        ) : productsError ? (
-          <div className="rounded-2xl border border-dashed border-border p-10 text-center">
-            <Inbox className="mx-auto h-8 w-8 text-muted-foreground" aria-hidden />
-            <p className="mt-3 text-sm font-semibold text-foreground">The marketplace could not be loaded</p>
-            <p className="mt-1 text-sm text-muted-foreground">Check your connection and try again.</p>
-            <Button asChild variant="outline" className="mt-5" onClick={() => router.refresh()}>
-              Retry
-            </Button>
-          </div>
-        ) : visible.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-border p-10 text-center">
-            <ShoppingBag className="mx-auto h-8 w-8 text-muted-foreground" aria-hidden />
-            <p className="mt-3 text-sm font-semibold text-foreground">{emptyCopy[tab].title}</p>
-            <p className="mt-1 text-sm text-muted-foreground">{emptyCopy[tab].body}</p>
-            <Button asChild variant="outline" className="mt-5">
-              <Link href={tab === 'services' ? '/signup?role=seller' : '/buyer/discovery'}>
-                {tab === 'services' ? 'Offer a service' : 'Open full discovery'}
-              </Link>
-            </Button>
-          </div>
+    <div className="relative w-[260px] shrink-0 snap-start overflow-hidden rounded-2xl border-2 border-[#171717] bg-[#171717] sm:w-[300px]">
+      <div className="aspect-[9/16]">
+        {playing ? (
+          <video src={DEMO_CLIP_SRC} controls autoPlay playsInline className="h-full w-full object-cover" />
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {visible.map((product) => (
-              <HomeProductCard
-                key={product.id}
-                product={product}
-                shop={shopBySeller.get(product.sellerId)}
-                saved={savedIds.has(product.id)}
-                onSave={handleSave}
-              />
-            ))}
-          </div>
+          <button
+            type="button"
+            onClick={() => setPlaying(true)}
+            className="group relative block h-full w-full text-left"
+            aria-label="Play the demo poster-in-motion clip"
+          >
+            <PosterArt className="h-full w-full" />
+            <span className="absolute inset-0 grid place-items-center bg-[#171717]/25 transition-colors group-hover:bg-[#171717]/15">
+              <span className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-[#171717] bg-[#FF4D36] text-[#171717] shadow-[3px_3px_0_0_#171717]">
+                <Play className="ml-0.5 h-6 w-6 fill-current" aria-hidden />
+              </span>
+            </span>
+            <span className="absolute bottom-3 left-3 rounded-full bg-[#171717] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-[#F5F0E6]">
+              Demo clip · poster in motion
+            </span>
+          </button>
         )}
       </div>
-
-      <div className="mt-10 text-center">
-        <Button asChild size="lg" variant="outline" className="h-12 rounded-xl px-8 text-sm font-semibold">
-          <Link href="/buyer/discovery">
-            Open the full discovery feed
-            <ArrowRight className="ml-2 h-4 w-4" />
-          </Link>
-        </Button>
-      </div>
-    </section>
+    </div>
   );
 }
 
-/* ── Personalised shortcuts ───────────────────────────────────────────── */
-
-function PersonalisedRow() {
-  const { user } = useUser();
-  const { userProfile, isLoading } = useUserProfile(user?.uid);
-
-  if (isLoading || !user) return null;
-  const role = resolveRole(userProfile);
-
-  const links: { label: string; href: string; icon: React.ElementType }[] | null =
-    role === 'seller' || role === 'reseller'
-      ? [
-          { label: 'My shop', href: '/dashboard/seller', icon: Store },
-          { label: 'Products', href: '/dashboard/products', icon: Package },
-          { label: 'Orders', href: '/dashboard/seller/orders', icon: Truck },
-          { label: 'Messages', href: '/messages', icon: MessageSquare },
-          { label: 'Analytics', href: '/dashboard/seller/analytics', icon: BarChart3 },
-        ]
-      : role === 'buyer'
-        ? [
-            { label: 'Discover', href: '/buyer/discovery', icon: Search },
-            { label: 'Saved', href: '/buyer/wishlist', icon: Heart },
-            { label: 'My orders', href: '/buyer/my-orders', icon: Package },
-            { label: 'Wallet', href: '/buyer/wallet', icon: Lock },
-            { label: 'Messages', href: '/messages', icon: MessageSquare },
-          ]
-        : null;
-
-  if (!links) return null;
-
+function MotionStillTile({
+  art,
+  ratio,
+  label,
+  width,
+}: {
+  art: React.ReactNode;
+  ratio: string;
+  label: string;
+  width: string;
+}) {
   return (
-    <div className="mx-auto mt-10 max-w-7xl px-4 lg:px-8">
-      <ul className="flex flex-wrap justify-center gap-2.5">
-        {links.map((link) => (
-          <li key={link.label}>
-            <Link
-              href={link.href}
-              className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2 text-xs font-semibold text-foreground vn-transition hover:border-primary/50 hover:text-primary"
-            >
-              <link.icon className="h-3.5 w-3.5" aria-hidden />
-              {link.label}
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </div>
+    <Link
+      href="/buyer/discovery"
+      className={`group relative shrink-0 snap-start overflow-hidden rounded-2xl border-2 border-[#171717] ${width}`}
+      style={{ aspectRatio: ratio }}
+      aria-label={`${label} — open Discovery for real video content`}
+    >
+      {art}
+      <span className="absolute inset-0 grid place-items-center opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
+        <span className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-[#171717] bg-[#D9F36A] text-[#171717]">
+          <Play className="ml-0.5 h-5 w-5 fill-current" aria-hidden />
+        </span>
+      </span>
+      <span className="absolute bottom-3 left-3 rounded-full bg-[#F5F0E6] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-[#171717]">
+        {label}
+      </span>
+    </Link>
   );
 }
 
@@ -489,409 +161,495 @@ export default function VidnovHomePage() {
 
   return (
     <LandingLayout>
-      {/* ══════════════════════ HERO ══════════════════════ */}
-      <section className="relative overflow-hidden bg-ember-navy text-white">
-        <div className="vn-aurora pointer-events-none absolute inset-0" aria-hidden />
-        <div
-          className="pointer-events-none absolute inset-0 opacity-[0.18]"
-          aria-hidden
-          style={{
-            backgroundImage:
-              'linear-gradient(to right, rgba(255,255,255,0.6) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.6) 1px, transparent 1px)',
-            backgroundSize: '72px 72px',
-            maskImage: 'radial-gradient(65% 55% at 50% 35%, #000 0%, transparent 100%)',
-            WebkitMaskImage: 'radial-gradient(65% 55% at 50% 35%, #000 0%, transparent 100%)',
-          }}
-        />
+      <div style={{ background: C.ivory }}>
+        {/* ══════════════════════ HERO ══════════════════════ */}
+        <section className="relative overflow-hidden">
+          <PaperTexture />
+          <div className="relative mx-auto grid max-w-7xl items-center gap-12 px-4 py-12 sm:px-6 md:py-16 lg:grid-cols-[1.04fr_0.96fr] lg:gap-10 lg:px-8">
+            <div>
+              <SectionLabel tone="lime">A new space for ideas</SectionLabel>
 
-        <div className="relative mx-auto max-w-5xl px-4 py-20 text-center md:py-28 lg:px-8">
-          <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.28em] text-white/70 backdrop-blur">
-            <LogoMark className="h-3.5 w-3.5" />
-            Create · Discover · Sell · Grow
-          </span>
+              <h1 className="font-grotesk mt-6 text-[clamp(2.6rem,8vw,5.2rem)] font-bold leading-[0.96] tracking-tight text-[#171717]">
+                MAKE THE NEXT
+                <br />
+                THING{' '}
+                <span className="text-[#FF4D36]">HAPPEN.</span>
+              </h1>
 
-          <h1 className="vn-display mx-auto mt-8 max-w-4xl text-balance text-[2.75rem] leading-[0.95] sm:text-6xl lg:text-7xl">
-            Your ideas deserve
-            <br />
-            <span className="vn-text-grad">to earn.</span>
-          </h1>
+              <p className="mt-4 font-serif text-[clamp(1.5rem,3.4vw,2.2rem)] italic leading-tight text-[#344DE8]">
+                Find it. Shape it. Share it.
+              </p>
 
-          <p className="mx-auto mt-7 max-w-2xl text-pretty text-base leading-relaxed text-white/70 sm:text-lg">
-            Discover products, create powerful content, launch your shop, and connect
-            with customers — all in one place.
-          </p>
+              <p className="mt-5 max-w-xl text-base leading-relaxed text-[#77746D]">
+                Discover possibilities. Turn ordinary photos into striking visuals.
+                Explore a new way to bring products, creativity and business
+                together.
+              </p>
 
-          {/* The one box that runs the platform */}
-          <form onSubmit={submitSearch} role="search" className="mx-auto mt-10 max-w-2xl">
-            <label htmlFor="hero-search" className="sr-only">
-              What do you want to create, sell, or find?
-            </label>
-            <div className="flex items-center gap-3 rounded-2xl border border-white/15 bg-white/10 p-2 pl-5 backdrop-blur-xl vn-transition focus-within:border-primary/70">
-              <Search className="h-5 w-5 shrink-0 text-white/60" aria-hidden />
-              <input
-                id="hero-search"
-                type="search"
-                value={idea}
-                onChange={(e) => setIdea(e.target.value)}
-                placeholder="What do you want to create, sell, or find?"
-                className="h-12 w-full min-w-0 bg-transparent text-base text-white placeholder:text-white/50 focus:outline-none"
-              />
-              <Button
-                type="submit"
-                className="h-12 shrink-0 rounded-xl px-5 text-sm font-semibold"
-              >
-                Search
-              </Button>
-            </div>
-          </form>
-
-          {/* Quick actions — every one lands on a real feature */}
-          <ul className="mt-7 flex flex-wrap items-center justify-center gap-2.5">
-            {QUICK_ACTIONS.map((action) => (
-              <li key={action.label}>
-                <Link
-                  href={action.href}
-                  className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-2.5 text-xs font-semibold text-white/85 backdrop-blur vn-transition hover:border-primary/60 hover:bg-primary/15 hover:text-white"
-                >
-                  <action.icon className="h-4 w-4 text-primary" aria-hidden />
-                  {action.label}
-                </Link>
-              </li>
-            ))}
-          </ul>
-
-          {/* The whole pricing story, one line */}
-          <p className="mt-8 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-white/60">
-            {['Free to start', '3% only when you sell', 'Escrow-protected payments'].map((t) => (
-              <span key={t} className="inline-flex items-center gap-1.5">
-                <Check className="h-3.5 w-3.5 text-primary" />
-                {t}
-              </span>
-            ))}
-          </p>
-
-          <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <Button
-              asChild
-              size="lg"
-              className="h-12 rounded-xl bg-primary px-8 text-sm font-semibold text-white hover:bg-primary/90"
-            >
-              <Link href="/signup?role=seller">
-                Start selling free
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
-            </Button>
-            <Button
-              asChild
-              size="lg"
-              variant="outline"
-              className="h-12 rounded-xl border-white/20 bg-transparent px-8 text-sm font-semibold text-white hover:bg-white/10 hover:text-white"
-            >
-              <Link href="/login">I already have an account</Link>
-            </Button>
-          </div>
-        </div>
-
-        <PersonalisedRow />
-        <div className="h-12" aria-hidden />
-      </section>
-
-      {/* ══════════════════════ DISCOVERY (real data) ══════════════════════ */}
-      <DiscoveryBand />
-
-      {/* ══════════════════════ AI STUDIO ══════════════════════ */}
-      <section className="border-y border-border bg-card/40">
-        <div className="mx-auto max-w-7xl px-4 py-20 md:py-24 lg:px-8">
-          <SectionHeading
-            eyebrow="Create"
-            title="Make the content before you make the sale"
-            lede="AI Studio turns a sentence or a product photo into video, images and ad variants. The credit cost is shown before anything is generated — nothing is spent blind."
-          />
-
-          <div className="mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {AI_TOOLS.map((tool) => (
-              <Link
-                key={tool.name}
-                href="/ai-studio"
-                className="group relative overflow-hidden rounded-2xl border border-border bg-background p-6 vn-transition hover:border-primary/40 hover:shadow-lg"
-              >
-                <span className={`flex h-11 w-11 items-center justify-center rounded-xl text-white ${tool.grad}`}>
-                  <tool.icon className="h-5 w-5" aria-hidden />
-                </span>
-                <h3 className="mt-5 font-grotesk text-lg font-semibold tracking-tight text-foreground">
-                  {tool.name}
-                </h3>
-                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{tool.body}</p>
-                <span className="mt-5 inline-flex items-center gap-1.5 text-xs font-semibold text-primary">
-                  Open in AI Studio
-                  <ArrowRight className="h-3.5 w-3.5 vn-transition group-hover:translate-x-0.5" aria-hidden />
-                </span>
-              </Link>
-            ))}
-          </div>
-
-          <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
-            <Button asChild size="lg" className="h-12 rounded-xl px-8 text-sm font-semibold">
-              <Link href="/ai-studio">
-                <Sparkles className="mr-2 h-4 w-4" />
-                Open AI Studio
-              </Link>
-            </Button>
-            <Button asChild size="lg" variant="outline" className="h-12 rounded-xl px-8 text-sm font-semibold">
-              <Link href="/app/seller/studio">
-                <Camera className="mr-2 h-4 w-4" />
-                Classic Studio — edit photos
-              </Link>
-            </Button>
-          </div>
-        </div>
-      </section>
-
-      {/* ══════════════════════ MARKETPLACE ══════════════════════ */}
-      <section className="mx-auto max-w-7xl px-4 py-20 md:py-24 lg:px-8">
-        <SectionHeading
-          eyebrow="Sell & buy"
-          title="One marketplace, every kind of listing"
-          lede="Physical goods, digital products, creative services and live streams — all through the same search, the same checkout and the same escrow."
-        />
-
-        <div className="mt-12 flex flex-wrap justify-center gap-2">
-          {PRODUCT_CATEGORIES.slice(0, 8).map((category) => (
-            <Link
-              key={category}
-              href={`/search?q=${encodeURIComponent(category)}`}
-              className="rounded-full border border-border bg-card px-4 py-2 text-xs font-medium text-muted-foreground vn-transition hover:border-primary/40 hover:text-foreground"
-            >
-              {category}
-            </Link>
-          ))}
-          <Link
-            href="/categories"
-            className="rounded-full border border-primary/40 bg-primary/10 px-4 py-2 text-xs font-semibold text-primary vn-transition hover:bg-primary/20"
-          >
-            All categories
-          </Link>
-        </div>
-
-        <div className="mt-10 grid gap-4 md:grid-cols-3">
-          <Link
-            href="/requests"
-            className="rounded-2xl border border-border bg-card p-6 vn-transition hover:border-primary/40"
-          >
-            <Inbox className="h-6 w-6 text-primary" aria-hidden />
-            <h3 className="mt-4 font-grotesk text-lg font-semibold text-foreground">Request marketplace</h3>
-            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-              Buyers describe what they need; sellers answer with real offers and prices.
-              No more chasing quotes in chat threads.
-            </p>
-            <span className="mt-4 inline-flex items-center gap-1.5 text-xs font-semibold text-primary">
-              Post or answer a request <ArrowRight className="h-3.5 w-3.5" aria-hidden />
-            </span>
-          </Link>
-          <Link
-            href="/live"
-            className="rounded-2xl border border-border bg-card p-6 vn-transition hover:border-primary/40"
-          >
-            <Radio className="h-6 w-6 text-primary" aria-hidden />
-            <h3 className="mt-4 font-grotesk text-lg font-semibold text-foreground">Live shopping</h3>
-            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-              Sellers broadcast a drop or a demo and take orders while they talk.
-              Watch, ask, buy — from the same screen.
-            </p>
-            <span className="mt-4 inline-flex items-center gap-1.5 text-xs font-semibold text-primary">
-              See who is live <ArrowRight className="h-3.5 w-3.5" aria-hidden />
-            </span>
-          </Link>
-          <Link
-            href="/search"
-            className="rounded-2xl border border-border bg-card p-6 vn-transition hover:border-primary/40"
-          >
-            <Search className="h-6 w-6 text-primary" aria-hidden />
-            <h3 className="mt-4 font-grotesk text-lg font-semibold text-foreground">Search everything</h3>
-            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-              Products, shops and services in one search. Save what you like and
-              come back to it from any device.
-            </p>
-            <span className="mt-4 inline-flex items-center gap-1.5 text-xs font-semibold text-primary">
-              Start searching <ArrowRight className="h-3.5 w-3.5" aria-hidden />
-            </span>
-          </Link>
-        </div>
-      </section>
-
-      {/* ══════════════════════ LAUNCHPAD ══════════════════════ */}
-      <section className="border-y border-border bg-card/40">
-        <div className="mx-auto max-w-7xl px-4 py-20 md:py-24 lg:px-8">
-          <SectionHeading
-            eyebrow="Grow"
-            title="From an idea to a working shop"
-            lede="Six steps, all inside Vidnov. Each one is a real screen you will use — not a promise about a future feature."
-          />
-
-          <ol className="mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {LAUNCH_STEPS.map((step) => (
-              <li key={step.n}>
-                <Link
-                  href={step.href}
-                  className="group flex h-full flex-col rounded-2xl border border-border bg-background p-6 vn-transition hover:border-primary/40 hover:shadow-lg"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                      <step.icon className="h-5 w-5" aria-hidden />
-                    </span>
-                    <span className="font-grotesk text-xs font-bold tracking-widest text-muted-foreground">
-                      {step.n}
-                    </span>
-                  </div>
-                  <h3 className="mt-5 font-grotesk text-lg font-semibold tracking-tight text-foreground">
-                    {step.title}
-                  </h3>
-                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{step.body}</p>
-                  <span className="mt-4 inline-flex items-center gap-1.5 text-xs font-semibold text-primary">
-                    Open
-                    <ArrowRight className="h-3.5 w-3.5 vn-transition group-hover:translate-x-0.5" aria-hidden />
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ol>
-
-          <div className="mt-12 text-center">
-            <Button asChild size="lg" className="h-12 rounded-xl px-8 text-sm font-semibold">
-              <Link href="/signup?role=seller">
-                Start selling free
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
-            </Button>
-            <p className="mt-4 text-xs text-muted-foreground">
-              Already sell elsewhere? Bring one product over and see how the escrow
-              checkout feels before moving the whole catalogue.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* ══════════════════════ CREATORS & SERVICE PROVIDERS ══════════════════════ */}
-      <section className="mx-auto max-w-7xl px-4 py-20 md:py-24 lg:px-8">
-        <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
-          <div>
-            <SectionHeading
-              align="left"
-              eyebrow="Creators & services"
-              title="Sell what you can do, not only what you hold"
-              lede="Design, photography, video editing, tailoring, tutoring, repairs — if it is a skill, it is a listing here. Publish an offering, answer real requests, and get paid through the same escrow as a physical product."
-            />
-
-            <ul className="mt-8 space-y-3">
-              {[
-                'List a service with a price, hourly rate or “on request” quote',
-                'Answer buyer requests that match your trade',
-                'Deliver and get paid through the same protected checkout',
-              ].map((t) => (
-                <li key={t} className="flex items-start gap-2.5 text-sm text-foreground/85">
-                  <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                  {t}
-                </li>
-              ))}
-            </ul>
-
-            <div className="mt-8 flex flex-wrap gap-3">
-              <Button asChild size="lg" className="h-12 rounded-xl px-7 text-sm font-semibold">
-                <Link href="/signup?role=seller">
-                  <HandHeart className="mr-2 h-4 w-4" />
-                  Offer your skill
-                </Link>
-              </Button>
-              <Button asChild size="lg" variant="outline" className="h-12 rounded-xl px-7 text-sm font-semibold">
-                <Link href="/requests">See open requests</Link>
-              </Button>
-            </div>
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            {[
-              { icon: Palette, t: 'Designers', d: 'Logos, posters, catalogues — fed straight into Classic Studio.' },
-              { icon: Camera, t: 'Photographers', d: 'Product shoots that drop straight into a listing.' },
-              { icon: Film, t: 'Video editors', d: 'Turn raw clips into listing videos and ads.' },
-              { icon: Wrench, t: 'Trades & repairs', d: 'Plumbers, tailors, technicians with a real service area.' },
-            ].map((c) => (
-              <div key={c.t} className="rounded-2xl border border-border bg-card p-5">
-                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                  <c.icon className="h-5 w-5" aria-hidden />
-                </span>
-                <h3 className="mt-4 text-sm font-semibold text-foreground">{c.t}</h3>
-                <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">{c.d}</p>
+              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+                <CoralCta href="/buyer/discovery" className="h-12 px-8 text-sm">
+                  Explore Vidnov
+                  <ArrowRight className="ml-2 h-4 w-4" aria-hidden />
+                </CoralCta>
+                <InkOutlineCta href="/ai-studio" className="h-12 px-8 text-sm">
+                  Enter Create Studio
+                </InkOutlineCta>
               </div>
-            ))}
-          </div>
-        </div>
-      </section>
 
-      {/* ══════════════════════ TRUST (compact) ══════════════════════ */}
-      <section className="border-y border-border bg-card/40">
-        <div className="mx-auto max-w-7xl px-4 py-16 lg:px-8">
-          <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
-            {TRUST_POINTS.map((point) => (
-              <div key={point.title} className="flex gap-3.5">
-                <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                  <point.icon className="h-4 w-4" aria-hidden />
-                </span>
-                <div>
-                  <h3 className="text-sm font-semibold text-foreground">{point.title}</h3>
-                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{point.body}</p>
+              {/* The platform's own search, ready on the first screen */}
+              <form onSubmit={submitSearch} role="search" className="mt-8 max-w-md">
+                <label htmlFor="hero-search" className="sr-only">
+                  What are you looking for?
+                </label>
+                <div className="flex items-center gap-2 rounded-full border-2 border-[#171717] bg-[#F5F0E6] px-2 py-1.5">
+                  <input
+                    id="hero-search"
+                    type="search"
+                    value={idea}
+                    onChange={(e) => setIdea(e.target.value)}
+                    placeholder="What are you looking for?"
+                    className="h-9 w-full min-w-0 bg-transparent px-2 text-sm text-[#171717] placeholder:text-[#77746D] focus:outline-none"
+                  />
+                  <Button type="submit" className="h-9 shrink-0 rounded-full border-2 border-[#171717] bg-[#171717] px-5 text-xs font-bold text-[#F5F0E6] hover:bg-[#344DE8]">
+                    Search
+                  </Button>
                 </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+              </form>
+            </div>
 
-      {/* ══════════════════════ FINAL CTA ══════════════════════ */}
-      <section className="relative overflow-hidden bg-ember-navy text-white">
-        <div className="vn-aurora pointer-events-none absolute inset-0" aria-hidden />
-        <div className="relative mx-auto max-w-3xl px-4 py-24 text-center lg:px-8">
-          <LogoMark className="mx-auto h-12 w-12" />
-          <h2 className="vn-display mt-7 text-balance text-4xl sm:text-5xl">
-            Your ideas deserve
-            <br />
-            <span className="vn-text-grad">to earn.</span>
-          </h2>
-          <p className="mx-auto mt-6 max-w-xl text-base leading-relaxed text-white/70">
-            Open a shop in minutes. List something real. The marketplace, the
-            studio and the payments are already here.
-          </p>
-          <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <Button
-              asChild
-              size="lg"
-              className="h-12 rounded-xl bg-primary px-8 text-sm font-semibold text-white hover:bg-primary/90"
-            >
-              <Link href="/signup?role=seller">
-                Start selling free
-                <ArrowRight className="ml-2 h-4 w-4" />
+            {/* Right — the mood board (desktop collage) */}
+            <div className="relative hidden lg:block" style={{ height: 560 }}>
+              <StampSeal className="absolute -left-4 top-2 z-20" color={C.ink} />
+
+              <div className="absolute left-6 top-16 w-[54%] -rotate-3 overflow-hidden rounded-2xl border-2 border-[#171717] shadow-[8px_8px_0_0_rgba(23,23,23,0.9)] transition-transform hover:rotate-0 hover:-translate-y-1">
+                <SneakerArt />
+              </div>
+
+              <div className="absolute right-0 top-4 w-[40%] rotate-2 overflow-hidden rounded-2xl border-2 border-[#171717] transition-transform hover:rotate-0 hover:-translate-y-1">
+                <CoffeeBagArt />
+              </div>
+
+              <div className="absolute right-[6%] top-[34%] w-[26%] rotate-6 overflow-hidden rounded-2xl border-2 border-[#171717] shadow-[6px_6px_0_0_rgba(23,23,23,0.9)] transition-transform hover:rotate-0 hover:-translate-y-1">
+                <WatchArt />
+              </div>
+
+              <div className="absolute bottom-4 left-0 w-[44%] -rotate-2 overflow-hidden rounded-2xl border-2 border-[#171717] transition-transform hover:rotate-0 hover:-translate-y-1">
+                <HeadphonesArt />
+              </div>
+
+              <div className="absolute bottom-10 right-[8%] w-[34%] rotate-1 overflow-hidden rounded-2xl border-2 border-[#171717] shadow-[6px_6px_0_0_rgba(23,23,23,0.9)] transition-transform hover:rotate-0 hover:-translate-y-1">
+                <SkincareArt />
+              </div>
+
+              <Link
+                href="/buyer/discovery"
+                className="absolute bottom-[42%] left-[30%] w-[22%] -rotate-6 overflow-hidden rounded-2xl border-2 border-[#171717] transition-transform hover:rotate-0 hover:-translate-y-1"
+                aria-label="Open Discovery — the real video and product experience"
+              >
+                <VideoStillArt />
               </Link>
-            </Button>
-            <Button
-              asChild
-              size="lg"
-              variant="outline"
-              className="h-12 rounded-xl border-white/20 bg-transparent px-8 text-sm font-semibold text-white hover:bg-white/10 hover:text-white"
-            >
-              <Link href="/login">Sign in</Link>
-            </Button>
+
+              <span className="absolute right-[30%] top-[8%] z-10 -rotate-6 rounded-sm border border-[#171717] bg-[#D9F36A] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-[#171717]">
+                Demo experience
+              </span>
+            </div>
+
+            {/* Right — mobile grid */}
+            <div className="grid grid-cols-2 gap-3 lg:hidden">
+              <div className="col-span-2 overflow-hidden rounded-2xl border-2 border-[#171717]">
+                <SneakerArt />
+              </div>
+              <div className="overflow-hidden rounded-2xl border-2 border-[#171717]">
+                <CoffeeBagArt />
+              </div>
+              <div className="overflow-hidden rounded-2xl border-2 border-[#171717]">
+                <SkincareArt />
+              </div>
+              <div className="col-span-2 overflow-hidden rounded-2xl border-2 border-[#171717]">
+                <HeadphonesArt />
+              </div>
+              <div className="col-span-2 flex items-center justify-between rounded-2xl border-2 border-dashed border-[#171717] px-4 py-3">
+                <span className="text-[10px] font-bold uppercase tracking-[0.24em] text-[#77746D]">
+                  Demo content
+                </span>
+                <StampSeal size={64} color={C.ink} />
+              </div>
+            </div>
           </div>
-          <p className="mt-8 text-xs text-white/50">
-            Free to start · 3% only when you sell ·{' '}
-            <Link href="/terms" className="underline underline-offset-4 hover:text-white/80">
-              Terms
-            </Link>{' '}
-            ·{' '}
-            <Link href="/privacy" className="underline underline-offset-4 hover:text-white/80">
-              Privacy
-            </Link>
-          </p>
-        </div>
-      </section>
+        </section>
+
+        {/* ══════════════════════ TRANSFORMATION LAB ══════════════════════ */}
+        <section id="lab" className="relative scroll-mt-24 border-t-2 border-[#171717]">
+          <PaperTexture />
+          <div className="relative mx-auto max-w-7xl px-4 py-16 sm:px-6 md:py-20 lg:px-8">
+            <Reveal>
+              <SectionLabel>The transformation lab</SectionLabel>
+              <h2 className="font-grotesk mt-5 max-w-3xl text-[clamp(2.1rem,5.5vw,3.8rem)] font-bold leading-[1.0] tracking-tight text-[#171717]">
+                ONE PHOTO. A WORLD OF <span className="text-[#344DE8]">POSSIBILITIES.</span>
+              </h2>
+              <p className="mt-4 max-w-xl text-base leading-relaxed text-[#77746D]">
+                Start with an image. Improve it, transform its presentation and
+                create visuals ready to share.
+              </p>
+            </Reveal>
+
+            <div className="mt-12 grid items-start gap-10 lg:grid-cols-[1.1fr_0.9fr] lg:gap-14">
+              <Reveal>
+                <BeforeAfterSlider
+                  before={
+                    <div className="grayscale-[0.9] contrast-[0.92]">
+                      <SneakerArt className="w-full" />
+                    </div>
+                  }
+                  after={<SneakerArt className="w-full" />}
+                  beforeLabel="Original photo"
+                  afterLabel="Enhanced"
+                />
+                <p className="mt-3 text-xs leading-relaxed text-[#77746D]">
+                  Illustrative preview of the enhancement step, drawn for this
+                  demo. In Create Studio the same move runs on your own photo
+                  with the real editor — nothing here pretends to be AI output.
+                </p>
+              </Reveal>
+
+              <Reveal delay={120}>
+                <ol className="grid gap-4 sm:grid-cols-3 lg:grid-cols-1">
+                  <li className="flex items-start gap-4 rounded-2xl border-2 border-[#171717] bg-[#F5F0E6] p-4">
+                    <span className="font-grotesk text-2xl font-bold text-[#FF4D36]">01</span>
+                    <div>
+                      <h3 className="font-grotesk text-sm font-bold uppercase tracking-[0.14em] text-[#171717]">Start with a photo</h3>
+                      <p className="mt-1 text-xs leading-relaxed text-[#77746D]">Any product photo — straight from your phone.</p>
+                    </div>
+                  </li>
+                  <li className="flex items-start gap-4 rounded-2xl border-2 border-[#171717] bg-[#F5F0E6] p-4">
+                    <span className="font-grotesk text-2xl font-bold text-[#344DE8]">02</span>
+                    <div>
+                      <h3 className="font-grotesk text-sm font-bold uppercase tracking-[0.14em] text-[#171717]">Make it yours</h3>
+                      <p className="mt-1 text-xs leading-relaxed text-[#77746D]">Crop, tune and lift the presentation until it feels designed.</p>
+                    </div>
+                  </li>
+                  <li className="flex items-start gap-4 rounded-2xl border-2 border-[#171717] bg-[#F5F0E6] p-4">
+                    <span className="font-grotesk text-2xl font-bold text-[#171717]">03</span>
+                    <div>
+                      <h3 className="font-grotesk text-sm font-bold uppercase tracking-[0.14em] text-[#171717]">Create something new</h3>
+                      <p className="mt-1 text-xs leading-relaxed text-[#77746D]">The same photo, rebuilt as a promotional poster.</p>
+                    </div>
+                  </li>
+                </ol>
+
+                <div className="mt-6 flex items-center gap-5">
+                  <div className="w-28 -rotate-2 overflow-hidden rounded-xl border-2 border-[#171717] shadow-[5px_5px_0_0_rgba(23,23,23,0.9)]">
+                    <PosterArt />
+                  </div>
+                  <div>
+                    <CoralCta href="/app/seller/studio" className="h-11 px-6 text-sm">
+                      Try Create Studio
+                      <ArrowRight className="ml-2 h-4 w-4" aria-hidden />
+                    </CoralCta>
+                    <p className="mt-2 text-[11px] text-[#77746D]">
+                      Your photos, your prices, your brand — preserved exactly.
+                    </p>
+                  </div>
+                </div>
+              </Reveal>
+            </div>
+          </div>
+        </section>
+
+        {/* ══════════════════════ THE POSSIBILITY EDIT ══════════════════════ */}
+        <section id="edit" className="relative scroll-mt-24 border-t-2 border-[#171717]">
+          <PaperTexture />
+          <div className="relative mx-auto max-w-7xl px-4 py-16 sm:px-6 md:py-20 lg:px-8">
+            <Reveal>
+              <SectionLabel tone="lime">Curated showcase · demo collection</SectionLabel>
+              <h2 className="font-grotesk mt-5 text-[clamp(2.1rem,5.5vw,3.8rem)] font-bold leading-[1.0] tracking-tight text-[#171717]">
+                THE POSSIBILITY <span className="font-serif italic font-normal">Edit</span>
+              </h2>
+              <p className="mt-4 max-w-xl text-base leading-relaxed text-[#77746D]">
+                A curated playground of products, styles and creative directions.
+              </p>
+            </Reveal>
+
+            <div className="mt-12 grid gap-5 lg:grid-cols-12">
+              <Reveal className="lg:col-span-7">
+                <figure className="group h-full -rotate-[0.6deg] overflow-hidden rounded-2xl border-2 border-[#171717] bg-[#F5F0E6] transition-transform hover:rotate-0">
+                  <LampArt className="w-full" />
+                  <figcaption className="flex flex-wrap items-center justify-between gap-2 border-t-2 border-[#171717] px-5 py-4">
+                    <div>
+                      <h3 className="font-grotesk text-lg font-bold tracking-tight text-[#171717]">Everyday Objects, Reimagined</h3>
+                      <p className="text-xs text-[#77746D]">NOMA Objects · fictional brand, concept only</p>
+                    </div>
+                    <span className="rounded-full bg-[#171717] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-[#F5F0E6]">Demo collection</span>
+                  </figcaption>
+                </figure>
+              </Reveal>
+
+              <Reveal delay={100} className="lg:col-span-5">
+                <figure className="group h-full rotate-[0.8deg] overflow-hidden rounded-2xl border-2 border-[#171717] bg-[#F5F0E6] transition-transform hover:rotate-0">
+                  <SneakerArt className="w-full" />
+                  <figcaption className="flex flex-wrap items-center justify-between gap-2 border-t-2 border-[#171717] px-5 py-4">
+                    <div>
+                      <h3 className="font-grotesk text-lg font-bold tracking-tight text-[#171717]">Made to Stand Out</h3>
+                      <p className="text-xs text-[#77746D]">PACE Footwear · fictional brand, concept only</p>
+                    </div>
+                    <span className="rounded-full bg-[#171717] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-[#F5F0E6]">Demo collection</span>
+                  </figcaption>
+                </figure>
+              </Reveal>
+
+              <Reveal delay={60} className="lg:col-span-4">
+                <figure className="h-full rotate-[0.5deg] overflow-hidden rounded-2xl border-2 border-[#171717] bg-[#F5F0E6] transition-transform hover:rotate-0">
+                  <WatchArt className="w-full" />
+                  <figcaption className="border-t-2 border-[#171717] px-5 py-4">
+                    <h3 className="font-grotesk text-base font-bold tracking-tight text-[#171717]">The Style Edit</h3>
+                    <p className="text-xs text-[#77746D]">VESTA Atelier · fictional brand</p>
+                  </figcaption>
+                </figure>
+              </Reveal>
+
+              <Reveal delay={120} className="lg:col-span-4">
+                <figure className="h-full -rotate-[0.4deg] overflow-hidden rounded-2xl border-2 border-[#171717] bg-[#F5F0E6] transition-transform hover:rotate-0">
+                  <ToteArt className="w-full" />
+                  <figcaption className="border-t-2 border-[#171717] px-5 py-4">
+                    <h3 className="font-grotesk text-base font-bold tracking-tight text-[#171717]">Objects for Better Living</h3>
+                    <p className="text-xs text-[#77746D]">AURA Ritual · fictional brand</p>
+                  </figcaption>
+                </figure>
+              </Reveal>
+
+              <Reveal delay={180} className="lg:col-span-4">
+                <figure className="group h-full rotate-[0.7deg] overflow-hidden rounded-2xl border-2 border-[#171717] bg-[#F5F0E6] transition-transform hover:rotate-0">
+                  <CoffeeBagArt className="w-full" />
+                  <figcaption className="border-t-2 border-[#171717] px-5 py-4">
+                    <h3 className="font-grotesk text-base font-bold tracking-tight text-[#171717]">Ideas in Motion</h3>
+                    <p className="text-xs text-[#77746D]">KIN Coffee Roasters · fictional brand</p>
+                  </figcaption>
+                </figure>
+              </Reveal>
+            </div>
+
+            <p className="mt-8 text-sm text-[#77746D]">
+              Demonstration content only — fictional brands, nothing for sale on
+              this page. Real products from real businesses live in{' '}
+              <Link href="/buyer/discovery" className="font-semibold text-[#FF4D36] underline-offset-4 hover:underline">
+                Discovery
+              </Link>
+              .
+            </p>
+          </div>
+        </section>
+
+        {/* ══════════════════════ MOTION ══════════════════════ */}
+        <section id="motion" className="relative scroll-mt-24 border-t-2 border-[#171717]">
+          <PaperTexture />
+          <div className="relative mx-auto max-w-7xl px-4 py-16 sm:px-6 md:py-20 lg:px-8">
+            <Reveal>
+              <SectionLabel>Motion</SectionLabel>
+              <h2 className="font-grotesk mt-5 text-[clamp(2.1rem,5.5vw,3.8rem)] font-bold leading-[1.0] tracking-tight text-[#171717]">
+                SOME IDEAS NEED TO <span className="text-[#FF4D36]">MOVE.</span>
+              </h2>
+              <p className="mt-4 max-w-xl text-base leading-relaxed text-[#77746D]">
+                Video is a listing, an ad and a story. Creators record and publish
+                right from the platform — these previews open the real feed.
+              </p>
+            </Reveal>
+
+            <div className="mt-10 flex snap-x snap-mandatory gap-5 overflow-x-auto pb-4">
+              <MotionClipTile />
+              <MotionStillTile
+                art={<CoffeeBagArt className="h-full w-full object-cover" />}
+                ratio="16/10"
+                label="Pour · demo still"
+                width="w-[300px] sm:w-[380px]"
+              />
+              <MotionStillTile
+                art={<SneakerArt className="h-full w-full object-cover" />}
+                ratio="4/5"
+                label="Showcase · demo still"
+                width="w-[240px] sm:w-[280px]"
+              />
+              <MotionStillTile
+                art={<ToteArt className="h-full w-full object-cover" />}
+                ratio="1/1"
+                label="Handmade · demo still"
+                width="w-[260px] sm:w-[300px]"
+              />
+              <MotionStillTile
+                art={<VideoStillArt className="h-full w-full object-cover" label="DEMO PREVIEW" />}
+                ratio="3/4"
+                label="Product clip · demo still"
+                width="w-[240px] sm:w-[280px]"
+              />
+            </div>
+
+            <p className="mt-2 text-xs text-[#77746D]">
+              One demo clip and drawn stills — no invented views, likes or
+              engagement. Open Discovery for the real video feed.
+            </p>
+          </div>
+        </section>
+
+        {/* ══════════════════════ THREE IDEAS ══════════════════════ */}
+        <section className="relative border-t-2 border-[#171717] bg-[#F5F0E6]">
+          <PaperTexture />
+          <div className="relative mx-auto max-w-7xl px-4 py-16 sm:px-6 md:py-20 lg:px-8">
+            <Reveal>
+              <h2 className="font-grotesk max-w-4xl text-[clamp(1.9rem,5vw,3.4rem)] font-bold leading-[1.05] tracking-tight text-[#77746D]">
+                THE INTERNET GIVES YOU NOISE.
+                <br />
+                <span className="text-[#171717]">
+                  VIDNOV GIVES YOUR IDEAS{' '}
+                  <span className="text-[#FF4D36]">SOMEWHERE TO GO.</span>
+                </span>
+              </h2>
+            </Reveal>
+
+            <div className="mt-14 grid gap-10 lg:grid-cols-12">
+              <Reveal className="lg:col-span-7">
+                <div className="border-t-4 border-[#344DE8] pt-6">
+                  <span className="font-grotesk text-5xl font-bold text-[#344DE8]">01</span>
+                  <h3 className="font-grotesk mt-3 text-3xl font-bold tracking-tight text-[#171717]">
+                    DISCOVER SOMETHING
+                  </h3>
+                  <p className="mt-3 max-w-md text-sm leading-relaxed text-[#77746D]">
+                    Explore products, services, businesses and ideas through
+                    visual discovery — a feed built for finding, not doomscrolling.
+                  </p>
+                  <Link href="/buyer/discovery" className="mt-4 inline-flex items-center gap-1.5 text-sm font-bold text-[#171717] underline-offset-4 hover:text-[#FF4D36] hover:underline">
+                    Open Discovery <ArrowRight className="h-4 w-4" aria-hidden />
+                  </Link>
+                </div>
+              </Reveal>
+
+              <Reveal delay={100} className="lg:col-span-5 lg:mt-10">
+                <div className="border-t-4 border-[#FF4D36] pt-6">
+                  <span className="font-grotesk text-5xl font-bold text-[#FF4D36]">02</span>
+                  <h3 className="font-grotesk mt-3 text-3xl font-bold tracking-tight text-[#171717]">
+                    CREATE SOMETHING
+                  </h3>
+                  <p className="mt-3 text-sm leading-relaxed text-[#77746D]">
+                    Enhance images and develop professional promotional content
+                    with the built-in creative tools.
+                  </p>
+                  <Link href="/ai-studio" className="mt-4 inline-flex items-center gap-1.5 text-sm font-bold text-[#171717] underline-offset-4 hover:text-[#FF4D36] hover:underline">
+                    Enter Create Studio <ArrowRight className="h-4 w-4" aria-hidden />
+                  </Link>
+                </div>
+              </Reveal>
+
+              <Reveal delay={160} className="lg:col-span-6 lg:col-start-4">
+                <div className="border-t-4 border-[#171717] pt-6">
+                  <span className="font-grotesk text-5xl font-bold text-[#171717]">03</span>
+                  <h3 className="font-grotesk mt-3 text-3xl font-bold tracking-tight text-[#171717]">
+                    TAKE IT SOMEWHERE
+                  </h3>
+                  <p className="mt-3 max-w-md text-sm leading-relaxed text-[#77746D]">
+                    Share content, showcase your business and connect it to real
+                    enquiries — questions and offers land straight in messages.
+                  </p>
+                  <Link href="/messages" className="mt-4 inline-flex items-center gap-1.5 text-sm font-bold text-[#171717] underline-offset-4 hover:text-[#FF4D36] hover:underline">
+                    See how messages work <ArrowRight className="h-4 w-4" aria-hidden />
+                  </Link>
+                </div>
+              </Reveal>
+            </div>
+          </div>
+        </section>
+
+        {/* ══════════════════════ HOW IT WORKS ══════════════════════ */}
+        <section className="relative border-t-2 border-[#171717]">
+          <PaperTexture />
+          <div className="relative mx-auto max-w-7xl px-4 py-16 sm:px-6 md:py-20 lg:px-8">
+            <Reveal>
+              <SectionLabel>How Vidnov works</SectionLabel>
+            </Reveal>
+
+            <div className="relative mt-10 grid gap-6 lg:grid-cols-3">
+              <svg className="pointer-events-none absolute inset-x-0 top-16 hidden h-8 w-full lg:block" viewBox="0 0 1000 30" preserveAspectRatio="none" aria-hidden>
+                <path d="M120 15 H420 M580 15 H880" stroke="#171717" strokeWidth="2" strokeDasharray="4 8" strokeLinecap="round" />
+                <path d="M470 8 l12 7 -12 7 Z M930 8 l12 7 -12 7 Z" fill="#FF4D36" />
+              </svg>
+
+              <Reveal>
+                <Link href="/buyer/discovery" className="group block h-full rounded-2xl border-2 border-[#171717] bg-[#F5F0E6] p-7 transition-all hover:-translate-y-1 hover:shadow-[6px_6px_0_0_#171717]">
+                  <span className="font-grotesk text-4xl font-bold text-[#344DE8]">01</span>
+                  <h3 className="font-grotesk mt-3 text-xl font-bold uppercase tracking-[0.1em] text-[#171717]">Discover</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-[#77746D]">
+                    Explore curated examples and available content across the
+                    marketplace.
+                  </p>
+                </Link>
+              </Reveal>
+
+              <Reveal delay={100}>
+                <Link href="/app/seller/studio" className="group block h-full rounded-2xl border-2 border-[#171717] bg-[#F5F0E6] p-7 transition-all hover:-translate-y-1 hover:shadow-[6px_6px_0_0_#171717]">
+                  <span className="font-grotesk text-4xl font-bold text-[#FF4D36]">02</span>
+                  <h3 className="font-grotesk mt-3 text-xl font-bold uppercase tracking-[0.1em] text-[#171717]">Create</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-[#77746D]">
+                    Enhance a photo, design a poster or prepare content with the
+                    real studio tools.
+                  </p>
+                </Link>
+              </Reveal>
+
+              <Reveal delay={180}>
+                <Link href="/messages" className="group block h-full rounded-2xl border-2 border-[#171717] bg-[#F5F0E6] p-7 transition-all hover:-translate-y-1 hover:shadow-[6px_6px_0_0_#171717]">
+                  <span className="font-grotesk text-4xl font-bold text-[#171717]">03</span>
+                  <h3 className="font-grotesk mt-3 text-xl font-bold uppercase tracking-[0.1em] text-[#171717]">Connect</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-[#77746D]">
+                    Share your work and connect products or services to customers
+                    through real enquiries.
+                  </p>
+                </Link>
+              </Reveal>
+            </div>
+          </div>
+        </section>
+
+        {/* ══════════════════════ FINALE ══════════════════════ */}
+        <section className="relative overflow-hidden bg-[#171717]">
+          <div className="relative mx-auto max-w-7xl px-4 py-20 text-center sm:px-6 md:py-24">
+            <span className="inline-block rounded-full bg-[#D9F36A] px-3.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.32em] text-[#171717]">
+              Post · Earn · Repeat
+            </span>
+
+            <h2 className="font-grotesk mx-auto mt-8 max-w-4xl text-[clamp(2.6rem,8vw,5.6rem)] font-bold leading-[0.98] tracking-tight text-[#F5F0E6]">
+              YOUR NEXT IDEA
+              <br />
+              STARTS{' '}
+              <span className="relative inline-block">
+                HERE.
+                <svg viewBox="0 0 220 18" className="absolute -bottom-2 left-0 w-full" aria-hidden>
+                  <path d="M4 12 C60 4, 150 4, 216 10" stroke="#FF4D36" strokeWidth="7" fill="none" strokeLinecap="round" />
+                </svg>
+              </span>
+            </h2>
+
+            <p className="mx-auto mt-6 max-w-xl text-base leading-relaxed text-[#F5F0E6]/70">
+              Explore a new way to discover, create and bring ideas to life.
+            </p>
+
+            <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
+              <Button
+                asChild
+                size="lg"
+                className="h-12 rounded-full border-2 border-[#F5F0E6] bg-[#F5F0E6] px-8 text-sm font-bold text-[#171717] transition-all hover:-translate-y-0.5 hover:bg-[#FF4D36] hover:border-[#FF4D36] hover:text-[#171717]"
+              >
+                <Link href="/buyer/discovery">
+                  Explore Vidnov
+                  <ArrowRight className="ml-2 h-4 w-4" aria-hidden />
+                </Link>
+              </Button>
+              <InkOutlineCta invert href="/ai-studio" className="h-12 px-8 text-sm">
+                Open Create Studio
+              </InkOutlineCta>
+            </div>
+          </div>
+
+          {/* One restrained lime accent */}
+          <div className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full border-[14px] border-[#D9F36A]/70" aria-hidden />
+        </section>
+      </div>
     </LandingLayout>
   );
 }

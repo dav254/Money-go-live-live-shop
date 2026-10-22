@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { verifyUserContext } from '@/lib/notifications/server-utils';
 import { getVidnovConfig } from '@/lib/notifications/config';
 import { db } from '@/firebase/server';
+import { pbListDevMailboxBrief } from '@/lib/pocketbase/email-logs';
 import { EMAIL_TEMPLATES } from '@/lib/notifications/templates';
 
 export const runtime = 'nodejs';
@@ -32,22 +33,28 @@ export async function GET(_request: NextRequest) {
 
   let captured: { id: string; to: string; subject: string; createdAt: unknown }[] = [];
   if (cfg.emailMode === 'development') {
-    const snap = await db
-      .collection('devMailbox')
-      .orderBy('createdAt', 'desc')
-      .limit(15)
-      .get()
-      .catch(() => null);
-    captured = (snap?.docs ?? []).map((d) => {
-      const data = d.data() as { to?: string; subject?: string; createdAt?: unknown };
-      const created = data.createdAt as { toDate?: () => Date } | Date | undefined;
-      return {
-        id: d.id,
-        to: data.to ?? '—',
-        subject: data.subject ?? '(no subject)',
-        createdAt: created instanceof Date ? created.toISOString() : created?.toDate?.().toISOString() ?? null,
-      };
-    });
+    // Self-hosting migration: PocketBase first, Firestore fallback.
+    const pbCaptured = await pbListDevMailboxBrief(15);
+    if (pbCaptured) {
+      captured = pbCaptured;
+    } else {
+      const snap = await db
+        .collection('devMailbox')
+        .orderBy('createdAt', 'desc')
+        .limit(15)
+        .get()
+        .catch(() => null);
+      captured = (snap?.docs ?? []).map((d) => {
+        const data = d.data() as { to?: string; subject?: string; createdAt?: unknown };
+        const created = data.createdAt as { toDate?: () => Date } | Date | undefined;
+        return {
+          id: d.id,
+          to: data.to ?? '—',
+          subject: data.subject ?? '(no subject)',
+          createdAt: created instanceof Date ? created.toISOString() : created?.toDate?.().toISOString() ?? null,
+        };
+      });
+    }
   }
 
   return NextResponse.json({

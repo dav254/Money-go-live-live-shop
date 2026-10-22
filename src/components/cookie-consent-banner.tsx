@@ -1,81 +1,97 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import * as React from 'react';
+import Link from 'next/link';
+import { Cookie } from 'lucide-react';
+
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Cookie } from 'lucide-react';
-import Link from 'next/link';
+import {
+  CONSENT_CHANGED_EVENT,
+  readConsent,
+  writeConsent,
+} from '@/lib/cookie-consent';
 
-// Function to set a cookie
-function setCookie(name: string, value: string, days: number) {
-  let expires = "";
-  if (days) {
-    const date = new Date();
-    date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
-    expires = "; expires=" + date.toUTCString();
-  }
-  if (typeof document !== 'undefined') {
-    document.cookie = name + "=" + (value || "") + expires + "; path=/";
-  }
-}
-
-// Function to get a cookie
-function getCookie(name: string): string | null {
-  if (typeof document === 'undefined') return null;
-  const nameEQ = name + "=";
-  const ca = document.cookie.split(';');
-  for (let i = 0; i < ca.length; i++) {
-    let c = ca[i];
-    while (c.charAt(0) == ' ') c = c.substring(1, c.length);
-    if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length, c.length);
-  }
-  return null;
-}
-
+/**
+ * COOKIE CONSENT BANNER — the real consent dialog.
+ *
+ * Shows until the visitor chooses, remembers the choice for 180 days and
+ * drives `AnalyticsGate`: Accept loads Google Analytics, Decline keeps it
+ * blocked. Listens for the footer's "Cookie settings" event so a decision can
+ * be changed later. The copy states exactly what is used — essential cookies
+ * for sign-in and preferences (always on, no consent needed) and Google
+ * Analytics (optional, anonymised IPs, off unless accepted).
+ */
 export function CookieConsentBanner() {
-  const [isVisible, setIsVisible] = useState(false);
+  const [isVisible, setIsVisible] = React.useState(false);
+  const [hasChosen, setHasChosen] = React.useState(false);
 
-  useEffect(() => {
-    // Only run on the client side
-    if (typeof window !== 'undefined') {
-      const consent = getCookie('cookie_consent');
-      if (!consent) {
-        setIsVisible(true);
-      }
+  React.useEffect(() => {
+    const existing = readConsent();
+    if (existing) {
+      setHasChosen(true);
+    } else {
+      setIsVisible(true);
     }
+
+    // "Cookie settings" anywhere on the site reopens the dialog.
+    const reopen = () => setIsVisible(true);
+    window.addEventListener(CONSENT_CHANGED_EVENT, reopen);
+    return () => window.removeEventListener(CONSENT_CHANGED_EVENT, reopen);
   }, []);
 
-  const handleAccept = () => {
-    setCookie('cookie_consent', 'true', 365);
+  const decide = (value: 'granted' | 'denied') => {
+    writeConsent(value);
+    setHasChosen(true);
     setIsVisible(false);
   };
 
-  const handleDecline = () => {
-    // You can set it to false if you want to track declined users,
-    // or just not set it and the banner will appear again next session.
-    setCookie('cookie_consent', 'false', 365);
-    setIsVisible(false);
-  };
-
-  if (!isVisible) {
-    return null;
-  }
+  if (!isVisible) return null;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 p-4">
-      <Card className="container mx-auto max-w-lg p-4 bg-background/80 backdrop-blur-md shadow-2xl animate-in slide-in-from-bottom-10">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-          <Cookie className="h-8 w-8 text-primary flex-shrink-0" />
+    <div
+      role="dialog"
+      aria-live="polite"
+      aria-label="Cookie consent"
+      className="fixed bottom-0 left-0 right-0 z-50 p-4 motion-safe:animate-in motion-safe:slide-in-from-bottom-10"
+    >
+      <Card className="container mx-auto max-w-lg border-border bg-background/95 p-4 shadow-2xl backdrop-blur-md">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+          <Cookie className="h-8 w-8 shrink-0 text-primary" aria-hidden />
           <div className="flex-1">
-            <h3 className="font-semibold">We Use Cookies</h3>
-            <p className="text-sm text-muted-foreground">
-              Our website uses cookies to enhance your browsing experience and analyze site traffic. By clicking "Accept", you agree to our use of cookies.
-              Learn more in our <Link href="/privacy" className="underline hover:text-primary">Privacy Policy</Link>.
+            <h3 className="font-semibold">We use cookies</h3>
+            <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+              Essential cookies keep you signed in and remember your settings —
+              they are always on. With your permission, Google Analytics (with
+              anonymised IP addresses) helps us understand how the site is
+              used. Declining changes nothing else on the site.{' '}
+              <Link href="/privacy" className="underline hover:text-primary">
+                Learn more in our Privacy Policy
+              </Link>
+              .
             </p>
-          </div>
-          <div className="flex gap-2 self-end sm:self-center">
-            <Button variant="outline" size="sm" onClick={handleDecline}>Decline</Button>
-            <Button size="sm" onClick={handleAccept}>Accept</Button>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Button
+                size="sm"
+                className="rounded-lg text-xs font-semibold"
+                onClick={() => decide('granted')}
+              >
+                Accept
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="rounded-lg text-xs font-semibold"
+                onClick={() => decide('denied')}
+              >
+                Decline
+              </Button>
+              {hasChosen && (
+                <span className="self-center text-[11px] text-muted-foreground">
+                  You can change this anytime in the footer under Cookie settings.
+                </span>
+              )}
+            </div>
           </div>
         </div>
       </Card>

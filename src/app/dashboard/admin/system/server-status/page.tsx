@@ -45,7 +45,7 @@ const serviceIcons: { [key: string]: React.ElementType } = {
   'API Gateway (Go Earn)': Zap,
   'Database (Firebase Firestore)': Database,
   'AI Core (Google Gemini)': BrainCircuit,
-  'Live Stream Signals (VideoSDK)': Radio,
+  'Live Stream Signals (LiveKit)': Radio,
   'Payment Flow (Paystack/PayPal)': DollarSign,
   'Media Storage (Cloudinary)': Cloud,
   default: Server,

@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { Logo } from '../logo';
+import { requestConsentBanner } from '@/lib/cookie-consent';
 
 /**
  * LANDING FOOTER — compact, per the homepage spec.
@@ -13,30 +14,20 @@ import { Logo } from '../logo';
 
 const COLUMNS: { title: string; links: { label: string; href: string }[] }[] = [
   {
-    title: 'PLATFORM',
+    title: 'EXPLORE',
     links: [
-      { label: 'About Vidnov', href: '/about' },
-      { label: 'Marketplace', href: '/categories' },
-      { label: 'AI Studio', href: '/ai-studio' },
-      { label: 'Shops & services', href: '/search' },
-    ],
-  },
-  {
-    title: 'GET STARTED',
-    links: [
-      { label: 'Become a Seller', href: '/signup?role=seller' },
-      { label: 'How it works', href: '/how-it-works' },
-      { label: 'Pricing', href: '/pricing' },
-      { label: 'Sign in', href: '/login' },
+      { label: 'Discover', href: '/buyer/discovery' },
+      { label: 'Create Studio', href: '/ai-studio' },
+      { label: 'About', href: '/about' },
     ],
   },
   {
     title: 'SUPPORT',
     links: [
-      { label: 'Help & Support', href: '/faq' },
+      { label: 'Help and Support', href: '/faq' },
+      { label: 'Privacy', href: '/privacy' },
+      { label: 'Terms', href: '/terms' },
       { label: 'Contact', href: '/faq' },
-      { label: 'Privacy Policy', href: '/privacy' },
-      { label: 'Terms of Service', href: '/terms' },
     ],
   },
 ];
@@ -51,8 +42,8 @@ export function LandingFooter() {
               <Logo className="text-3xl" />
             </Link>
             <p className="max-w-xs text-sm leading-relaxed text-muted-foreground">
-              Create. Discover. Sell. Grow. One platform for products, services
-              and the content that sells them.
+              Post. Earn. Repeat. A new space for ideas — discover, create and
+              bring them to life.
             </p>
           </div>
 
@@ -78,11 +69,20 @@ export function LandingFooter() {
         </div>
 
         <div className="mt-12 flex flex-col items-center justify-between gap-3 border-t border-border pt-6 md:flex-row">
-          <p className="text-[11px] font-medium tracking-wide text-muted-foreground">
-            © 2026 Vidnov
-          </p>
+          <div className="flex items-center gap-4">
+            <p className="text-[11px] font-medium tracking-wide text-muted-foreground">
+              © 2026 Vidnov
+            </p>
+            <button
+              type="button"
+              onClick={requestConsentBanner}
+              className="text-[11px] font-medium tracking-wide text-muted-foreground underline-offset-4 vn-transition hover:text-foreground hover:underline"
+            >
+              Cookie settings
+            </button>
+          </div>
           <p className="text-[10px] font-semibold uppercase tracking-[0.35em] text-muted-foreground">
-            Create · Discover · Sell · Grow
+            Post · Earn · Repeat
           </p>
         </div>
       </div>

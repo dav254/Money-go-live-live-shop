@@ -24,8 +24,8 @@ export const runtime = 'nodejs';
  *    token degrades to an anonymous viewer identity rather than blocking
  *    public streams; that is exactly the access Firestore rules already
  *    grant (`liveSessions` is world-readable).
- *  - Missing LiveKit configuration returns a clear 503 — never a silent
- *    VideoSDK fallback, never a fake "live" stream.
+ *  - Missing LiveKit configuration returns a clear 503 — never a fake
+ *    "live" stream. (VideoSDK, the old fallback transport, is removed.)
  */
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -60,12 +60,12 @@ export async function GET(request: Request) {
     }
 
     if (session.provider !== 'livekit' || !session.livekitRoomName) {
-      // Legacy/VideoSDK session: the buyer page routes these to the legacy
-      // viewer itself; this endpoint only serves LiveKit rooms.
+      // Legacy session with no LiveKit room: nothing watchable remains (the
+      // VideoSDK transport was removed) — report it as gone, not joinable.
       return NextResponse.json(
         {
           error: 'LEGACY_TRANSPORT',
-          message: 'This session runs on the legacy transport.',
+          message: 'This session runs on a retired transport and cannot be watched.',
         },
         { status: 409 },
       );

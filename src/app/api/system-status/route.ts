@@ -26,7 +26,7 @@ async function checkAiServices(): Promise<Status> {
 }
 
 async function checkLiveStreaming(): Promise<Status> {
-    return checkExternalService('VideoSDK Signal', ['VIDEOSDK_API_KEY', 'VIDEOSDK_SECRET_KEY']);
+    return checkExternalService('LiveKit Signal', ['LIVEKIT_URL', 'LIVEKIT_API_KEY', 'LIVEKIT_API_SECRET']);
 }
 
 async function checkMediaStorage(): Promise<Status> {
@@ -72,7 +72,7 @@ export async function GET(request: Request) {
       { name: 'API Gateway (Vidnov)', status: 'operational' },
       { name: 'Database (Firebase Firestore)', status: firestore },
       { name: 'AI Core (Google Gemini)', status: ai },
-      { name: 'Live Stream Signals (VideoSDK)', status: live },
+      { name: 'Live Stream Signals (LiveKit)', status: live },
       { name: 'Payment Flow (Paystack/PayPal)', status: payments },
       { name: 'Media Storage (Cloudinary)', status: media },
     ];

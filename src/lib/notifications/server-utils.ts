@@ -7,6 +7,7 @@ import { NextRequest } from 'next/server';
 import { db as firestoreDb, auth as adminAuth } from '@/firebase/server';
 import { FieldValue } from 'firebase-admin/firestore';
 import { createHash, randomBytes } from 'crypto';
+import { pbIsAdmin } from '@/lib/pocketbase/admins';
 
 /** The shared, initialized admin Firestore instance. */
 export const db = firestoreDb;
@@ -62,6 +63,8 @@ export async function verifyAdminUid(request: NextRequest): Promise<string | nul
   if (!token) return null;
   try {
     const decoded = await adminAuth.verifyIdToken(token);
+    // Local (VPS) role store first — instant and independent of Firestore.
+    if ((await pbIsAdmin(decoded.uid)) === true) return decoded.uid;
     const profile = await firestoreDb.collection('userProfiles').doc(decoded.uid).get();
     if (!profile.exists || profile.data()?.userRole !== 'admin') return null;
     return decoded.uid;
@@ -104,8 +107,16 @@ export async function verifyUserContext(request: NextRequest): Promise<UserConte
   if (!token) return null;
   try {
     const decoded = await adminAuth.verifyIdToken(token);
-    const profile = await firestoreDb.collection('userProfiles').doc(decoded.uid).get();
-    const data = (profile.data() ?? {}) as {
+    // Local (VPS) role store first — it decides admin on its own.
+    const localAdmin = await pbIsAdmin(decoded.uid);
+    // Profile is only for names/role display; a Firestore hiccup must not
+    // invalidate a valid local admin grant.
+    const profile = await firestoreDb
+      .collection('userProfiles')
+      .doc(decoded.uid)
+      .get()
+      .catch(() => null);
+    const data = (profile?.data() ?? {}) as {
       email?: string;
       fullName?: string;
       displayName?: string;
@@ -120,7 +131,7 @@ export async function verifyUserContext(request: NextRequest): Promise<UserConte
       name: data.fullName || data.displayName,
       businessName: data.shopName,
       role,
-      isAdmin: role === 'admin',
+      isAdmin: localAdmin === true || role === 'admin',
     };
   } catch {
     return null;

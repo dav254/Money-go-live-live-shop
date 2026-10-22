@@ -30,7 +30,7 @@ Vidnov operates as a three-sided marketplace connecting **Sellers**, **Resellers
 *   **UI Components:** Shadcn/UI (Radix UI).
 *   **Backend:** Firebase (Auth, Firestore, Storage, Cloud Functions).
 *   **AI Intelligence:** Firebase Genkit with Google Gemini models.
-*   **Live Streaming:** VideoSDK for low-latency real-time signals.
+*   **Live Streaming:** LiveKit for low-latency real-time signals (self-hosted on our own VPS — no per-minute fees).
 
 ## 💼 Admin & Oversight
 The platform includes a robust Admin Dashboard for monitoring system health, moderating content, managing payouts, and overseeing the AI recommendation engines.

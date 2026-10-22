@@ -6,7 +6,7 @@
  * One purpose only: while the seller is live, show THEM their own camera and
  * report the audience size. The chat rail, product shelf and pin controls are
  * composed around this stage by SellerLiveStudio; the public broadcast itself
- * is the viewer's screen (LiveKitViewer / VideoSDKViewer).
+ * is the viewer's screen (LiveKitViewer).
  *
  * Transport: LiveKit (`livekit-client`). The room name and websocket URL come
  * from POST /api/live-session together with a server-minted publish token;

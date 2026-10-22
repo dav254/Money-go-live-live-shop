@@ -345,6 +345,13 @@ export default function AdminSellersPage() {
     },
     { accessorKey: 'email', header: 'Email' },
     {
+        accessorKey: 'phone',
+        header: 'Phone',
+        // Same fallback as the buyers table: sellers who signed up before the
+        // phone field existed read "N/A" rather than an empty cell.
+        cell: ({ row }) => row.original.phone || 'N/A',
+    },
+    {
         accessorKey: 'aiPoints',
         header: 'AI Points',
         cell: ({ row }) => <div className="text-center font-medium">{row.original.aiPoints.toLocaleString()}</div>,
@@ -370,13 +377,52 @@ export default function AdminSellersPage() {
         accessorKey: 'status',
         header: 'Status',
         cell: ({ row }) => {
-        const status = row.getValue('status') as string;
+        const seller = row.original;
+        const status = seller.status;
         const variant = {
             active: 'default',
             pending: 'secondary',
             suspended: 'destructive',
         }[status] as 'default' | 'secondary' | 'destructive';
-        return <Badge variant={variant} className={`capitalize ${status === 'active' ? 'bg-green-600/80' : ''}`}>{status}</Badge>;
+        return (
+            <div className="flex items-center gap-2">
+                <Badge variant={variant} className={`capitalize ${status === 'active' ? 'bg-green-600/80' : ''}`}>{status}</Badge>
+                {status === 'suspended' ? (
+                    <Button variant="outline" size="sm" onClick={() => handleStatusUpdate(seller.id, 'active')}>
+                        Unsuspend
+                    </Button>
+                ) : (
+                    // Visible, one click from the row — suspension is a routine
+                    // moderation action (rule-breakers) and must not live only
+                    // inside the ⋯ menu.
+                    <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                            <Button variant="outline" size="sm" className="border-yellow-500/40 text-yellow-600 hover:bg-yellow-500/10 hover:text-yellow-600">
+                                Suspend
+                            </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>Suspend {seller.businessName}?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    The owner will not be able to sign in until you reinstate this account.
+                                    Use this when a seller does not comply with the platform rules.
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                    className="bg-destructive hover:bg-destructive/90"
+                                    onClick={() => handleStatusUpdate(seller.id, 'suspended')}
+                                >
+                                    Suspend account
+                                </AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
+                )}
+            </div>
+        );
         },
     },
     {

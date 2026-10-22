@@ -25,8 +25,6 @@ export interface LiveStream {
   businessId?: string | null;
   /** Unique LiveKit room, e.g. vidnov_live_83920 — never reused. */
   roomName: string;
-  /** VideoSDK meeting backing this stream when the VideoSDK transport is used. */
-  videoSdkMeetingId?: string | null;
   title: string;
   description?: string;
   categoryId?: string | null;
