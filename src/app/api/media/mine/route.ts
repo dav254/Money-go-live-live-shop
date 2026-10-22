@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/firebase/server';
 import { MEDIA_COLLECTION } from '@/lib/media/config';
 import { mediaRecordToUrls, type MediaRecord } from '@/lib/media/service';
+import { pbListMediaByUser } from '@/lib/pocketbase/media-records';
 import { verifyRequestUser } from '@/lib/media/api-auth';
 
 export const runtime = 'nodejs';
@@ -50,38 +51,85 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  // `firestore.rules` allows `read` on /media only when the document's userId
-  // is the caller, and a Firestore list rule is evaluated per returned
-  // document — so this filter is what makes the query permitted, not a
-  // client-side convenience.
-  const snap = await db
-    .collection(MEDIA_COLLECTION)
-    .where('userId', '==', user.uid)
-    .limit(MAX_RESULTS)
-    .get();
+  // Primary source is the VPS store (the same disk the files live on);
+  // Firestore is only consulted when PocketBase is off or the read failed,
+  // so this endpoint keeps working either way.
+  const mirrored = await pbListMediaByUser(user.uid, MAX_RESULTS);
 
-  const files = snap.docs
-    .map((doc) => {
-      const data = doc.data() as MediaRecord;
-      return {
-        mediaId: doc.id,
-        type: data.type,
-        originalName: data.originalName ?? '',
-        mimeType: data.mimeType ?? '',
-        // The bytes actually on disk after compression, which is the number a
-        // seller asking "how much space does this take" wants — not the size of
-        // the file they picked from their phone.
-        sizeBytes: data.sizeBytes ?? 0,
-        width: data.width ?? null,
-        height: data.height ?? null,
-        durationSeconds: data.durationSeconds ?? null,
-        status: data.status,
-        createdAtMs: toMillis(data.createdAt),
-        ...mediaRecordToUrls(data),
-      };
-    })
-    .filter((f) => f.status !== 'DELETED')
-    .sort((a, b) => b.createdAtMs - a.createdAtMs);
+  let files: Array<{
+    mediaId: string;
+    type: string;
+    originalName: string;
+    mimeType: string;
+    sizeBytes: number;
+    width: number | null;
+    height: number | null;
+    durationSeconds: number | null;
+    status: string;
+    createdAtMs: number;
+    url?: string;
+    thumbnailUrl?: string;
+  }> = [];
+  let truncated = false;
+
+  if (mirrored) {
+    files = mirrored
+      .filter((m) => m.status !== 'DELETED')
+      .map((m) => ({
+        mediaId: m.id,
+        type: m.type ?? 'file',
+        originalName: m.originalName ?? '',
+        mimeType: m.mimeType ?? '',
+        sizeBytes: m.sizeBytes ?? 0,
+        width: m.width ?? null,
+        height: m.height ?? null,
+        durationSeconds: m.durationSeconds ?? null,
+        status: m.status ?? 'PROCESSING',
+        createdAtMs: toMillis(m.createdAt),
+        ...mediaRecordToUrls({
+          storagePath: m.storagePath,
+          thumbnailPath: m.thumbnailPath,
+          sizeBytes: m.sizeBytes ?? 0,
+        }),
+      }))
+      .sort((a, b) => b.createdAtMs - a.createdAtMs);
+    truncated = mirrored.length >= MAX_RESULTS;
+  } else {
+    // `firestore.rules` allows `read` on /media only when the document's userId
+    // is the caller, and a Firestore list rule is evaluated per returned
+    // document — so this filter is what makes the query permitted, not a
+    // client-side convenience.
+    const snap = await db
+      .collection(MEDIA_COLLECTION)
+      .where('userId', '==', user.uid)
+      .limit(MAX_RESULTS)
+      .get()
+      .catch(() => null);
+
+    files = (snap?.docs ?? [])
+      .map((doc) => {
+        const data = doc.data() as MediaRecord;
+        return {
+          mediaId: doc.id,
+          type: data.type,
+          originalName: data.originalName ?? '',
+          mimeType: data.mimeType ?? '',
+          // The bytes actually on disk after compression, which is the number a
+          // seller asking "how much space does this take" wants — not the size of
+          // the file they picked from their phone.
+          sizeBytes: data.sizeBytes ?? 0,
+          width: data.width ?? null,
+          height: data.height ?? null,
+          durationSeconds: data.durationSeconds ?? null,
+          status: data.status,
+          createdAtMs: toMillis(data.createdAt),
+          ...mediaRecordToUrls(data),
+        };
+      })
+      .filter((f) => f.status !== 'DELETED')
+      .sort((a, b) => b.createdAtMs - a.createdAtMs);
+    truncated = snap ? snap.size >= MAX_RESULTS : false;
+  }
 
   const totalBytes = files.reduce((sum, f) => sum + f.sizeBytes, 0);
 
@@ -93,7 +141,7 @@ export async function GET(request: Request) {
       videos: files.filter((f) => f.type === 'video').length,
       totalBytes,
       /** True when the list hit the cap, so the UI can say "showing N of many". */
-      truncated: snap.size >= MAX_RESULTS,
+      truncated,
     },
   });
 }

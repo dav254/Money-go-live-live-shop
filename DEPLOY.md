@@ -207,6 +207,12 @@ All uploads are processed on the VPS and only optimized files are kept:
   published content automatically.
 - A daily cleanup sweep removes abandoned temp files and orphaned media
   (built into the app via `src/instrumentation.ts` — no cron needed).
+- The **media index** (which file belongs to which seller, its status, its
+  paths) is mirrored to the local PocketBase (`media_files` collection),
+  same as profiles/roles/email-logs. Uploads, the "my uploads" list and
+  video serving all read the VPS store first and only fall back to Firestore
+  when PocketBase is off — so a Firestore problem can no longer hide a
+  seller's uploads.
 
 One-time setup on the VPS:
 

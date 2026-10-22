@@ -15,6 +15,12 @@ import {
   type StorageState,
 } from './config';
 import { getStorageAdapter } from './storage-adapter';
+import {
+  pbMirrorMediaRecord,
+  pbPatchMediaRecord,
+  pbGetMediaRecord,
+  type PbMediaRecord,
+} from '@/lib/pocketbase/media-records';
 import { MarketplaceRequest, MarketplaceOffer } from '@/lib/requests/types';
 import type { SellerShop } from '@/lib/types';
 import {
@@ -210,6 +216,19 @@ async function processJob(job: QueueJob): Promise<void> {
       processedAt: FieldValue.serverTimestamp(),
       error: null,
     });
+    void pbPatchMediaRecord(job.mediaId, {
+      status: 'READY',
+      storagePath: result.storagePath,
+      thumbnailPath: result.thumbnailPath,
+      mimeType: result.mimeType,
+      sizeBytes: result.sizeBytes,
+      width: result.width,
+      height: result.height,
+      durationSeconds:
+        'durationSeconds' in result ? result.durationSeconds : null,
+      storageState: job.isPrivate ? 'SYNCED' : 'PUBLISHED',
+      processedAt: new Date().toISOString(),
+    });
 
     // Original temp file: deleted immediately after successful processing.
     await fsp.rm(job.tmpPath, { force: true }).catch(() => undefined);
@@ -229,6 +248,7 @@ async function processJob(job: QueueJob): Promise<void> {
     await ref
       .update({ status: 'FAILED' as MediaStatus, error: message })
       .catch(() => undefined);
+    void pbPatchMediaRecord(job.mediaId, { status: 'FAILED' });
     // Keep the failed temp file for debugging only — the daily cleanup
     // removes it after the retention window.
     finalize({ id: job.mediaId, status: 'FAILED', error: message });
@@ -423,6 +443,24 @@ export async function intakeUpload({
       createdAt: FieldValue.serverTimestamp(),
       processedAt: FieldValue.serverTimestamp(),
     });
+    void pbMirrorMediaRecord(mediaId, {
+      userId,
+      postId: postId ?? null,
+      requestId: null,
+      offerId: null,
+      isPrivate: true,
+      storageState: 'SYNCED',
+      type: rawKind,
+      originalName: sanitizeOriginalName(file.name),
+      storedName: mediaId,
+      mimeType: declaredMime || 'application/octet-stream',
+      sizeBytes: storedBytes,
+      storagePath: rel,
+      thumbnailPath: '',
+      status: 'READY',
+      createdAt: new Date().toISOString(),
+      processedAt: new Date().toISOString(),
+    });
     return { accepted: true, mediaId };
   }
 
@@ -455,6 +493,23 @@ export async function intakeUpload({
     thumbnailPath: '',
     status: 'PROCESSING' as MediaStatus,
     createdAt: FieldValue.serverTimestamp(),
+  });
+  void pbMirrorMediaRecord(mediaId, {
+    userId,
+    postId: postId ?? null,
+    requestId: requestId ?? null,
+    offerId: offerId ?? null,
+    isPrivate: privateMedia,
+    storageState: 'LOCAL_ONLY',
+    type: mediaType,
+    originalName: sanitizeOriginalName(file.name),
+    storedName: mediaId,
+    mimeType: isImage ? 'image/webp' : 'video/mp4',
+    sizeBytes,
+    storagePath: '',
+    thumbnailPath: '',
+    status: 'PROCESSING',
+    createdAt: new Date().toISOString(),
   });
 
   await enqueueAndProcess({
@@ -788,6 +843,11 @@ export async function deleteMediaRecord(mediaId: string): Promise<void> {
     thumbnailPath: '',
     deletedAt: FieldValue.serverTimestamp(),
   });
+  void pbPatchMediaRecord(mediaId, {
+    status: 'DELETED',
+    storagePath: '',
+    thumbnailPath: '',
+  });
 }
 
 /**
@@ -809,9 +869,17 @@ export async function authorizeMediaView(
   viewerUid: string | null,
   viewerIsAdmin = false,
 ): Promise<MediaRecord | null> {
-  const snap = await db.collection(MEDIA_COLLECTION).doc(mediaId).get();
-  if (!snap.exists) return null;
-  const media = snap.data() as MediaRecord;
+  // The record now lives on the VPS first — read it there so a Firestore
+  // hiccup can never make a seller's own uploads unviewable. Firestore stays
+  // as a fallback for anything uploaded before the mirror existed.
+  const mirrored = await pbGetMediaRecord(mediaId);
+  let media: MediaRecord | null = mirrored ? pbRecordToMediaRecord(mirrored) : null;
+
+  if (!media) {
+    const snap = await db.collection(MEDIA_COLLECTION).doc(mediaId).get().catch(() => null);
+    if (!snap?.exists) return null;
+    media = snap.data() as MediaRecord;
+  }
   if (media.status !== 'READY' || !media.storagePath) return null;
   if (!media.isPrivate) return media;
   if (!viewerUid) return null;
@@ -837,6 +905,32 @@ export async function authorizeMediaView(
   }
 
   return null;
+}
+
+/** PocketBase mirror row → the app's `MediaRecord` shape. */
+function pbRecordToMediaRecord(row: PbMediaRecord): MediaRecord {
+  return {
+    id: row.id,
+    userId: row.userId ?? '',
+    postId: row.postId ?? null,
+    requestId: row.requestId ?? null,
+    offerId: row.offerId ?? null,
+    isPrivate: row.isPrivate ?? false,
+    storageState: (row.storageState ?? 'LOCAL_ONLY') as StorageState,
+    type: (row.type ?? 'file') as MediaRecord['type'],
+    originalName: row.originalName,
+    storedName: row.storedName ?? row.id,
+    mimeType: row.mimeType ?? 'application/octet-stream',
+    sizeBytes: row.sizeBytes ?? 0,
+    width: row.width ?? undefined,
+    height: row.height ?? undefined,
+    durationSeconds: row.durationSeconds ?? undefined,
+    storagePath: row.storagePath ?? '',
+    thumbnailPath: row.thumbnailPath ?? '',
+    status: (row.status ?? 'PROCESSING') as MediaStatus,
+    createdAt: row.createdAt ?? undefined,
+    processedAt: row.processedAt ?? undefined,
+  };
 }
 
 /**
@@ -978,6 +1072,22 @@ export async function storeGeneratedVideo(
     createdAt: FieldValue.serverTimestamp(),
     processedAt: FieldValue.serverTimestamp(),
   });
+  void pbMirrorMediaRecord(id, {
+    userId: userId || 'ai-studio',
+    postId: null,
+    isPrivate: false,
+    storageState: 'PUBLISHED',
+    type: 'video',
+    originalName: 'ai-generated.mp4',
+    storedName: id,
+    mimeType: 'video/mp4',
+    sizeBytes: videoBuffer.length,
+    storagePath: videoRel,
+    thumbnailPath: finalThumbRel ?? '',
+    status: 'READY',
+    createdAt: new Date().toISOString(),
+    processedAt: new Date().toISOString(),
+  });
 
   return {
     mediaId: id,
@@ -1019,6 +1129,22 @@ export async function storeGeneratedImage(
     status: 'READY' as MediaStatus,
     createdAt: FieldValue.serverTimestamp(),
     processedAt: FieldValue.serverTimestamp(),
+  });
+  void pbMirrorMediaRecord(id, {
+    userId: userId || 'ai-studio',
+    postId: null,
+    isPrivate: false,
+    storageState: 'PUBLISHED',
+    type: 'image',
+    originalName: 'ai-generated.webp',
+    storedName: id,
+    mimeType: 'image/webp',
+    sizeBytes: imageBuffer.length,
+    storagePath: imageRel,
+    thumbnailPath: '',
+    status: 'READY',
+    createdAt: new Date().toISOString(),
+    processedAt: new Date().toISOString(),
   });
 
   return { mediaId: id, url: mediaUrl(imageRel), thumbnailUrl: null, sizeBytes: imageBuffer.length };
