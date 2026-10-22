@@ -1,33 +1,10 @@
-'use client';
-
-/**
- * DISCOVERY — the immersive post.
- *
- * Every listing in Discovery is one of these: full-bleed media, one product,
- * one screen. The layout is the vertical-video shape buyers already know —
- * action rail down the right, seller and product bottom-left, the buy button
- * full-width under them — because a marketplace feed is read with the thumb.
- *
- * ## Playback
- * Muted, always. Sound never starts on its own. A post plays only while it is
- * actually on screen (`active` comes from the feed's IntersectionObserver), so
- * scrolling away pauses and rewinds rather than leaving five videos running
- * underneath each other. The progress bar at the bottom is real, not
- * decorative: it reads `currentTime / duration` off the element.
- *
- * ## The rail
- * Seven controls, seven real outcomes: like, comments, save, share, the
- * listing, the business, and the seller's follow badge. Nothing decorative.
- * Each either does the thing or sends the buyer to sign in first.
- */
-
 import * as React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   Bookmark, Heart, Loader2, MapPin, MessageCircle,
-  Pause, Play, Plus, Send, Share2, ShoppingBag, Store, Volume2, VolumeX,
+  Pause, Play, Plus, Send, Share2, ShoppingBag, Store,
 } from 'lucide-react';
 import {
   addDoc, arrayRemove, arrayUnion, collection, doc, increment,
@@ -53,7 +30,7 @@ export interface DiscoverySeller {
   isLive: boolean;
 }
 
-/* ── Formatting ─────────────────────────────────────────────────────────── */
+/* ── Formatting ────────────────────────────────────────────────────────── */
 
 function priceText(listing: Product): string {
   const display = listingPriceDisplay(listing);
@@ -87,7 +64,7 @@ function CaptionWithTags({ text }: { text: string }) {
   );
 }
 
-/* ── Rail ───────────────────────────────────────────────────────────────── */
+/* ── Rail ──────────────────────────────────────────────────────────── */
 
 function RailButton({
   label,
@@ -133,7 +110,7 @@ function RailButton({
   );
 }
 
-/* ── The post ───────────────────────────────────────────────────────────── */
+/* ── The post ────────────────────────────────────────────────────────── */
 
 export function DiscoveryVideoPost({
   listing,
@@ -179,7 +156,6 @@ export function DiscoveryVideoPost({
   const videoRef = React.useRef<HTMLVideoElement>(null);
   const [buffering, setBuffering] = React.useState(false);
   const [paused, setPaused] = React.useState(false);
-  const [muted, setMuted] = React.useState(true);
   const [progress, setProgress] = React.useState(0);
 
   React.useEffect(() => {
@@ -416,7 +392,7 @@ export function DiscoveryVideoPost({
   const tags = (listing.tags ?? '').trim();
   const caption = [
     listing.description?.trim(),
-    tags ? `#${tags.split(/[,\s]+/).filter(Boolean).join(' #')}` : '',
+    tags ? `#${tags.split(/[,/s]+/).filter(Boolean).join(' #')}` : '',
   ]
     .filter(Boolean)
     .join('\n\n');
@@ -456,7 +432,7 @@ export function DiscoveryVideoPost({
                 fill
                 sizes="100vw"
                 priority={active}
-                className="object-cover opacity-90"
+                className="h-full w-full object-cover object-center opacity-90"
                 onError={() => markPosterFailed(current.poster!)}
               />
             )}
@@ -464,7 +440,7 @@ export function DiscoveryVideoPost({
               ref={videoRef}
               src={current.url}
               poster={current.poster}
-              muted={muted}
+              muted={true}
               loop
               playsInline
               preload={active ? 'auto' : 'metadata'}
@@ -481,18 +457,12 @@ export function DiscoveryVideoPost({
                 if (el.duration > 0) setProgress(el.currentTime / el.duration);
               }}
               className={cn(
-                'absolute inset-0 h-full w-full object-cover transition-opacity duration-500',
+                'absolute inset-0 h-full w-full object-cover object-center transition-opacity duration-500',
                 buffering ? 'opacity-0' : 'opacity-100',
               )}
             />
           </>
         ) : isLivingPicture ? (
-          /*
-           * A Living Picture — a still photo with OPTIONAL licensed music. It
-           * renders through the playback component, which never autoplays and
-           * keeps the photo fully visible if the audio fails. With no track it
-           * is an ordinary photo (the player degrades to a plain image).
-           */
           <LivingPicturePlayer
             imageUrl={
               coverFailed
@@ -505,11 +475,6 @@ export function DiscoveryVideoPost({
           />
         ) : (
           <Image
-            /* `(current?.url ?? coverImage) || placeholder`: with no playable
-               media left (e.g. the clip 404s) `coverImage` can be '' — an
-               empty src renders as a broken icon, which is the "crashed" look.
-               When the cover URL itself is dead (legacy Firebase Storage),
-               `coverFailed` drops the post to the local placeholder. */
             src={
               coverFailed
                 ? '/placeholder-image.svg'
@@ -519,18 +484,8 @@ export function DiscoveryVideoPost({
             fill
             sizes="100vw"
             priority={active}
-            /*
-             * The upload pipeline already stores this WebP at q92 (≤2048px) —
-             * the seller's photo, essentially untouched. `next/image` would
-             * otherwise re-encode the delivered copy at its DEFAULT quality
-             * (75), which is where the feed's soft, "compressed" look came
-             * from: sharp text and product edges went mushy on the full-screen
-             * post. Matching the stored quality keeps the delivered bytes as
-             * close to the original as the format allows without shipping the
-             * whole file on a phone connection.
-             */
             quality={90}
-            className="object-cover"
+            className="h-full w-full object-cover object-center"
             onError={() => {
               if (current) markFailed(current.url);
               else setCoverFailed(true);
@@ -553,8 +508,6 @@ export function DiscoveryVideoPost({
         </div>
       )}
 
-      {/* Media interaction: video = tap to pause; photos = a horizontal
-          carousel inside this one feed (swipe, tap an edge, or arrow keys). */}
       <button
         type="button"
         onClick={onOverlayClick}
@@ -582,11 +535,6 @@ export function DiscoveryVideoPost({
         </span>
       )}
 
-      {/*
-        Living Picture marker — keeps a music-backed still visibly distinct
-        from an ordinary photo and from a video in the same feed (spec B4).
-        Positioned under the Sponsored chip so the two never overlap.
-      */}
       {isLivingPicture && (
         <span
           className={cn(
@@ -598,8 +546,6 @@ export function DiscoveryVideoPost({
         </span>
       )}
 
-      {/* Media position dots — inside the text column so they can never
-          collide with the rail. */}
       {playable.length > 1 && (
         <div className="absolute bottom-full left-4 right-20 mb-2 flex items-center gap-2">
           <div className="flex flex-1 gap-1">
@@ -666,13 +612,6 @@ export function DiscoveryVideoPost({
           </div>
         )}
 
-        {/*
-          Product card — the shape buyers already recognise: thumbnail, name,
-          price, stock + place, then the actions underneath. "View product"
-          is the primary, full-width action; the message button drops the
-          buyer straight into the chat with this seller (all three surfaces
-          read `?chatWith=`).
-        */}
         <div className="mt-3 rounded-2xl border border-white/10 bg-black/55 p-3 backdrop-blur-md">
           <div className="flex items-center gap-3">
             <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-white/10">
@@ -681,7 +620,8 @@ export function DiscoveryVideoPost({
                 alt={listing.name}
                 fill
                 sizes="56px"
-                className="object-cover"
+                quality={90}
+                className="h-full w-full object-cover object-center"
               />
             </div>
             <div className="min-w-0 flex-1">
@@ -708,7 +648,7 @@ export function DiscoveryVideoPost({
               disabled={!actionable}
               aria-label={`${cta} — ${listing.name}`}
               className={cn(
-                'flex h-11 flex-1 items-center justify-center gap-2 rounded-xl text-[13px] font-bold transition',
+                'flex h-11 flex-1 items-center justify-center gap-2 overflow-hidden rounded-xl text-[13px] font-bold transition',
                 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white',
                 actionable
                   ? sellerSurface
@@ -718,11 +658,7 @@ export function DiscoveryVideoPost({
               )}
             >
               <ShoppingBag className="h-4 w-4 shrink-0" aria-hidden />
-              {/* The product's own name inside the button: the buyer reads
-                  exactly what a tap will open, before tapping. The prefix is
-                  `shrink-0` so a long name — the part worth reading — is what
-                  truncates, never the words around it. */}
-              <span className="flex min-w-0 items-baseline gap-1.5">
+              <span className="flex min-w-0 items-center gap-1.5 overflow-hidden">
                 <span className="shrink-0 opacity-70">{cta} ·</span>
                 <span className="min-w-0 truncate font-extrabold">{listing.name}</span>
               </span>
@@ -743,14 +679,13 @@ export function DiscoveryVideoPost({
         </div>
       </div>
 
-      {/* Playback row — real progress, real controls. */}
       <div className="absolute inset-x-0 bottom-0 z-20 flex items-center gap-3 px-4 pb-3 pt-1">
         <button
           type="button"
           onClick={() => current?.type === 'video' && setPaused((p) => !p)}
           aria-label={paused ? 'Play video' : 'Pause video'}
           disabled={current?.type !== 'video'}
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--vn-discovery-accent)] disabled:opacity-30"
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--vn-discovery-accent)] disabled:cursor-default disabled:opacity-40"
         >
           {paused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
         </button>
@@ -768,22 +703,9 @@ export function DiscoveryVideoPost({
             style={{ width: `${Math.min(100, progress * 100)}%` }}
           />
         </div>
-
-        <button
-          type="button"
-          onClick={() => setMuted((m) => !m)}
-          aria-label={muted ? 'Unmute video' : 'Mute video'}
-          aria-pressed={!muted}
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--vn-discovery-accent)]"
-        >
-          {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
-        </button>
       </div>
 
-      {/* Right rail — the seven controls from the reference, sized to fit a
-          phone viewport without pushing the top one off screen. */}
       <div className="absolute bottom-16 right-2 z-20 flex flex-col items-center gap-3">
-        {/* Avatar with the follow badge, where a thumb lands. */}
         <div className="relative mb-1">
           <Link
             href={`/sellers/${seller.id}`}
@@ -798,7 +720,7 @@ export function DiscoveryVideoPost({
             aria-label={following ? `Unfollow ${seller.name}` : `Follow ${seller.name}`}
             aria-pressed={following}
             className={cn(
-              'absolute -bottom-2 left-1/2 flex h-6 w-6 -translate-x-1/2 items-center justify-center rounded-full border-2 border-black transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--vn-discovery-accent)]',
+              'absolute -bottom-2 left-1/2 flex h-6 w-6 -translate-x-1/2 items-center justify-center rounded-full border-2 border-black transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white',
               following ? 'bg-white text-[#0A0A0A]' : 'bg-[color:var(--vn-discovery-accent)] text-[#0A0A0A]',
             )}
           >
@@ -841,7 +763,7 @@ export function DiscoveryVideoPost({
   );
 }
 
-/* ── Comments ───────────────────────────────────────────────────────────── */
+/* ── Comments ────────────────────────────────────────────────────────── */
 
 function DiscoveryComments({
   listing,
@@ -967,7 +889,7 @@ function DiscoveryComments({
               onClick={() => void submit()}
               disabled={posting || !draft.trim()}
               aria-label="Post comment"
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[color:var(--vn-discovery-accent)] text-[#0A0A0A] transition disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[color:var(--vn-discovery-accent)] text-[#0A0A0A] transition disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--vn-discovery-accent)]"
             >
               {posting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
             </button>
