@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db, auth as adminAuth } from '@/firebase/server';
 import { getTikTokVideoAnalytics } from '@/lib/tiktok';
-import type { BoostRequest, UserProfile } from '@/lib/types';
+import { getFreshTikTokAccessToken } from '@/lib/tiktok/store';
+import type { BoostRequest } from '@/lib/types';
 import { FieldValue } from 'firebase-admin/firestore';
 
 /**
@@ -47,17 +48,17 @@ export async function POST(
     return NextResponse.json({ message: 'This boost is not active on TikTok or has no video ID.' }, { status: 400 });
   }
 
-  const sellerProfileRef = db.collection('userProfiles').doc(boostData.sellerId);
-  const sellerProfileSnap = await sellerProfileRef.get();
-  const sellerProfile = sellerProfileSnap.data() as UserProfile;
-  const tiktokConnection = sellerProfile.connections?.tiktok;
+  // Secure store: tokens no longer live on the (publicly readable) profile.
+  // getFreshTikTokAccessToken transparently refreshes near-expiry tokens and
+  // falls back to the legacy profile location until migration is verified.
+  const accessToken = await getFreshTikTokAccessToken(boostData.sellerId);
 
-  if (!tiktokConnection?.accessToken) {
+  if (!accessToken) {
     return NextResponse.json({ message: 'Seller TikTok connection not found or token is missing.' }, { status: 400 });
   }
 
   try {
-    const videoAnalytics = await getTikTokVideoAnalytics(tiktokConnection.accessToken, [boostData.tiktokVideoId]);
+    const videoAnalytics = await getTikTokVideoAnalytics(accessToken, [boostData.tiktokVideoId]);
     
     if (videoAnalytics.length === 0) {
       throw new Error('Could not retrieve video analytics from TikTok.');

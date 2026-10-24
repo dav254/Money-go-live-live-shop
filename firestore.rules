@@ -46,6 +46,16 @@ service cloud.firestore {
     }
 
     // =========================
+    // TIKTOK CREDENTIALS (Social Reach)
+    // =========================
+    // Server-only: read and written exclusively by the Firebase Admin SDK
+    // (src/lib/tiktok/store.ts). Clients are denied outright — access and
+    // refresh tokens must never be reachable from a browser.
+    match /tiktok_connections/{uid} {
+      allow read, write: if false;
+    }
+
+    // =========================
     // PRODUCT & LIVE ACCESS
     // =========================
     match /products/{productId} {
