@@ -181,7 +181,11 @@ export function SellerLiveStudio({
         if (data?.error === 'CONFIG_MISSING') {
           setTokenError(data.message || 'Live streaming is not configured on this server.');
         }
-        throw new Error(data.message || data.error || 'Could not start the broadcast.');
+        // Surface the server's technical detail when present — a one-line
+        // cause in the toast is what makes the next screenshot actionable.
+        const detail =
+          typeof data?.details === 'string' && data.details ? ` (${data.details.slice(0, 160)})` : '';
+        throw new Error((data.message || data.error || 'Could not start the broadcast.') + detail);
       }
 
       if (data?.alreadyLive) {

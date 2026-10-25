@@ -15,6 +15,8 @@
 
 import { FieldValue } from 'firebase-admin/firestore';
 import type { Firestore } from 'firebase-admin/firestore';
+import { pbPatchOrder } from '@/lib/pocketbase/orders';
+import { pbAdjustAiPoints } from '@/lib/pocketbase/profiles';
 import type { Order } from '@/lib/types';
 
 /** Points both the seller and the buyer earn for one confirmed delivery. */
@@ -42,7 +44,7 @@ export async function awardDeliveryPoints(
   const parties = [order.sellerId, order.buyerId].filter(Boolean);
   if (parties.length === 0) return false;
 
-  return db.runTransaction(async (tx) => {
+  const awarded = await db.runTransaction(async (tx) => {
     const orderRef = db.collection('orders').doc(orderId);
     const snap = await tx.get(orderRef);
     if (!snap.exists || snap.data()?.deliveryPointsAwarded) return false;
@@ -57,4 +59,17 @@ export async function awardDeliveryPoints(
     }
     return true;
   });
+
+  if (awarded) {
+    /*
+     * VPS copies, both best-effort: the one-shot flag so a Firestore outage
+     * can never make this award pay twice, and the balances so the
+     * VPS-side points (spent by the go-live charge) track the Firestore ones.
+     */
+    void pbPatchOrder(orderId, { deliveryPointsAwarded: true });
+    for (const uid of parties) {
+      void pbAdjustAiPoints(uid as string, DELIVERY_POINTS_PER_PARTY);
+    }
+  }
+  return awarded;
 }

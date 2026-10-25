@@ -1,24 +1,30 @@
 'use client';
 
 /**
- * PUSH SUBSCRIPTIONS — the browser half.
+ * PUSH SUBSCRIPTIONS — the browser half, standards-based Web Push (VAPID).
  *
- * ## Why FCM and not a third-party push SDK
+ * ## Why not FCM
  *
- * `firebase-admin` already ships Cloud Messaging, the project already has a
- * Firebase project, and `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` is already
- * configured. Using it means no new vendor, no new credential, and one SDK
- * between the client and the server instead of two. The alternative — adding a
- * dedicated push provider — would mean a second account, a second SDK and a
- * second thing that can silently stop delivering.
+ * The notification section is VPS-controlled end to end. `getToken()` tied
+ * every subscription and every send to Firebase Cloud Messaging; the flow
+ * below uses only the open Web Push APIs every modern browser ships:
+ * `Notification.requestPermission()` → `serviceWorker.ready` →
+ * `pushManager.subscribe({ applicationServerKey })`. The server then posts
+ * straight to the browser vendor's push service with our VAPID key (see
+ * `push-server.ts`). No Firebase messaging code, no second vendor.
+ *
+ * ## Permission is only ever requested from a user gesture
+ *
+ * `enablePush` must be called from a click handler — never from an effect on
+ * mount. A prompt fired without a gesture is silently dropped by Chrome,
+ * which reads to the user as "the button does nothing". The settings screen's
+ * enable toggle is that gesture.
  *
  * ## One subscription per device per user
  *
- * A subscription is keyed by its own endpoint under
- * `pushSubscriptions/{uid}/devices/{subscriptionId}`, so a user who signs in on
- * a phone and a tablet gets two independent records and can be revoked on one
- * without touching the other. A single document keyed only by uid would mean
- * signing in on a second device silently killed push on the first.
+ * A subscription is keyed by its endpoint, so a user who signs in on a phone
+ * and a tablet gets two independent records and can revoke one without
+ * touching the other.
  *
  * ## Every failure is silent on purpose
  *
@@ -28,13 +34,11 @@
  * decides whether it is worth telling the user about.
  */
 
-import { getMessaging, getToken, deleteToken, isSupported } from 'firebase/messaging';
 import type { User } from 'firebase/auth';
-import { getSurfaceApp } from '@/firebase/surface-auth';
 
 /** Result of an opt-in attempt. Never throws. */
 export type PushOptInResult =
-  | { status: 'enabled'; token: string }
+  | { status: 'enabled'; endpoint: string }
   | { status: 'denied' }
   | { status: 'dismissed'; reason: string }
   | { status: 'unsupported' }
@@ -45,44 +49,52 @@ export type PushSupport = 'granted' | 'denied' | 'default' | 'unsupported';
 /** Whether this browser can take push at all. */
 export async function pushSupport(): Promise<PushSupport> {
   if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return 'unsupported';
-  try {
-    if (!(await isSupported())) return 'unsupported';
-  } catch {
-    return 'unsupported';
-  }
   if (!('PushManager' in window) || !('Notification' in window)) return 'unsupported';
   return Notification.permission as PushSupport;
 }
 
 /**
- * The VAPID public key.
+ * The VAPID public key the browser subscribes with.
  *
- * Read from the environment rather than hardcoded, because it is a per-project
- * value: a key baked into the bundle would be wrong the moment this app is
- * cloned into a second Firebase project, and would fail in a way that looks
- * like a browser bug rather than a config one.
+ * `NEXT_PUBLIC_VAPID_PUBLIC_KEY` is the pair's own key; the Firebase-named
+ * variable is read only as a migration fallback — the server signs with
+ * `VAPID_PRIVATE_KEY`, so BOTH halves must belong to the same generated pair
+ * or the push service rejects every send.
  */
 export function vapidPublicKey(): string {
-  return process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY || '';
+  return (
+    process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ||
+    process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY ||
+    ''
+  );
+}
+
+/** base64url → Uint8Array, as `applicationServerKey` requires. */
+function urlBase64ToUint8Array(base64String: string): Uint8Array {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const raw = typeof atob === 'function' ? atob(base64) : '';
+  const output = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) output[i] = raw.charCodeAt(i);
+  return output;
 }
 
 /**
- * Requests permission and registers this device.
- *
- * The permission prompt is only ever shown from a user gesture, so callers must
- * invoke this from a click handler — never from an effect on mount. A prompt
- * fired without a gesture is silently dropped by Chrome, which reads to the
- * user as "the button does nothing".
+ * Requests permission and registers this device — call ONLY from a click
+ * handler (see the file header).
  */
 export async function enablePush(user: User): Promise<PushOptInResult> {
   try {
     if (typeof window === 'undefined') return { status: 'unsupported' };
 
+    if (!(await pushSupportIsUsable())) return { status: 'unsupported' };
+
     const key = vapidPublicKey();
     if (!key) {
       return {
         status: 'error',
-        reason: 'Push is not configured yet — NEXT_PUBLIC_FIREBASE_VAPID_KEY is missing.',
+        reason:
+          'Push is not configured yet — NEXT_PUBLIC_VAPID_PUBLIC_KEY is missing on the server.',
       };
     }
 
@@ -90,37 +102,36 @@ export async function enablePush(user: User): Promise<PushOptInResult> {
     if (permission === 'denied') return { status: 'denied' };
     if (permission !== 'granted') return { status: 'dismissed', reason: 'Permission dismissed.' };
 
-    // The worker must be registered and CONTROLLING before getToken, otherwise
-    // FCM has nowhere to attach the subscription.
+    // The worker must be registered and CONTROLLING before subscribing,
+    // otherwise the subscription has no worker to wake.
     const registration = await navigator.serviceWorker.ready;
 
-    // Scoped to THIS surface's app. The no-argument `getMessaging()` resolves
-    // against `[DEFAULT]` — the website's app — which inside the installed app
-    // either throws outright or mints the token under the wrong session. See
-    // `getSurfaceApp`.
-    const token = await getToken(getMessaging(getSurfaceApp()), {
-      vapidKey: key,
-      serviceWorkerRegistration: registration,
+    /*
+     * Always recreate rather than reuse: a subscription left over from the
+     * retired FCM flow was created with FIREBASE's VAPID key, and the push
+     * service rejects any send signed by a different pair — reusing it would
+     * look like "push does nothing" with no error anywhere. Dropping the old
+     * one and subscribing with OUR key guarantees the pair matches; the old
+     * server record is pruned after its first failed send (404/410).
+     */
+    const existing = await registration.pushManager.getSubscription();
+    if (existing) await existing.unsubscribe().catch(() => undefined);
+    const subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(key) as BufferSource,
     });
 
-    if (!token) return { status: 'error', reason: 'Firebase returned no messaging token.' };
-
     /*
-     * Registered server-side, not written straight to Firestore.
-     *
-     * The rules would allow the client to write its own subtree, but a token
-     * is a bearer credential: a user who pasted someone else's into this call
-     * would start receiving that person's order and payment notifications.
-     * The route verifies the ID token and takes the uid from it, never from
-     * the body.
+     * Registered server-side, never stored from the browser alone — see the
+     * subscribe route: the subscription is a bearer credential, so the uid
+     * comes from the verified ID token rather than the body.
      */
     const idToken = await user.getIdToken();
     const res = await fetch('/api/notifications/push/subscribe', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
       body: JSON.stringify({
-        token,
-        deviceId: hashToken(token),
+        subscription: subscription.toJSON(),
         userAgent: typeof navigator !== 'undefined' ? navigator.userAgent.slice(0, 200) : '',
       }),
     });
@@ -129,48 +140,41 @@ export async function enablePush(user: User): Promise<PushOptInResult> {
       return { status: 'error', reason: 'Could not register this device for notifications.' };
     }
 
-    return { status: 'enabled', token };
+    return { status: 'enabled', endpoint: subscription.endpoint };
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error.';
-
-    /*
-     * FCM refuses the subscribe call — with an opaque OAuth wall of text —
-     * when the project's own Google Cloud setup blocks it: the Firebase
-     * Installations / Cloud Messaging APIs are disabled for the project, or
-     * the browser API key carries application restrictions ("selected APIs"
-     * or a referrer allowlist) that exclude them. Nothing in this app can
-     * fix that, so name it instead of surfacing the raw Google error.
-     */
-    if (
-      message.includes('token-subscribe-failed') ||
-      message.includes('missing required authentication credential')
-    ) {
+    // A SecurityError here almost always means the public key on the server
+    // is not the pair's — or is base64 that is not url-safe. Name it.
+    if (message.includes('SecurityError') || /applicationServerKey|VAPID/i.test(message)) {
       return {
         status: 'error',
         reason:
-          'Firebase refused this device: open Firebase console → Project settings → Cloud Messaging, enable the Cloud Messaging (V1) and Firebase Installations APIs for this project, and make sure the browser API key has no API restrictions. Then try again.',
+          'The VAPID keys do not match. NEXT_PUBLIC_VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY must be the same generated pair.',
       };
     }
-
     return { status: 'error', reason: message };
   }
+}
+
+/** Browser capability check that also treats an already-granted prompt as usable. */
+async function pushSupportIsUsable(): Promise<boolean> {
+  return (await pushSupport()) !== 'unsupported';
 }
 
 /**
  * Revokes push on THIS device.
  *
- * Only the local FCM token can be deleted from the browser; the stored record
- * is removed by the server (`/api/notifications/push/revoke`), which deletes
- * every device for the user. That asymmetry is deliberate: a user who turns
- * notifications off means "stop sending to me", not "stop sending to the phone
- * I am currently holding", and leaving the other devices live would be the
- * surprising reading.
+ * The local subscription is unsubscribed here; the server route then removes
+ * EVERY stored subscription for the user ("stop sending to me", not "stop
+ * sending to this phone"). Preferences survive a revoke.
  */
 export async function disablePush(user: User): Promise<boolean> {
   try {
     if (typeof window === 'undefined') return false;
-    if (await isSupported()) {
-      await deleteToken(getMessaging(getSurfaceApp()));
+    if ('serviceWorker' in navigator && 'PushManager' in window) {
+      const registration = await navigator.serviceWorker.getRegistration();
+      const sub = await registration?.pushManager?.getSubscription();
+      if (sub) await sub.unsubscribe();
     }
 
     const idToken = await user.getIdToken();
@@ -183,19 +187,4 @@ export async function disablePush(user: User): Promise<boolean> {
   } catch {
     return false;
   }
-}
-
-/**
- * A stable short id for a token, used as the device document id.
- *
- * A plain hash is enough here: it only has to be stable and collision-free
- * within one user's own devices, and it is never used as a secret.
- */
-function hashToken(token: string): string {
-  let h = 0;
-  for (let i = 0; i < token.length; i++) {
-    h = (h << 5) - h + token.charCodeAt(i);
-    h |= 0;
-  }
-  return Math.abs(h).toString(36);
 }

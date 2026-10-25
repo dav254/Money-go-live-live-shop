@@ -98,6 +98,38 @@ export async function pbRequest(
 // Records + collections
 // ---------------------------------------------------------------------------
 
+/**
+ * Firestore Timestamp / Date → ISO string; anything else passes through
+ * structurally (arrays/objects recursed), primitives kept, FieldValue
+ * sentinels dropped. This is what lets a document full of server Timestamps
+ * live in a PocketBase JSON field.
+ */
+export function scrubForPocketBase(value: unknown): unknown {
+  if (value === null || value === undefined) return null;
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+    return value;
+  }
+  if (Array.isArray(value)) return value.map(scrubForPocketBase);
+  const maybeDate = value as { toDate?: () => Date };
+  if (typeof maybeDate.toDate === 'function') {
+    try {
+      return maybeDate.toDate().toISOString();
+    } catch {
+      return null;
+    }
+  }
+  if (typeof value === 'object') {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      // FieldValue sentinels (server SDK) have no meaningful JSON form.
+      if (v && typeof v === 'object' && '_methodName' in (v as object)) continue;
+      out[k] = scrubForPocketBase(v);
+    }
+    return out;
+  }
+  return null;
+}
+
 export interface PbField {
   name: string;
   type: 'text' | 'bool' | 'date' | 'number' | 'json' | 'select';
@@ -119,7 +151,32 @@ export interface PbRecord {
  */
 export async function ensureCollection(name: string, fields: PbField[]): Promise<void> {
   const existing = await pbRequest(`/api/collections/${encodeURIComponent(name)}`);
-  if (existing.ok) return;
+  if (existing.ok) {
+    /*
+     * Collection already exists — but a section gaining a new column (e.g.
+     * `user_profiles` gaining `aiPoints` when the live-session charge moved
+     * over) must still land on it. Diff the schema and PATCH in only what is
+     * missing; an unchanged collection costs one GET and no write.
+     */
+    const detail = (await existing.json().catch(() => null)) as
+      | { fields?: { name: string }[]; schema?: { name: string }[] }
+      | null;
+    const current = detail?.fields ?? detail?.schema ?? null;
+    if (!current) return;
+    const have = new Set(current.map((f) => f.name));
+    const missing = fields.filter((f) => !have.has(f.name));
+    if (missing.length === 0) return;
+    const schemaKey = detail?.fields ? 'fields' : 'schema';
+    const res = await pbRequest(`/api/collections/${encodeURIComponent(name)}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ [schemaKey]: [...current, ...missing] }),
+    });
+    if (!res.ok) {
+      // Non-fatal: record writes will report the missing column themselves.
+      console.error(`[pocketbase] adding fields to "${name}" failed (${res.status})`);
+    }
+    return;
+  }
 
   const base = {
     name,
@@ -155,6 +212,18 @@ export async function pbCreateRecord(collection: string, data: Record<string, un
     throw new Error(`PocketBase create "${collection}" failed (${res.status}): ${detail.slice(0, 300)}`);
   }
   return (await res.json()) as PbRecord;
+}
+
+/** Delete a record by id. Throws on failure (callers that must not throw catch). */
+export async function pbDelete(collection: string, id: string): Promise<boolean> {
+  const res = await pbRequest(`/api/collections/${encodeURIComponent(collection)}/records/${id}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok && res.status !== 404) {
+    const detail = await res.text().catch(() => '');
+    throw new Error(`PocketBase delete "${collection}/${id}" failed (${res.status}): ${detail.slice(0, 300)}`);
+  }
+  return true;
 }
 
 export async function pbListRecords(

@@ -1,6 +1,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { db, auth } from '@/firebase/server';
+import { pbListOrdersByParty } from '@/lib/pocketbase/orders';
 import type { Order } from '@/lib/types';
 
 /**
@@ -17,6 +18,23 @@ export async function GET(request: NextRequest) {
     const token = authHeader.split('Bearer ')[1];
     const decodedToken = await auth.verifyIdToken(token);
     const uid = decodedToken.uid;
+
+    /*
+     * VPS store first (orders are mirrored at checkout and on every status
+     * change), Firestore second — a seller's order screen must keep working
+     * when Firestore is the outage, because that is the screen they ship from.
+     */
+    const mirrored = await pbListOrdersByParty({ sellerId: uid });
+    if (mirrored) {
+      return NextResponse.json(
+        mirrored.map((o) => ({
+          ...o.data,
+          id: o.id,
+          // Already ISO strings in the VPS copy.
+          orderDate: typeof o.data.orderDate === 'string' ? o.data.orderDate : null,
+        })),
+      );
+    }
 
     const ordersSnapshot = await db.collection('orders')
         .where('sellerId', '==', uid)

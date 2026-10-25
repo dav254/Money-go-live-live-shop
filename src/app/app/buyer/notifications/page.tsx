@@ -2,10 +2,10 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { Bell, ChevronRight } from 'lucide-react';
-import { collection, limit, query, where } from 'firebase/firestore';
+import { useRouter } from 'next/navigation';
+import { Bell, CheckCheck, ChevronRight, Settings } from 'lucide-react';
 
-import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
+import { useNotifications } from '@/lib/notifications/use-notifications';
 import { cn } from '@/lib/utils';
 import { BuyerEmptyState, BuyerSectionTitle } from '@/components/app/buyer/buyer-app-shell';
 
@@ -13,35 +13,30 @@ import { BuyerEmptyState, BuyerSectionTitle } from '@/components/app/buyer/buyer
  * BUYER APP · NOTIFICATIONS.
  *
  * The website's notification centre lives inside the shared header. The app
- * gives it a screen inside the buyer section, reading only this user's own
- * notifications — the query is equality-filtered on `userId`, which is all the
- * Firestore rules allow on that collection. Never a bare `list()`.
+ * gives it a screen inside the buyer section, fed by the VPS-backed
+ * `/api/notifications` routes — the API derives the uid from the verified
+ * token and returns only that user's records, so one buyer can never see
+ * another's alerts (never a bare collection list, never a userId parameter).
+ *
+ * Live updates come from the hook's polling (interval + focus + visibility),
+ * so a new order alert lands without a refresh. Tapping a row marks it read;
+ * the header offers "mark all read" and a shortcut to notification settings.
  *
  * ## Why every link is remapped, and why an unknown link is dropped
  *
- * Notification `link` values are written by Cloud Functions and by admin API
- * routes, and they are all **website** routes — the literals in this repo are
- * `/buyer/my-orders`, `/dashboard/seller/orders`, `/dashboard/reseller/…`,
+ * Notification `link` values are written by server-side writers and by admin
+ * API routes, and they are all **website** routes — the literals in this repo
+ * are `/buyer/my-orders`, `/dashboard/seller/orders`, `/dashboard/reseller/…`,
  * `/dashboard/security`, `/invoice/{id}` and `/requests/{id}`. Following one
  * verbatim inside the installed app drops the buyer out of `/app/buyer/*` and
  * into the website's desktop layout on a single tap.
  *
  * So `toAppHref` maps the buyer-relevant ones into this section and returns
- * `null` for everything else — a seller or reseller alert has no buyer screen to
- * land on, so the row renders without a link rather than ejecting the app. That
- * is the whole point: a notification the buyer cannot act on in-app is shown,
- * but tapping it does nothing, instead of breaking the app's illusion.
+ * `null` for everything else — a seller or reseller alert has no buyer screen
+ * to land on, so the row renders without a link rather than ejecting the app.
+ * That is the whole point: a notification the buyer cannot act on in-app is
+ * shown, but tapping it does nothing, instead of breaking the app's illusion.
  */
-
-interface BuyerNotification {
-  id: string;
-  type?: string;
-  title?: string;
-  message?: string;
-  link?: string;
-  status?: string;
-  timestamp?: unknown;
-}
 
 /** Notification-link literals observed in this repo, mapped to buyer app routes. */
 const APP_ROUTE_BY_LINK: Record<string, string> = {
@@ -81,18 +76,10 @@ function toAppHref(raw: string | undefined): string | null {
   return null;
 }
 
-function toMillis(value: unknown): number {
-  if (value && typeof value === 'object' && 'toMillis' in (value as { toMillis?: unknown })) {
-    return (value as { toMillis: () => number }).toMillis();
-  }
-  if (value instanceof Date) return value.getTime();
-  if (typeof value === 'number') return value;
-  return 0;
-}
-
-function relativeTime(value: unknown): string {
-  const ms = toMillis(value);
-  if (!ms) return '';
+function relativeTime(iso: string | null): string {
+  if (!iso) return '';
+  const ms = Date.parse(iso);
+  if (Number.isNaN(ms)) return '';
   const diff = Date.now() - ms;
   const mins = Math.floor(diff / 60000);
   if (mins < 1) return 'just now';
@@ -105,31 +92,19 @@ function relativeTime(value: unknown): string {
 }
 
 export default function BuyerSectionNotifications() {
-  const { user } = useUser();
-  const firestore = useFirestore();
+  const router = useRouter();
+  const { items, unread, isLoading, markRead, markAllRead } = useNotifications({
+    limit: 50,
+    pollMs: 30_000,
+  });
 
-  const notificationsQuery = useMemoFirebase(() => {
-    if (!user || !firestore) return null;
-    // No `orderBy` on purpose: an equality filter plus a range on a different
-    // field would need a composite index this project has not provisioned.
-    return query(
-      collection(firestore, 'notifications'),
-      where('userId', '==', user.uid),
-      limit(50),
-    );
-  }, [firestore, user]);
+  const notifications = items;
 
-  const { data: rawNotifications, isLoading } = useCollection<BuyerNotification>(notificationsQuery);
-
-  const notifications = React.useMemo(
-    () =>
-      (rawNotifications ?? [])
-        .slice()
-        .sort((a, b) => toMillis(b.timestamp) - toMillis(a.timestamp)),
-    [rawNotifications],
-  );
-
-  const unread = notifications.filter((n) => n.status === 'unread').length;
+  /** Tapping anywhere on a row opens it (when it has a destination) and marks it read. */
+  const openRow = (id: string, href: string | null) => {
+    void markRead(id);
+    if (href) router.push(href);
+  };
 
   return (
     <div className="vn-page-enter space-y-5 pb-2">
@@ -137,11 +112,31 @@ export default function BuyerSectionNotifications() {
         eyebrow="Inbox"
         title="Notifications"
         action={
-          unread > 0 ? (
-            <span className="shrink-0 rounded-full bg-cyan-400/15 px-2.5 py-1 font-sans text-[10px] font-bold uppercase tracking-widest text-cyan-600 dark:text-cyan-300">
-              {unread} new
-            </span>
-          ) : undefined
+          <div className="flex shrink-0 items-center gap-2">
+            {unread > 0 && (
+              <>
+                <span className="rounded-full bg-cyan-400/15 px-2.5 py-1 font-sans text-[10px] font-bold uppercase tracking-widest text-cyan-600 dark:text-cyan-300">
+                  {unread} new
+                </span>
+                <button
+                  type="button"
+                  onClick={() => void markAllRead()}
+                  className="flex items-center gap-1 rounded-full border border-border/70 px-2.5 py-1 font-sans text-[10px] font-bold uppercase tracking-widest text-muted-foreground transition hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <CheckCheck className="h-3 w-3" aria-hidden />
+                  Read all
+                </button>
+              </>
+            )}
+            <Link
+              href="/app/buyer/settings/notifications"
+              aria-label="Notification settings"
+              title="Notification settings"
+              className="flex h-7 w-7 items-center justify-center rounded-full border border-border/70 text-muted-foreground transition hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <Settings className="h-3.5 w-3.5" aria-hidden />
+            </Link>
+          </div>
         }
       />
 
@@ -168,7 +163,7 @@ export default function BuyerSectionNotifications() {
       ) : (
         <ul className="space-y-2 px-4">
           {notifications.map((item) => {
-            const isUnread = item.status === 'unread';
+            const isUnread = !item.isRead;
             const href = toAppHref(item.link);
             const body = (
               <div
@@ -202,7 +197,7 @@ export default function BuyerSectionNotifications() {
                     </span>
                   )}
                   <span className="vn-micro mt-1.5 block text-[9px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
-                    {relativeTime(item.timestamp)}
+                    {relativeTime(item.createdAt)}
                     {item.type ? ` · ${item.type}` : ''}
                   </span>
                 </span>
@@ -215,13 +210,25 @@ export default function BuyerSectionNotifications() {
             return (
               <li key={item.id}>
                 {href ? (
-                  <Link href={href} className="block">
+                  // Tapping opens the destination AND marks the row read.
+                  <button
+                    type="button"
+                    onClick={() => openRow(item.id, href)}
+                    className="block w-full rounded-2xl text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
                     {body}
-                  </Link>
+                  </button>
                 ) : (
                   // No in-app destination: shown, but not a link. Following the
                   // stored website path would eject the buyer from the app.
-                  body
+                  // Tapping still clears the unread state.
+                  <button
+                    type="button"
+                    onClick={() => openRow(item.id, null)}
+                    className="block w-full rounded-2xl text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    {body}
+                  </button>
                 )}
               </li>
             );

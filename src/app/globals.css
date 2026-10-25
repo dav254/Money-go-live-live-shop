@@ -563,6 +563,36 @@ html[data-vidnov-surface='app']:has(.vn-discovery-in-app) main {
   padding-bottom: 0;
 }
 
+/* A definite height CHAIN for the immersive feed.
+
+   The app-surface rules above force `height: auto` on scrollable pages (one
+   scrolling column, no nested scroller), and `height: 100%` against an
+   auto-height ancestor resolves to auto — which collapses the feed's
+   `h-full` cells to a few pixels of stacked strip. The feed does not scroll
+   the page; it snap-scrolls itself, so while Discovery is on screen the shell
+   is pinned to the dynamic viewport (100dvh tracks the browser address bar,
+   unlike 100vh) with overflow hidden. Header, main and wrapper then all have
+   definite heights, and h-full resolves all the way down to each post cell.
+
+   Specificity: the :has() + class selectors beat the unlayered
+   `body > div > div > div` auto-height rule, and none of it leaks to any
+   other app screen. */
+html[data-vidnov-surface='app']:has(.vn-discovery-in-app) .vn-buyer-scope,
+html[data-vidnov-surface='app']:has(.vn-discovery-in-app) .vn-seller-scope {
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Same pin for the seller dashboard inset (/dashboard/seller/live-feed): the
+   app-surface rules above can force `height: auto` on it, which collapses the
+   feed's h-full chain. The class is added by SellerLayout, so this touches
+   only the dashboard and never the app shells. */
+html[data-vidnov-surface='app'] .vn-dashboard-inset {
+  height: 100dvh;
+  overflow: hidden;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .vn-discovery-scope *,
   .vn-discovery-scope *::before,

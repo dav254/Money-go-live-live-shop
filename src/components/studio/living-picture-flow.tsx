@@ -7,9 +7,11 @@
  * This flow:
  *   1. takes an already-edited studio photo (or lets the seller pick one),
  *   2. asks "regular photo" or "Living Picture",
- *   3. for a Living Picture, offers an OPTIONAL "Add Music" step driven by the
- *      licensing-gated catalogue (`music-catalog.ts`). With no licensed tracks
- *      the step is clearly labelled unavailable — nothing is fabricated,
+ *   3. for a Living Picture, offers an OPTIONAL "Add Music" step: upload your
+ *      OWN clip right here (audio only, 30s cap enforced server-side by the
+ *      media engine, stored under music/<uid>/ on the VPS) and/or pick from
+ *      the licensing-gated catalogue (`music-catalog.ts`). With no music at
+ *      all the step simply says so — nothing is ever fabricated,
  *   4. previews the finished picture with its playback control,
  *   5. publishes through the EXISTING pipeline: it writes a `products` document
  *      (same collection, same moderation/ownership/privacy rules) with additive
@@ -22,7 +24,7 @@
 
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
-import { Disc3, Image as ImageIcon, Loader2, Music2, Sparkles, Video, X } from 'lucide-react';
+import { Disc3, Image as ImageIcon, Loader2, Music2, Sparkles, Upload, Video, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -31,7 +33,14 @@ import { useToast } from '@/hooks/use-toast';
 import { useFirestore, useUser } from '@/firebase';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { uploadMedia } from '@/lib/media/upload-client';
-import { catalogueAvailability, listAvailableTracks, type CatalogueTrack } from '@/lib/studio/music-catalog';
+import { MUSIC_MAX_SECONDS, musicFolderFor } from '@/lib/media/music';
+import { mirrorProduct } from '@/lib/products/mirror';
+import {
+  catalogueAvailability,
+  listAvailableTracks,
+  type CatalogueAvailability,
+  type CatalogueTrack,
+} from '@/lib/studio/music-catalog';
 import { LivingPicturePlayer, type LivingPictureTrack } from '@/components/studio/living-picture-player';
 import { cn } from '@/lib/utils';
 
@@ -60,8 +69,136 @@ export function LivingPictureFlow({ initialImage }: { initialImage?: string }) {
     if (initialImage) setImage(initialImage);
   }, [initialImage]);
 
-  const availability = catalogueAvailability();
-  const tracks = React.useMemo(() => listAvailableTracks(), []);
+  /*
+   * MUSIC — uploaded right here in the flow (the idea: a photo + your own
+   * music, in one place). Clips are audio-only, capped at 30 seconds by the
+   * media engine (ffprobe, server-side), and stored under the owner-scoped
+   * folder `music/<uid>/` on the VPS. GET /api/music/mine only ever returns
+   * the caller's own tracks; a failed fetch degrades to the catalogue alone
+   * and never blocks publishing.
+   */
+  const [sellerTracks, setSellerTracks] = React.useState<CatalogueTrack[]>([]);
+  const [uploadingMusic, setUploadingMusic] = React.useState(false);
+  const [musicPercent, setMusicPercent] = React.useState(0);
+  const [musicError, setMusicError] = React.useState<string | null>(null);
+  const musicInputRef = React.useRef<HTMLInputElement>(null);
+
+  const loadSellerTracks = React.useCallback(async (): Promise<CatalogueTrack[]> => {
+    if (!user) return [];
+    try {
+      const token = await user.getIdToken();
+      const res = await fetch('/api/music/mine', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return [];
+      const data = (await res.json()) as {
+        tracks?: Array<{
+          id: string;
+          title: string;
+          url: string;
+          mimeType: string;
+          durationSeconds: number | null;
+        }>;
+      };
+      const mapped: CatalogueTrack[] = (data.tracks ?? []).map((t) => ({
+        // Prefixed so an upload can never collide with a catalogue id.
+        id: `mine-${t.id}`,
+        title: t.title || 'My upload',
+        artist: 'Uploaded by you',
+        durationSeconds: typeof t.durationSeconds === 'number' ? t.durationSeconds : 0,
+        streamUrl: t.url,
+        mimeType: t.mimeType || 'audio/mpeg',
+        licence: {
+          licenceId: 'seller-upload',
+          summary:
+            'Uploaded by you — you confirmed you hold the rights to use this audio on Vidnov.',
+          licensor: `seller:${user.uid}`,
+          allowsCommercialUse: true,
+          allowsMarketplaceUse: true,
+          allowsWorldwide: true,
+          allowsRedistribution: true,
+        },
+      }));
+      setSellerTracks(mapped);
+      return mapped;
+    } catch {
+      return [];
+    }
+  }, [user]);
+
+  React.useEffect(() => {
+    void loadSellerTracks();
+  }, [loadSellerTracks]);
+
+  /**
+   * Picks an audio file, pre-checks the 30s cap (the media engine enforces
+   * it again server-side), uploads it into music/<uid>/ and auto-selects it
+   * for this Living Picture.
+   */
+  const pickMusic = React.useCallback(
+    async (file: File) => {
+      if (!user) return;
+      setMusicError(null);
+      if (!file.type.startsWith('audio/')) {
+        toast({
+          variant: 'destructive',
+          title: 'Not an audio file',
+          description: 'Choose an MP3, M4A, WAV, OGG, WebM or FLAC file.',
+        });
+        return;
+      }
+      const seconds = await probeAudioDuration(file);
+      if (seconds !== null && seconds > MUSIC_MAX_SECONDS + 0.5) {
+        toast({
+          variant: 'destructive',
+          title: 'Too long',
+          description: `Music must be ${MUSIC_MAX_SECONDS} seconds or shorter — this file is ${Math.round(seconds)}s.`,
+        });
+        return;
+      }
+      setUploadingMusic(true);
+      setMusicPercent(0);
+      try {
+        const res = await uploadMedia(file, user, (p) => setMusicPercent(p.percent ?? 0), {
+          folder: musicFolderFor(user.uid),
+        }).promise;
+        if (res.phase === 'failed' || !res.url) {
+          throw new Error(res.error || 'Upload failed.');
+        }
+        const list = await loadSellerTracks();
+        const added = list.find((t) => t.streamUrl === res.url);
+        if (added) setTrack(added);
+        toast({
+          title: 'Music added',
+          description: 'Your clip is selected for this Living Picture.',
+        });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Upload failed.';
+        setMusicError(message);
+        toast({ variant: 'destructive', title: 'Music upload failed', description: message });
+      } finally {
+        setUploadingMusic(false);
+        setMusicPercent(0);
+      }
+    },
+    [user, toast, loadSellerTracks],
+  );
+
+  const catalogueTracks = React.useMemo(() => listAvailableTracks(), []);
+  const tracks = React.useMemo(
+    () => [...sellerTracks, ...catalogueTracks],
+    [sellerTracks, catalogueTracks],
+  );
+  const availability = React.useMemo<CatalogueAvailability>(() => {
+    if (sellerTracks.length > 0) {
+      return {
+        available: true,
+        trackCount: sellerTracks.length + catalogueTracks.length,
+        reason: '',
+      };
+    }
+    return catalogueAvailability();
+  }, [sellerTracks, catalogueTracks]);
 
   const pickImage = React.useCallback(
     (file: File) => {
@@ -108,10 +245,10 @@ export function LivingPictureFlow({ initialImage }: { initialImage?: string }) {
       toast({ variant: 'destructive', title: 'Give it a name', description: 'Buyers need to know what this is.' });
       return;
     }
-    // A selected track must still be licensed at publish time — the licence
-    // could have lapsed between selection and this tap.
+    // A selected track must still be available at publish time — the licence
+    // could have lapsed (catalogue) or the upload been removed (own music).
     if (mode === 'living' && track) {
-      const still = listAvailableTracks().some((t) => t.id === track.id);
+      const still = tracks.some((t) => t.id === track.id);
       if (!still) {
         toast({ variant: 'destructive', title: 'Track no longer available', description: 'Pick another licensed track, or publish without music.' });
         setTrack(null);
@@ -159,6 +296,7 @@ export function LivingPictureFlow({ initialImage }: { initialImage?: string }) {
       }
 
       const created = await addDoc(collection(firestore, 'products'), doc);
+      mirrorProduct(user, created.id);
       toast({
         title: living ? 'Living Picture published' : 'Photo published',
         description: living && !track ? 'Published as a Living Picture with no music.' : 'It is live in your shop and Discovery.',
@@ -174,7 +312,7 @@ export function LivingPictureFlow({ initialImage }: { initialImage?: string }) {
     } finally {
       setIsPublishing(false);
     }
-  }, [user, firestore, image, name, description, price, stock, mode, track, toast, router]);
+  }, [user, firestore, image, name, description, price, stock, mode, track, tracks, toast, router]);
 
   return (
     <div className="space-y-4">
@@ -256,29 +394,56 @@ export function LivingPictureFlow({ initialImage }: { initialImage?: string }) {
             <Label className="mb-0">Add music (optional)</Label>
           </div>
 
+          {/* Inline upload — the whole idea: a photo + your own 30s clip, in
+              one place. The 30s cap is enforced server-side (ffprobe). */}
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <button
+              type="button"
+              onClick={() => musicInputRef.current?.click()}
+              disabled={uploadingMusic}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-primary/40 bg-primary/10 px-3 py-1.5 text-[12px] font-semibold text-primary hover:bg-primary/20 disabled:opacity-60"
+            >
+              {uploadingMusic ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Upload className="h-3.5 w-3.5" />
+              )}
+              {uploadingMusic
+                ? `Uploading ${musicPercent}%…`
+                : `Upload your own music (${MUSIC_MAX_SECONDS}s max)`}
+            </button>
+            <span className="text-[10px] uppercase tracking-widest text-muted-foreground">
+              MP3 · M4A · WAV · OGG
+            </span>
+          </div>
+          {musicError && <p className="text-[11px] text-destructive">{musicError}</p>}
+
           {!availability.available ? (
             <div className="rounded-xl bg-muted/50 p-3">
-              <p className="text-[12px] font-semibold">Music not available yet</p>
-              <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">{availability.reason}</p>
-              <p className="mt-2 text-[11px] text-muted-foreground">
-                You can still publish this Living Picture without music.
+              <p className="text-[12px] font-semibold">No catalogue music yet</p>
+              <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+                Vidnov's licensed catalogue is empty — that does not block you: upload your own
+                clip above ({MUSIC_MAX_SECONDS} seconds max) and it appears here under "Your
+                uploads". Publishing this Living Picture without music is also fully supported.
               </p>
             </div>
           ) : (
             <div className="space-y-2">
-              {tracks.map((t) => (
-                <button
-                  key={t.id}
-                  type="button"
-                  onClick={() => setTrack((cur) => (cur?.id === t.id ? null : t))}
-                  className={cn(
-                    'flex w-full items-center justify-between rounded-xl border px-3 py-2 text-left',
-                    track?.id === t.id ? 'border-primary bg-primary/10' : 'border-border',
-                  )}
-                >
-                  <span className="text-[12px] font-semibold">{t.title}</span>
-                  <span className="text-[11px] text-muted-foreground">{t.artist}</span>
-                </button>
+              {sellerTracks.length > 0 && (
+                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                  Your uploads
+                </p>
+              )}
+              {sellerTracks.map((t) => (
+                <TrackRow key={t.id} t={t} active={track?.id === t.id} onClick={() => setTrack((cur) => (cur?.id === t.id ? null : t))} />
+              ))}
+              {catalogueTracks.length > 0 && (
+                <p className="mt-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                  Vidnov catalogue
+                </p>
+              )}
+              {catalogueTracks.map((t) => (
+                <TrackRow key={t.id} t={t} active={track?.id === t.id} onClick={() => setTrack((cur) => (cur?.id === t.id ? null : t))} />
               ))}
               {track && (
                 <Button variant="ghost" size="sm" onClick={() => setTrack(null)}>
@@ -287,6 +452,18 @@ export function LivingPictureFlow({ initialImage }: { initialImage?: string }) {
               )}
             </div>
           )}
+
+          <input
+            ref={musicInputRef}
+            type="file"
+            accept="audio/*,.mp3,.m4a,.wav,.ogg,.webm,.aac,.flac"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) void pickMusic(f);
+              e.target.value = '';
+            }}
+          />
         </section>
       )}
 
@@ -324,6 +501,52 @@ export function LivingPictureFlow({ initialImage }: { initialImage?: string }) {
         </p>
       )}
     </div>
+  );
+}
+
+/**
+ * Client-side duration peek for instant feedback (a broken file resolves
+ * null quickly); the authoritative 30s gate is ffprobe in the media engine.
+ */
+function probeAudioDuration(file: File): Promise<number | null> {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const el = document.createElement('audio');
+    el.preload = 'metadata';
+    const done = (seconds: number | null) => {
+      URL.revokeObjectURL(url);
+      el.removeAttribute('src');
+      resolve(seconds);
+    };
+    el.onloadedmetadata = () => done(Number.isFinite(el.duration) ? el.duration : null);
+    el.onerror = () => done(null);
+    // Never hang the picker on a broken file — server validation decides.
+    setTimeout(() => done(null), 8000);
+    el.src = url;
+  });
+}
+
+function TrackRow({
+  t,
+  active,
+  onClick,
+}: {
+  t: CatalogueTrack;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        'flex w-full items-center justify-between rounded-xl border px-3 py-2 text-left',
+        active ? 'border-primary bg-primary/10' : 'border-border',
+      )}
+    >
+      <span className="text-[12px] font-semibold">{t.title}</span>
+      <span className="text-[11px] text-muted-foreground">{t.artist}</span>
+    </button>
   );
 }
 

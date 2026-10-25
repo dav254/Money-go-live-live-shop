@@ -213,6 +213,39 @@ All uploads are processed on the VPS and only optimized files are kept:
   video serving all read the VPS store first and only fall back to Firestore
   when PocketBase is off — so a Firestore problem can no longer hide a
   seller's uploads.
+- The **product catalog** is mirrored the same way (`products` collection on
+  PocketBase). Every listing create / edit / delete syncs to the VPS, and the
+  seller stock screen + admin product console merge in VPS-only rows, so a
+  Firestore outage can never make a seller's whole shop look empty. One-time
+  backfill of existing listings: `npx -y tsx scripts/migrate-products.ts`.
+
+### Migrated sections — live sessions, orders, wallet
+
+The same mirror-with-VPS-first-reads pattern now covers the three sections
+where a Firestore outage used to halt the business rather than just hide data:
+
+- **Live sessions** (`live_sessions`). `POST /api/live-session` reads the
+  profile, balance and session VPS-first and writes the session (and the
+  100-point charge) there first; the buyer's viewer-token route and the LIVE
+  NOW grid read VPS-first too. Firestore gets the same writes best-effort.
+  Backfill (sessions **and** profile balances — the charge refuses to invent
+  a balance it cannot read): `npx -y tsx scripts/migrate-live-sessions.ts`
+- **Orders** (`orders`). Seller order list/status, move-to-delivery, admin
+  status, delete, both payment webhooks and the tier sweep read VPS-first;
+  status changes land on the VPS first with a plain-JSON twin of every
+  Firestore update. Checkout (both carts + buy-now), the dispute dialog and
+  accepted request-offers mirror the order here (`/api/orders/sync`).
+  Backfill: `npx -y tsx scripts/migrate-orders.ts`
+- **Wallet** (`payouts`, `wallet_transactions`, `payments`). Payment webhook
+  rows land VPS-first under a deterministic id (a gateway retry upserts the
+  same row instead of double-crediting the ledger), points credits move both
+  balances, refunds mirror their ledger rows, and the admin pending-payout
+  total reads VPS-first. Seller payout requests and the checkout points
+  simulation sync from the client (`/api/wallet/sync`).
+  Backfill: `npx -y tsx scripts/migrate-wallet.ts`
+
+Run the three backfills once, in any order, after setting the PocketBase env
+vars — all are safe to re-run (matched by original Firestore id).
 
 One-time setup on the VPS:
 

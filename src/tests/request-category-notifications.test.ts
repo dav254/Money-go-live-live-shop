@@ -163,19 +163,19 @@ describe('the seller actually sees it', () => {
     );
   });
 
-  it('notifications screen reads the engine shape, not only the legacy one', () => {
+  it('notifications screen reads the normalized API shape, not only the legacy one', () => {
     const code = readCode(SELLER_NOTIFICATIONS);
     assert.ok(
-      code.includes('item.isRead === false'),
-      'notify() writes isRead/status-free docs — without this the alert shows as already read',
+      code.includes('!item.isRead'),
+      'the VPS API normalizes isRead for every writer generation — without reading it the alert shows as already read',
     );
     assert.ok(
-      code.includes('item.createdAt ?? item.timestamp'),
-      'engine docs carry createdAt; legacy docs carry timestamp',
+      code.includes('item.createdAt'),
+      'engine and PocketBase docs carry createdAt; the API folds legacy timestamp into it',
     );
     assert.ok(
-      code.includes('sortNotificationsDesc'),
-      'sorting must prefer createdAt then timestamp, or these alerts sink to the bottom',
+      code.includes('useNotifications'),
+      'the screen reads through the VPS-backed API hook, sorted newest-first server-side',
     );
   });
 });

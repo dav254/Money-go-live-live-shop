@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db, auth } from '@/firebase/server';
 import { FieldValue } from 'firebase-admin/firestore';
+import { pbPatchOrder } from '@/lib/pocketbase/orders';
+import { pbMirrorWalletTransaction } from '@/lib/pocketbase/wallet';
+import { pbGetProfile } from '@/lib/pocketbase/profiles';
 import type { Order } from '@/lib/types';
 
 async function verifyAdmin(request: NextRequest) {
@@ -11,8 +14,13 @@ async function verifyAdmin(request: NextRequest) {
     const token = authHeader.split('Bearer ')[1];
     try {
         const decodedToken = await auth.verifyIdToken(token);
-        const userProfileSnap = await db.doc(`userProfiles/${decodedToken.uid}`).get();
-        if (userProfileSnap.data()?.userRole !== 'admin') {
+        // Role: VPS profile first (survives a Firestore outage), Firestore second.
+        let isAdmin = (await pbGetProfile(decodedToken.uid))?.userRole === 'admin';
+        if (!isAdmin) {
+            const userProfileSnap = await db.doc(`userProfiles/${decodedToken.uid}`).get();
+            isAdmin = userProfileSnap.data()?.userRole === 'admin';
+        }
+        if (!isAdmin) {
             return { error: 'Forbidden: User is not an admin.' };
         }
         return { uid: decodedToken.uid };
@@ -83,9 +91,7 @@ export async function POST(
         amount: totalAmount,
         description: `Refund for order #${orderId.substring(0, 6)}`,
         timestamp: timestamp,
-    });
-    
-    const sellerDebitRef = db.collection('walletTransactions').doc();
+    });    const sellerDebitRef = db.collection('walletTransactions'). doc();
     batch.set(sellerDebitRef, {
         userId: sellerId,
         orderId: orderId,
@@ -95,8 +101,8 @@ export async function POST(
         timestamp: timestamp,
     });
     
+    const resellerDebitRef = db.collection('walletTransactions'). doc();
     if (resellerId && resellerCommission > 0) {
-        const resellerDebitRef = db.collection('walletTransactions').doc();
         batch.set(resellerDebitRef, {
             userId: resellerId,
             orderId: orderId,
@@ -118,6 +124,52 @@ export async function POST(
     });
 
     await batch.commit();
+
+    /*
+     * VPS copies of the money trail (best-effort — the batch already
+     * committed): the order's refunded state and every ledger row, so the
+     * refund stays auditable even if Firestore later cannot answer.
+     */
+    const mirroredAt = new Date().toISOString();
+    void pbPatchOrder(orderId, {
+      orderStatus: 'refunded',
+      disputeReason: `Refund issued by admin: ${reason || 'No reason provided.'}`,
+      updatedAt: mirroredAt,
+    });
+    void pbMirrorWalletTransaction(buyerRefundRef.id, {
+      userId: buyerId,
+      orderId,
+      type: 'REFUND',
+      amount: totalAmount,
+      description: `Refund for order #${orderId.substring(0, 6)}`,
+      timestamp: mirroredAt,
+    });
+    void pbMirrorWalletTransaction(sellerDebitRef.id, {
+      userId: sellerId,
+      orderId,
+      type: 'REFUND',
+      amount: -(sellerNetEarnings + (shippingCost || 0)),
+      description: `Reversal for refunded order #${orderId.substring(0, 6)}`,
+      timestamp: mirroredAt,
+    });
+    if (resellerId && resellerCommission > 0) {
+      void pbMirrorWalletTransaction(resellerDebitRef.id, {
+        userId: resellerId,
+        orderId,
+        type: 'REFUND',
+        amount: -resellerCommission,
+        description: `Reversal of commission for refunded order #${orderId.substring(0, 6)}`,
+        timestamp: mirroredAt,
+      });
+    }
+    void pbMirrorWalletTransaction(platformDebitRef.id, {
+      userId: 'platform_revenue',
+      orderId,
+      type: 'REFUND',
+      amount: -platformFee,
+      description: `Reversal of fee for refunded order #${orderId.substring(0, 6)}`,
+      timestamp: mirroredAt,
+    });
 
     return NextResponse.json({ success: true, message: `Order #${orderId.substring(0, 6)} fully refunded.` });
 

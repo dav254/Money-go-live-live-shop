@@ -34,6 +34,7 @@ import {
 } from '@/lib/listings/limits';
 import type { Product } from '@/lib/types';
 import { uploadMedia, type UploadProgress } from '@/lib/media/upload-client';
+import { mirrorProduct } from '@/lib/products/mirror';
 import { cn } from '@/lib/utils';
 import { VidnovLogo } from '@/components/logo';
 import { PricingUploadCard } from '@/components/seller/pricing-upload-card';
@@ -243,41 +244,53 @@ export function ProductUploadForm({ productToEdit, onFormSubmit, initialImageUrl
   const imageInputRefs = useRef<Array<HTMLInputElement | null>>([]);
 
   const handleImageChange = (index: number, event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    if (imageSlots[index] !== null) return;
+    const picked = Array.from(event.target.files ?? []);
+    event.target.value = '';
+    if (picked.length === 0) return;
     // A listing is EITHER a set of photos OR a single video — never both.
     if (videoFiles.length > 0 || existingVideoUrls.length > 0) {
       toast({ variant: 'destructive', title: 'Photos or video, not both', description: 'This listing already has a video. Remove it before adding photos.' });
-      event.target.value = '';
-      return;
-    }
-    const isImage = file.type.startsWith('image/');
-    if (!isImage) {
-      toast({ variant: 'destructive', title: 'That is not an image', description: 'Pick a JPG, PNG or WebP file.' });
-      return;
-    }
-    if (file.size > MAX_IMAGE_SIZE_MB * 1024 * 1024) {
-      toast({
-        variant: 'destructive',
-        title: 'Image too large',
-        description: `${(file.size / 1024 / 1024).toFixed(1)} MB — maximum is ${MAX_IMAGE_SIZE_MB} MB.`,
-      });
       return;
     }
     const newSlots = [...imageSlots];
-    newSlots[index] = file;
-    setImageSlots(newSlots);
-
-    const objectUrl = URL.createObjectURL(file);
     const newPreviews = [...imagePreviews];
-    if (newPreviews[index]?.startsWith('blob:')) URL.revokeObjectURL(newPreviews[index]!);
-    newPreviews[index] = objectUrl;
-    setImagePreviews(newPreviews);
-
     const newThumbs = [...imageThumbUrls];
-    newThumbs[index] = null;
+    let added = 0;
+    let rejected = 0;
+    // One picker session can fill THIS slot plus every empty slot after it —
+    // sellers were tapping ADD once per photo, which on a phone is the whole
+    // reason "add more than one image" felt broken.
+    for (const file of picked) {
+      if (added >= MAX_IMAGES) break;
+      if (!file.type.startsWith('image/')) {
+        rejected++;
+        continue;
+      }
+      if (file.size > MAX_IMAGE_SIZE_MB * 1024 * 1024) {
+        rejected++;
+        continue;
+      }
+      let slot = -1;
+      for (let s = index; s < MAX_IMAGES; s++) {
+        if (newSlots[s] === null && !newPreviews[s]) { slot = s; break; }
+      }
+      if (slot === -1) break;
+      newSlots[slot] = file;
+      if (newPreviews[slot]?.startsWith('blob:')) URL.revokeObjectURL(newPreviews[slot]!);
+      newPreviews[slot] = URL.createObjectURL(file);
+      newThumbs[slot] = null;
+      added++;
+    }
+    setImageSlots(newSlots);
+    setImagePreviews(newPreviews);
     setImageThumbUrls(newThumbs);
+    if (rejected > 0) {
+      toast({
+        variant: 'destructive',
+        title: rejected === 1 ? 'Photo skipped' : `${rejected} photos skipped`,
+        description: `Only JPG, PNG or WebP images up to ${MAX_IMAGE_SIZE_MB} MB fit, and a listing takes up to ${MAX_IMAGES}.`,
+      });
+    }
   };
 
   const removeImage = (index: number) => {
@@ -386,7 +399,24 @@ export function ProductUploadForm({ productToEdit, onFormSubmit, initialImageUrl
     const pendingFiles = imageSlots.map((slot, index) => (slot instanceof File ? { slot, index } : null)).filter(Boolean) as { slot: File; index: number }[];
     const mediaIds = new Map<number, string>();
     const progressKeys = new Set<string>();
-    for (const { slot, index } of pendingFiles) {
+    /*
+     * Photos upload THREE AT A TIME, not one after another. Each file is
+     * already shrunk to a few hundred KB in the browser (see
+     * compressImageForUpload in the media upload client), so the old serial
+     * loop spent most of its time waiting on round trips — eight photos was
+     * eight consecutive network waits. Three concurrent requests keep a phone
+     * connection busy without hammering the VPS, and every slot keeps its own
+     * progress bar and its own failure message.
+     *
+     * Slots already uploaded in a previous (failed-then-Continued) pass are
+     * not in `pendingFiles` — their URLs are kept, exactly as before — so a
+     * retry only sends what is still missing.
+     */
+    const CONCURRENCY = 3;
+    let cursor = 0;
+    let firstError: Error | null = null;
+
+    const uploadOne = async ({ slot, index }: { slot: File; index: number }) => {
       const key = `img-${index}`;
       setUploadProgress(prev => ({ ...prev, [key]: 0 }));
       progressKeys.add(key);
@@ -402,9 +432,21 @@ export function ProductUploadForm({ productToEdit, onFormSubmit, initialImageUrl
         mediaIds.set(index, '');
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Upload failed.';
-        throw new Error(`Photo ${index + 1}: ${message}`);
+        // Keep the FIRST failure — it names the photo that needs attention.
+        firstError ??= new Error(`Photo ${index + 1}: ${message}`);
       }
-    }
+    };
+
+    await Promise.all(
+      Array.from({ length: Math.min(CONCURRENCY, pendingFiles.length) }, async () => {
+        while (cursor < pendingFiles.length && !firstError) {
+          const next = pendingFiles[cursor++];
+          if (!next) break;
+          await uploadOne(next);
+        }
+      }),
+    );
+    if (firstError) throw firstError;
 
     for (let i = 0; i < videoFiles.length; i++) {
       // Already uploaded in a previous step — reuse the stored URL instead of
@@ -579,6 +621,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit, initialImageUrl
 
       if (productToEdit) {
         await updateDoc(doc(firestore, 'products', productToEdit.id), productData);
+        mirrorProduct(user, productToEdit.id);
         toast({ title: 'Listing updated', description: 'Your changes are live with optimized media.' });
       } else {
         const created = await addDoc(collection(firestore, 'products'), {
@@ -590,6 +633,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit, initialImageUrl
           inCartCount: 0,
           salesCount: 0,
         });
+        mirrorProduct(user, created.id);
         try {
           const idToken = await user.getIdToken();
           await fetch('/api/businesses/ensure', {
@@ -696,7 +740,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit, initialImageUrl
                           <span className="text-[9px] font-semibold uppercase tracking-widest">Add</span>
                         </button>
                       )}
-                      <input type="file" className="hidden" ref={el => { imageInputRefs.current[i] = el; }} accept="image/*" onChange={(e) => handleImageChange(i, e)} />
+                      <input type="file" className="hidden" ref={el => { imageInputRefs.current[i] = el; }} accept="image/*" multiple onChange={(e) => handleImageChange(i, e)} />
                     </div>
                   ))}
                 </div>

@@ -33,6 +33,68 @@ export function livekitConfigured(): boolean {
   );
 }
 
+/**
+ * Diagnoses LIVEKIT_URL BEFORE a broadcast starts.
+ *
+ * A URL that is *set* but not *reachable from the seller's phone* passes
+ * `livekitConfigured()` and then fails deep inside the LiveKit client as
+ * "could not establish signal connection: Failed to fetch" — an error that
+ * tells a seller nothing and reads like an app bug. Two checks catch the
+ * real causes seen in production:
+ *
+ *   • Loopback hosts (localhost / 127.0.0.1 / ::1) exist only on the VPS
+ *     itself, so no phone can ever connect to them.
+ *   • Plain `http`/`ws` against an https site is blocked by the browser as
+ *     mixed content — the exact "Failed to fetch" the studio screenshot
+ *     shows, because the client classifies a failed WebSocket by fetching
+ *     the `validate` endpoint and that fetch is what gets blocked.
+ *
+ * Both checks are gated on the SITE being https, so a plain-http local dev
+ * setup (ws://localhost:7880 is the normal LiveKit default) is left alone.
+ *
+ * Returns null when the URL looks usable, otherwise one actionable sentence.
+ */
+export function livekitUrlProblem(): string | null {
+  const raw = livekitUrl();
+  if (!raw) return 'LIVEKIT_URL is empty.';
+
+  let parsed: URL;
+  try {
+    parsed = new URL(raw);
+  } catch {
+    return `LIVEKIT_URL ("${raw}") is not a valid URL. It must look like wss://your-domain or wss://<project>.livekit.cloud.`;
+  }
+
+  const scheme = parsed.protocol.replace(/:$/, '');
+  if (!['ws', 'wss', 'http', 'https'].includes(scheme)) {
+    return `LIVEKIT_URL uses the unsupported "${scheme}:" scheme. Use wss:// (or https://, which the client converts).`;
+  }
+
+  const siteUrl =
+    (process.env.NEXT_PUBLIC_SITE_URL ?? '').trim() ||
+    (process.env.APP_URL ?? '').trim();
+  const siteIsHttps = siteUrl.startsWith('https://');
+
+  const host = parsed.hostname.toLowerCase();
+  const isLoopback =
+    host === 'localhost' || host === '127.0.0.1' || host === '::1' || host === '[::1]';
+
+  const issues: string[] = [];
+  if (siteIsHttps && isLoopback) {
+    issues.push(
+      `LIVEKIT_URL points at ${host}, which only exists on the server itself, so a phone can never connect to it`,
+    );
+  }
+  if (siteIsHttps && (scheme === 'http' || scheme === 'ws')) {
+    issues.push(
+      `LIVEKIT_URL uses the insecure ${scheme}: scheme while the site runs on https, so the browser blocks the connection as mixed content`,
+    );
+  }
+
+  if (issues.length === 0) return null;
+  return `${issues.join('; ')}. Set LIVEKIT_URL on the server to a wss:// address reachable from any device (your LiveKit Cloud URL, or your domain reverse-proxied over https to LiveKit), then restart the app — no points are charged until this is fixed.`;
+}
+
 /* ------------------------------------------------------------------ */
 /* Tokens (15, 23)                                                     */
 /* ------------------------------------------------------------------ */

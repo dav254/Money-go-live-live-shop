@@ -25,15 +25,7 @@
  * still needs to be told when someone else logs into their account.
  */
 
-import type { Firestore } from 'firebase-admin/firestore';
-
-/**
- * The Admin SDK's Firestore, matching the engine's `db`.
- *
- * Typed rather than duck-typed so a preference read that needs a composite
- * index or a transaction fails at compile time instead of at 3am.
- */
-type PrefDb = Firestore;
+import { getPushPrefs } from './store';
 
 export type PushCategory =
   | 'orders'
@@ -95,23 +87,24 @@ export const PUSH_CATEGORIES: {
  */
 const ALWAYS_ON: ReadonlySet<string> = new Set(['security']);
 
-/** True when a notification in `category` should be pushed. */
-export async function isPushEnabledFor(
-  db: PrefDb,
-  userId: string,
-  category: string,
-): Promise<boolean> {
+/**
+ * True when a notification in `category` should be pushed.
+ *
+ * Preferences are read through the VPS-controlled store (PocketBase
+ * `push_prefs`, Firestore fallback) — the same storage the settings screen
+ * writes, so the screen and the delivery path cannot disagree.
+ */
+export async function isPushEnabledFor(userId: string, category: string): Promise<boolean> {
   if (!userId) return false;
   if (ALWAYS_ON.has(category)) return true;
 
   try {
-    const snap = await db.doc(`users/${userId}/settings/push`).get();
-    if (!snap.exists) return true; // default on — see the file header
-
-    const prefs = snap.data() as { categories?: Record<string, boolean> } | undefined;
-    const value = prefs?.categories?.[category];
-    // A category with no explicit setting follows the global switch, and
-    // follows ON when that is also unset.
+    const categories = await getPushPrefs(userId);
+    const value = categories[category];
+    // No document at all → default on (see the file header). A category with
+    // no explicit setting follows the global switch, and follows ON when that
+    // is also unset.
+    if (value === undefined) return true;
     return value !== false;
   } catch {
     // An unreadable preference must not silence a payment alert.

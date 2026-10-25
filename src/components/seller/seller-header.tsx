@@ -9,14 +9,13 @@ import { SidebarTrigger } from '../ui/sidebar';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '../ui/sheet';
 import { SellerSidebar } from './seller-sidebar';
 import { Logo } from '../logo';
-import { useUser, useUserProfile, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { useUser, useUserProfile } from '@/firebase';
 import { usePathname } from 'next/navigation';
-import { collection, query, where } from 'firebase/firestore';
+import { useUnreadCount } from '@/lib/notifications/use-notifications';
 
 export function SellerHeader() {
   const { user, isLoading: isUserLoading } = useUser();
   const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
-  const firestore = useFirestore();
   const pathname = usePathname();
 
   const isLoading = isUserLoading || isProfileLoading;
@@ -25,15 +24,9 @@ export function SellerHeader() {
   // Custom behavior: Hide specific UI elements in the immersive live view
   const isLiveFeed = pathname === '/dashboard/seller/live-feed';
 
-  // Live unread count for the bell badge (works with both new + legacy docs).
-  const notifQuery = useMemoFirebase(() => {
-    if (!user || !firestore) return null;
-    return query(collection(firestore, 'notifications'), where('userId', '==', user.uid));
-  }, [user, firestore]);
-  const { data: notifs } = useCollection<{ isRead?: boolean; status?: string; createdAt?: unknown; timestamp?: unknown }>(notifQuery);
-  const unreadCount = (notifs ?? []).filter(n =>
-    n.status ? n.status === 'unread' : !n.isRead,
-  ).length;
+  // Live unread count for the bell badge — polled from the VPS-backed
+  // notifications API (see use-unread-count in use-notifications.ts).
+  const { unread: unreadCount } = useUnreadCount(30_000);
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-4 border-b bg-background/95 px-4 backdrop-blur-sm md:px-6">

@@ -11,6 +11,7 @@ import {
   type AccountTier,
 } from '@/lib/tiers';
 import { isAdminUid } from '@/lib/server/admin-guard';
+import { pbListAllOrders } from '@/lib/pocketbase/orders';
 
 /**
  * ADMIN VIEW OF TIERS — and the bonus queue.
@@ -51,17 +52,27 @@ export async function GET(request: Request) {
   if (!admin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   try {
-    const orders = await db.collection('orders').get();
+    /*
+     * Order counts per party, VPS store first — the tier sweep is an admin
+     * job that used to need a full Firestore collection scan.
+     */
     const counts = new Map<string, { sold: number; bought: number }>();
-    for (const d of orders.docs) {
-      const o = d.data() as any;
-      if (!COUNTED_ORDER_STATUSES.includes(o.orderStatus)) continue;
-      const seller = counts.get(o.sellerId) ?? { sold: 0, bought: 0 };
+    const tally = (o: { sellerId?: string; buyerId?: string; orderStatus?: string }) => {
+      if (!COUNTED_ORDER_STATUSES.includes(o.orderStatus as (typeof COUNTED_ORDER_STATUSES)[number])) return;
+      const seller = counts.get(o.sellerId ?? '') ?? { sold: 0, bought: 0 };
       seller.sold += 1;
-      counts.set(o.sellerId, seller);
-      const buyer = counts.get(o.buyerId) ?? { sold: 0, bought: 0 };
+      counts.set(o.sellerId ?? '', seller);
+      const buyer = counts.get(o.buyerId ?? '') ?? { sold: 0, bought: 0 };
       buyer.bought += 1;
-      counts.set(o.buyerId, buyer);
+      counts.set(o.buyerId ?? '', buyer);
+    };
+
+    const mirroredOrders = await pbListAllOrders(2000);
+    if (mirroredOrders) {
+      for (const o of mirroredOrders) tally(o.data as { sellerId?: string; buyerId?: string; orderStatus?: string });
+    } else {
+      const orders = await db.collection('orders').get();
+      for (const d of orders.docs) tally(d.data() as { sellerId?: string; buyerId?: string; orderStatus?: string });
     }
 
     const profiles = await db.collection('userProfiles').get();

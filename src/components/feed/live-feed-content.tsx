@@ -39,5 +39,11 @@ export function LiveFeedContent({
     );
   }
 
-  return <DiscoverySection nav={nav} noBottomNav />;
+  /*
+   * `fill`, not the default 100dvh: this feed renders INSIDE SellerLayout,
+   * below its header. A 100dvh section there starts under the header, so its
+   * bottom — the product card and its View product button — sat one
+   * header-height below the fold and was clipped off the screen.
+   */
+  return <DiscoverySection nav={nav} noBottomNav fill />;
 }

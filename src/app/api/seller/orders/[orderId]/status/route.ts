@@ -4,6 +4,8 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { notify } from '@/lib/notifications';
 import { awardDeliveryPoints, DELIVERY_POINTS_PER_PARTY } from '@/lib/points/delivery';
 import { broadcastAdminAlert } from '@/lib/whatsapp/bridge';
+import { pocketBaseEnabled } from '@/lib/pocketbase/server';
+import { pbGetOrder, pbPatchOrder } from '@/lib/pocketbase/orders';
 import type { Order } from '@/lib/types';
 
 /**
@@ -58,12 +60,31 @@ export async function PUT(
     }
 
     const orderRef = db.collection('orders').doc(orderId);
-    const orderSnap = await orderRef.get();
-    if (!orderSnap.exists) {
-      return NextResponse.json({ error: 'Order not found' }, { status: 404 });
+
+    /*
+     * VPS store first, Firestore second — moving an order along must not
+     * depend on the same store whose outage would strand it at "processing".
+     */
+    const mirrored = await pbGetOrder(orderId);
+    let order: Order | null =
+      mirrored?.data && Object.keys(mirrored.data).length > 0
+        ? (mirrored.data as unknown as Order)
+        : null;
+    if (!order) {
+      try {
+        const orderSnap = await orderRef.get();
+        order = orderSnap.exists ? ((orderSnap.data() ?? null) as Order | null) : null;
+      } catch (error) {
+        console.error('[seller/order-status] Firestore read failed:', error);
+        if (!mirrored) {
+          return NextResponse.json({ error: 'Order store unreachable.' }, { status: 503 });
+        }
+      }
     }
 
-    const order = orderSnap.data() as Order;
+    if (!order) {
+      return NextResponse.json({ error: 'Order not found' }, { status: 404 });
+    }
     const isOwner = order.sellerId === uid || order.resellerId === uid;
     if (!isOwner) {
       return NextResponse.json({ error: 'Forbidden: This order belongs to another seller' }, { status: 403 });
@@ -86,12 +107,51 @@ export async function PUT(
         updatedBy: uid,
       }),
     };
+    /*
+     * Plain-JSON twin of the update for the VPS mirror — the mirror merges
+     * plain values (no FieldValue sentinels), appended onto whatever timeline
+     * the mirrored copy already carries.
+     */
+    const patch: Record<string, unknown> = {
+      orderStatus: status,
+      timeline: [
+        ...((Array.isArray(order.timeline) ? order.timeline : []) as unknown[]),
+        { status, date: new Date().toISOString(), updatedBy: uid },
+      ],
+    };
     if (status === 'shipped') {
-      if (body.trackingNumber) update.trackingNumber = body.trackingNumber;
-      if (body.courierName) update.courierName = body.courierName;
+      if (body.trackingNumber) {
+        update.trackingNumber = body.trackingNumber;
+        patch.trackingNumber = body.trackingNumber;
+      }
+      if (body.courierName) {
+        update.courierName = body.courierName;
+        patch.courierName = body.courierName;
+      }
     }
 
-    await orderRef.update(update);
+    /*
+     * VPS-PRIMARY WRITE (PocketBase configured): the status lands on this
+     * machine first, and Firestore receives the same update best-effort — its
+     * failure must not keep an order stuck. The original Firestore update
+     * stays as the path when PocketBase is off or its write failed.
+     */
+    let updatedOnVps = false;
+    if (pocketBaseEnabled()) {
+      updatedOnVps = await pbPatchOrder(orderId, patch);
+      if (updatedOnVps) {
+        try {
+          await orderRef.update(update);
+        } catch (error) {
+          console.error('[seller/order-status] Firestore mirror failed (status kept on VPS):', error);
+        }
+      }
+    }
+    if (!updatedOnVps) {
+      await orderRef.update(update);
+      // Keep the VPS copy in step when Firestore was the store that took it.
+      void pbPatchOrder(orderId, patch);
+    }
 
     /*
      * Tell the buyer. Their order screen updates live, but a dispatch or a
@@ -120,6 +180,20 @@ export async function PUT(
     };
     const buyerMessage = BUYER_MESSAGE[status];
     if (buyerMessage && order.buyerId) {
+      /*
+       * Email address for the order-status mail — looked up from the buyer's
+       * profile, and simply skipped when the account has no address. `notify`
+       * swallows email failures, so a missing profile can never affect the
+       * status change.
+       */
+      const buyerProfile = await db
+        .collection('userProfiles')
+        .doc(order.buyerId)
+        .get()
+        .catch(() => null);
+      const buyerEmail = buyerProfile?.data()?.email as string | undefined;
+      const buyerName = buyerProfile?.data()?.fullName as string | undefined;
+
       await notify({
         db,
         userId: order.buyerId,
@@ -129,6 +203,18 @@ export async function PUT(
         entityType: 'ORDER',
         entityId: orderId,
         link: '/buyer/my-orders',
+        email: buyerEmail
+          ? {
+              to: buyerEmail,
+              templateKey: 'order-status',
+              category: 'orders',
+              userName: buyerName,
+              vars: {
+                order_number: `#${orderId.slice(0, 8)}`,
+                status,
+              },
+            }
+          : undefined,
       }).catch(() => undefined);
     }
 

@@ -65,7 +65,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ jobId });
   } catch (error) {
     if (error instanceof AiGatewayError) {
-      return NextResponse.json({ error: error.message, code: error.code }, { status: error.code === 'INSUFFICIENT_POINTS' ? 402 : 400 });
+      // 402 = genuinely short on points; 503 = neither store could confirm
+      // the balance (nothing charged — retryable); 400 = validation/provider.
+      const status =
+        error.code === 'INSUFFICIENT_POINTS'
+          ? 402
+          : error.code === 'STORE_UNREACHABLE'
+            ? 503
+            : 400;
+      return NextResponse.json({ error: error.message, code: error.code }, { status });
     }
     console.error('[ai/generate]', error);
     return NextResponse.json({ error: 'Could not start the generation.' }, { status: 500 });

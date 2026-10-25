@@ -264,7 +264,7 @@ export function DiscoveryFeed({
         ) : (
           <div
             ref={scrollRef}
-            className="vn-discovery-snap h-full overflow-y-auto overscroll-y-contain"
+            className="vn-discovery-snap h-full overflow-y-auto overflow-x-hidden overscroll-y-contain"
           >
             {filtered.map((listing) => (
               <div

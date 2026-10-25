@@ -14,6 +14,7 @@ import Image from 'next/image';
 import { useCollection, useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { collection, doc, query, where, getDocs, setDoc, serverTimestamp, addDoc, updateDoc } from 'firebase/firestore';
 import type { Order, SellerShop } from '@/lib/types';
+import { mirrorOrder } from '@/lib/orders/mirror';
 import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
@@ -150,6 +151,7 @@ const DisputeDialog = ({ order }: { order: Order }) => {
                 orderStatus: 'disputed',
                 disputeReason: reason,
             });
+            mirrorOrder(user, order.id);
             toast({
                 title: 'Dispute Submitted',
                 description: 'Our team will review your case and get back to you.',

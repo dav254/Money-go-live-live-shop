@@ -4,6 +4,7 @@ import type { Firestore } from 'firebase-admin/firestore';
 import { notify } from '@/lib/notifications/engine';
 import { sendTemplateEmail } from '@/lib/notifications/email-service';
 import { appLink } from '@/lib/notifications/config';
+import { pbMirrorOrder } from '@/lib/pocketbase/orders';
 import { OFFERS_COLLECTION, REQUESTS_COLLECTION } from '@/lib/media/config';
 import {
   type MarketplaceOffer,
@@ -242,12 +243,36 @@ export async function acceptOffer(
   const others = await db.collection(OFFERS_COLLECTION).where('requestId', '==', requestId).get();
   others.forEach((doc) => {
     if (doc.id !== offerId) batch.update(doc.ref, { status: 'declined', updatedAt: now });
+  });  await batch.commit();
+
+  /*
+   * VPS copy of the order the batch just created (best-effort — the sale is
+   * already committed in Firestore). Plain values only: the batch's
+   * `now` sentinel has no JSON form.
+   */
+  const mirroredAt = new Date().toISOString();
+  void pbMirrorOrder(orderRef.id, {
+    buyerId: customerId,
+    sellerId: offer.sellerId,
+    productName: request.title,
+    productPrice: offer.price,
+    totalAmount: offer.price,
+    subtotal: offer.price,
+    shippingCost: 0,
+    quantity: request.quantity ?? 1,
+    currency: offer.currency,
+    orderStatus: 'pending',
+    fulfillmentType: 'request-marketplace',
+    requestId,
+    offerId,
+    orderDate: mirroredAt,
+    createdAt: mirroredAt,
+    updatedAt: mirroredAt,
   });
-  await batch.commit();
 
   void (async () => {
     try {
-      const profileSnap = await db.collection('userProfiles').doc(offer.sellerId).get();
+      const profileSnap = await db.collection('userProfiles'). doc(offer.sellerId).get();
       const profile = profileSnap.data() as { email?: string; fullName?: string } | undefined;
       await notify({
         db: db as unknown as Firestore,

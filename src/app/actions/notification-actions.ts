@@ -1,8 +1,8 @@
 'use server';
 
 import { db } from '@/firebase/server';
-import { FieldValue } from 'firebase-admin/firestore';
 import { pushExistingNotification } from '@/lib/notifications/push-server';
+import { createNotification } from '@/lib/notifications/store';
 
 /**
  * ADMIN NOTIFICATION ACTIONS.
@@ -63,20 +63,25 @@ export async function sendBulkNotifications(
             const snap = await page.get();
             if (snap.empty) break;
 
-            const batch = db.batch();
-            snap.docs.forEach((userDoc) => {
-                batch.set(db.collection('notifications').doc(), {
-                    userId: userDoc.id,
-                    type: 'announcement',
-                    title: payload.title,
-                    message: payload.message,
-                    link: payload.link || '',
-                    status: 'unread',
-                    timestamp: FieldValue.serverTimestamp(),
-                });
-                notificationCount++;
-            });
-            await batch.commit();
+            // VPS-controlled storage: each profile gets its own record through
+            // the notification store (PocketBase, Firestore fallback). The
+            // per-recipient dedupe query is skipped for a broadcast — it runs
+            // once per user here, and an announcement re-sent by a retried
+            // admin action is far less costly than 500 extra round trips.
+            await Promise.all(
+                snap.docs.map((userDoc) =>
+                    createNotification({
+                        userId: userDoc.id,
+                        type: 'announcement',
+                        title: payload.title,
+                        message: payload.message,
+                        link: payload.link || '',
+                        category: 'system',
+                        dedupeWindowMs: 0,
+                    }),
+                ),
+            );
+            notificationCount += snap.size;
 
             last = snap.docs[snap.docs.length - 1];
             if (snap.size < PAGE) break;
@@ -99,7 +104,7 @@ export async function sendBulkNotifications(
 
         await audienceQ.get().then((snap) => {
             snap.forEach((userDoc) => {
-                void pushExistingNotification(db, userDoc.id, {
+                void pushExistingNotification(userDoc.id, {
                     title: payload.title,
                     body: payload.message,
                     link: payload.link || '',
@@ -127,19 +132,18 @@ export async function sendDirectNotification(
     payload: DirectNotificationPayload,
 ): Promise<{ success: boolean; error?: string }> {
     try {
-        await db.collection('notifications').add({
+        await createNotification({
             userId: payload.userId,
             type: 'announcement',
             title: payload.title,
             message: payload.message,
             link: payload.link || '',
-            status: 'unread',
-            timestamp: FieldValue.serverTimestamp(),
+            category: 'system',
         });
 
         // An admin writing to one user is usually a support answer or a
         // moderation outcome — both worth a phone buzz.
-        void pushExistingNotification(db, payload.userId, {
+        void pushExistingNotification(payload.userId, {
             title: payload.title,
             body: payload.message,
             link: payload.link || '',

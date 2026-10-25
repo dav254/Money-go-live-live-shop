@@ -37,15 +37,27 @@ import {
   type DiscoveryCategoryId,
   type DiscoveryFilters,
 } from '@/lib/discovery';
+import { cn } from '@/lib/utils';
 
 export function DiscoverySection({
   nav,
   noBottomNav,
   ownCover,
+  fill,
 }: {
   nav?: DiscoveryNavItem[];
   noBottomNav?: boolean;
   ownCover?: (listing: import('@/lib/types').Product) => string;
+  /**
+   * The section is rendered INSIDE another shell (the seller dashboard's
+   * header, an app shell's top bar) rather than being the whole page. `100dvh`
+   * there starts below that shell's chrome, so the section's bottom — the
+   * product card and its View product button — lands one header-height BELOW
+   * the fold and is clipped. `fill` roots it at `h-full` of the space the
+   * parent actually left, which keeps the card on screen. The standalone
+   * website route has no wrapper, so it keeps the default `100dvh`.
+   */
+  fill?: boolean;
 }) {
   /*
    * The category lanes (For You · Products · Services · Businesses) were
@@ -80,7 +92,12 @@ export function DiscoverySection({
   }, []);
 
   return (
-    <div className="vn-discovery-scope flex h-[100dvh] flex-col overflow-hidden">
+    <div
+      className={cn(
+        'vn-discovery-scope flex flex-col overflow-hidden',
+        fill ? 'h-full min-h-0' : 'h-[100dvh]',
+      )}
+    >
       {!nav?.length && (
         <DiscoveryTopBar
           filters={filters}

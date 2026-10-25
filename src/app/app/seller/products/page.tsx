@@ -34,6 +34,7 @@ import {
   EmptyState, SellerCard, SellerSectionTitle,
 } from '@/components/app/seller/seller-app-shell';
 import { ListingThumb } from '@/components/app/seller/listing-thumb';
+import { mirrorProductDelete } from '@/lib/products/mirror';
 
 /**
  * SELLER APP · STOCK.
@@ -70,6 +71,39 @@ export default function SellerSectionStock() {
   const { data: products, isLoading } = useCollection<Product>(productsQuery);
 
   /*
+   * Listings that exist only in the VPS store (their Firestore write failed,
+   * or Firestore is unreachable right now) still have to show up here — the
+   * server returns them and we merge them in, deduped by id. A seller must
+   * never see their own stock as EMPTY because Firestore is down.
+   */
+  const [vpsProducts, setVpsProducts] = React.useState<Product[]>([]);
+  React.useEffect(() => {
+    if (!user) return;
+    let alive = true;
+    user
+      .getIdToken()
+      .then((token) =>
+        fetch('/api/products/mine', {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+      )
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (alive && Array.isArray(data?.products)) setVpsProducts(data.products);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [user]);
+
+  const allProducts = React.useMemo(() => {
+    const fsRows = products ?? [];
+    const seen = new Set(fsRows.map((p) => p.id));
+    return [...fsRows, ...vpsProducts.filter((p) => !seen.has(p.id))];
+  }, [products, vpsProducts]);
+
+  /*
    * The quota is the seller's TOTAL across every listing, so it cannot be
    * summed from the `products` this screen already has — it is counted by the
    * server (`/api/listings/quota`) and read once on mount. Shown up front so a
@@ -100,16 +134,17 @@ export default function SellerSectionStock() {
   }, [user]);
 
   const visible = React.useMemo(() => {
-    const all = products ?? [];
+    const all = allProducts;
     if (filter === 'in') return all.filter((p) => p.stock > 0);
     if (filter === 'out') return all.filter((p) => p.stock === 0);
     return all;
-  }, [products, filter]);
+  }, [allProducts, filter]);
 
   const handleDelete = async (productId: string) => {
     if (!firestore) return;
     try {
       await deleteDoc(doc(firestore, 'products', productId));
+      mirrorProductDelete(user, productId);
       toast({ title: 'Product deleted' });
     } catch {
       toast({ variant: 'destructive', title: 'Could not delete that product' });
@@ -180,7 +215,7 @@ export default function SellerSectionStock() {
             )}
           >
             {chip.label}
-            {chip.key === 'all' && products ? ` (${products.length})` : ''}
+            {chip.key === 'all' ? ` (${allProducts.length})` : ''}
           </button>
         ))}
       </div>

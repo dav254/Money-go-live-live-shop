@@ -43,7 +43,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { AdminLayout } from '@/components/layout/admin-layout';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { collection, query } from 'firebase/firestore';
 import type { Product } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -169,8 +169,39 @@ export default function AdminAllProductsPage() {
 
   const { data: productsData, isLoading } = useCollection<Product>(productsQuery);
 
+  // Products that exist only in the LOCAL VPS store (their Firestore write
+  // failed) still have to show up in the admin console — the server returns
+  // them and we merge them in, deduped by id.
+  const [vpsProducts, setVpsProducts] = React.useState<Product[]>([]);
+  const { user: adminUser } = useUser();
+  React.useEffect(() => {
+    if (!adminUser) return;
+    let alive = true;
+    adminUser
+      .getIdToken()
+      .then((token) =>
+        fetch('/api/admin/products/list', {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+      )
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (alive && Array.isArray(data?.extraProducts)) setVpsProducts(data.extraProducts);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [adminUser]);
+
+  const allProducts = React.useMemo(() => {
+    const fsRows = productsData ?? [];
+    const seen = new Set(fsRows.map((p) => p.id));
+    return [...fsRows, ...vpsProducts.filter((p) => !seen.has(p.id))];
+  }, [productsData, vpsProducts]);
+
   const table = useReactTable({
-    data: productsData || [],
+    data: allProducts,
     columns,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,

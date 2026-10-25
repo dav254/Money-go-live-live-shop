@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { verifyUserContext } from '@/lib/notifications/server-utils';
 import { listLiveStreams } from '@/lib/live/service';
+import { pbListLiveSessions } from '@/lib/pocketbase/live-sessions';
 import { db } from '@/firebase/server';
 import type { LiveCardView } from '@/lib/live/types';
 
@@ -42,14 +43,6 @@ export async function GET(request: NextRequest) {
      * route to the watch page that can actually play them.
      */
     const mergedActive = scope !== 'mine' && scope !== 'all' && scope !== 'reported';
-    const sessionSnap = mergedActive
-      ? await db
-          .collection('liveSessions')
-          .where('status', '==', 'live')
-          .limit(50)
-          .get()
-          .catch(() => null)
-      : null;
 
     type SessionRow = {
       sellerId: string;
@@ -58,20 +51,44 @@ export async function GET(request: NextRequest) {
       startedAt: unknown;
     };
     const sessionRows: SessionRow[] = [];
-    sessionSnap?.forEach((d) => {
-      const data = d.data() as {
-        sellerId?: string;
-        title?: string;
-        viewerCount?: number;
-        startTime?: unknown;
-      };
-      sessionRows.push({
-        sellerId: data.sellerId ?? d.id,
-        title: data.title ?? '',
-        viewerCount: data.viewerCount ?? 0,
-        startedAt: data.startTime ?? null,
-      });
-    });
+    if (mergedActive) {
+      /*
+       * VPS store first (sessions are mirrored there at go-live), Firestore
+       * second — the LIVE NOW grid still fills when Firestore is the outage.
+       */
+      const mirrored = await pbListLiveSessions({ status: 'live', limit: 50 });
+      if (mirrored) {
+        for (const s of mirrored) {
+          sessionRows.push({
+            sellerId: s.sellerId ?? s.id,
+            title: s.title ?? '',
+            viewerCount: s.viewerCount ?? 0,
+            startedAt: s.data.startTime ?? null,
+          });
+        }
+      } else {
+        const sessionSnap = await db
+          .collection('liveSessions')
+          .where('status', '==', 'live')
+          .limit(50)
+          .get()
+          .catch(() => null);
+        sessionSnap?.forEach((d) => {
+          const data = d.data() as {
+            sellerId?: string;
+            title?: string;
+            viewerCount?: number;
+            startTime?: unknown;
+          };
+          sessionRows.push({
+            sellerId: data.sellerId ?? d.id,
+            title: data.title ?? '',
+            viewerCount: data.viewerCount ?? 0,
+            startedAt: data.startTime ?? null,
+          });
+        });
+      }
+    }
 
     // Resolve business names in one pass (no N+1 for typical page sizes).
     const sellerIds = Array.from(
@@ -127,7 +144,9 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Newest broadcast first across both sources.
+    // Newest broadcast first across both sources. The VPS store serializes
+    // timestamps as ISO strings, so parse those too — without this every
+    // session-backed card would sort as the oldest.
     const startedMs = (value: unknown): number => {
       if (!value) return 0;
       if (typeof value === 'number') return value;
@@ -135,6 +154,10 @@ export async function GET(request: NextRequest) {
       const ts = value as { toDate?: () => Date; seconds?: number };
       if (typeof ts.toDate === 'function') return ts.toDate().getTime();
       if (typeof ts.seconds === 'number') return ts.seconds * 1000;
+      if (typeof value === 'string') {
+        const parsed = Date.parse(value);
+        return Number.isNaN(parsed) ? 0 : parsed;
+      }
       return 0;
     };
     cards.sort((a, b) => startedMs(b.startedAt) - startedMs(a.startedAt));

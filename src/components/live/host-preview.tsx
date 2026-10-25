@@ -160,10 +160,15 @@ function HostStage({
       } catch (e) {
         if (cancelled) return;
         setErrorTitle('Could not connect');
+        const raw = e instanceof Error ? e.message : '';
+        // The LiveKit client reports an unreachable/mixed-content server as
+        // "could not establish signal connection: Failed to fetch" — say what
+        // to DO instead of handing the seller a transport-level string.
+        const isSignalFailure = /signal connection|failed to fetch/i.test(raw);
         setError(
-          e instanceof Error
-            ? e.message
-            : 'The live server could not be reached. Check your connection and try again.',
+          isSignalFailure
+            ? 'The broadcast server could not be reached from this device. This is a server setting: LIVEKIT_URL must be a wss:// address served over https (not http://localhost). Fix LIVEKIT_URL on the server, restart it, and press Go live again.'
+            : raw || 'The live server could not be reached. Check your connection and try again.',
         );
         setState('error');
         return;

@@ -87,6 +87,77 @@ async function pollUntilReady(
   }
 }
 
+/**
+ * Shrinks a photo IN THE BROWSER before it travels — the single biggest
+ * upload-speed lever there is.
+ *
+ * A phone camera sends 4–10MB JPEGs; the server re-encodes every image to
+ * WebP anyway (see /api/media/upload → engine intake), so shipping the
+ * original bytes buys nothing but wait time. This scales the image down to
+ * MAX_UPLOAD_DIMENSION px on its longest edge and encodes WebP at q85 —
+ * typically 150–400KB — which is why an 8-photo listing goes from minutes to
+ * seconds on a phone connection.
+ *
+ * Never throws and never makes things worse: any failure (old browser,
+ * undecodable file, GIF animation that must keep playing, or a compressed
+ * result that somehow came out LARGER) returns the original file untouched.
+ */
+const MAX_UPLOAD_DIMENSION = 2048
+const WEBP_QUALITY = 0.85
+
+async function compressImageForUpload(file: File): Promise<File> {
+  if (!file.type.startsWith('image/')) return file
+  // Animated GIFs would lose their animation as a single WebP frame.
+  if (file.type === 'image/gif') return file
+  // Small enough already — skip the decode/encode round trip entirely.
+  if (file.size <= 300 * 1024) return file
+
+  try {
+    let bitmap: ImageBitmap
+    try {
+      // from-image honours EXIF orientation, so a portrait photo taken on a
+      // phone is not uploaded sideways.
+      bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' })
+    } catch {
+      bitmap = await createImageBitmap(file)
+    }
+
+    const scale = Math.min(1, MAX_UPLOAD_DIMENSION / Math.max(bitmap.width, bitmap.height))
+    const width = Math.max(1, Math.round(bitmap.width * scale))
+    const height = Math.max(1, Math.round(bitmap.height * scale))
+
+    // Below the server's own ceiling AND already small — nothing to gain.
+    if (scale === 1 && file.size <= 1024 * 1024) {
+      bitmap.close()
+      return file
+    }
+
+    const canvas = document.createElement('canvas')
+    canvas.width = width
+    canvas.height = height
+    const ctx = canvas.getContext('2d')
+    if (!ctx) {
+      bitmap.close()
+      return file
+    }
+    ctx.drawImage(bitmap, 0, 0, width, height)
+    bitmap.close()
+
+    const blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob(resolve, 'image/webp', WEBP_QUALITY),
+    )
+    if (!blob || blob.size >= file.size) return file
+
+    const baseName = file.name.replace(/\.[^.]+$/, '') || 'photo'
+    return new File([blob], `${baseName}.webp`, {
+      type: 'image/webp',
+      lastModified: Date.now(),
+    })
+  } catch {
+    return file
+  }
+}
+
 export function uploadMedia(
   file: File,
   user: User | null,
@@ -130,8 +201,14 @@ export function uploadMedia(
         handle.mediaId = mediaId
         report({ phase: 'uploading', percent: 0 })
 
+        // Photos shrink in the browser first — a 6MB camera JPEG becomes
+        // ~250KB before it ever touches the network.
+        const payload = file.type.startsWith('image/')
+          ? await compressImageForUpload(file)
+          : file
+
         const form = new FormData()
-        form.append('file', file)
+        form.append('file', payload)
         if (ownership?.postId) form.append('postId', ownership.postId)
         if (ownership?.requestId) form.append('requestId', ownership.requestId)
         if (ownership?.offerId) form.append('offerId', ownership.offerId)
@@ -154,7 +231,14 @@ export function uploadMedia(
          * the server was healthy but rebuilding itself — which is what sellers
          * saw as "waited 90 seconds" on a photo that never actually failed.
          */
-        const DEADLINE_MS = 180_000
+        /*
+         * Photos are compressed to a few hundred KB before this loop, so a
+         * 3-minute rescue window on one is pure punishment — the seller stares
+         * at a stuck bar for minutes when the honest answer arrives in one.
+         * Videos keep the long window: a 500MB upload legitimately takes
+         * minutes and deserves the restart-survival retry.
+         */
+        const DEADLINE_MS = file.type.startsWith('image/') ? 60_000 : 180_000
         const startedAt = Date.now()
         let res: Response | null = null
         let lastError: unknown = null
@@ -235,9 +319,10 @@ export function uploadMedia(
           // The photos that already landed keep their URLs (their slots are
           // cleared as they finish), so say so: Continue resumes the batch
           // instead of starting over.
+          const waited = Math.round(DEADLINE_MS / 60_000)
           throw new Error(
             looksLikeNetwork
-              ? 'Could not reach the server — it may have been restarting (waited 3 minutes). Photos already uploaded are kept; tap Continue to send the rest.'
+              ? `Could not reach the server — it may have been restarting (waited ${waited} minute${waited === 1 ? '' : 's'}). Photos already uploaded are kept; tap Continue to send the rest.`
               : `${raw.replace(/\.$/, '')} — photos already uploaded are kept; tap Continue to try again.`,
           )
         }

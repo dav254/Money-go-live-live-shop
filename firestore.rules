@@ -56,6 +56,24 @@ service cloud.firestore {
     }
 
     // =========================
+    // VIDEO STUDIO DRAFTS (Video Studio)
+    // =========================
+    // Private workspace of one seller: drafts, render state and the
+    // published back-reference of `studioVideos/{videoId}`. Owner-only
+    // (plus admin) — a draft or a failed upload must never be visible to
+    // other sellers or the public. The PUBLIC copy of a published video is
+    // the `products` document /api/video-studio/publish creates; Discovery
+    // and the public shop read only `products`, never this collection.
+    match /studioVideos/{videoId} {
+      allow read: if isSignedIn() && (resource.data.sellerId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && request.resource.data.sellerId == request.auth.uid;
+      allow update: if isSignedIn()
+        && resource.data.sellerId == request.auth.uid
+        && request.resource.data.sellerId == resource.data.sellerId;
+      allow delete: if isSignedIn() && (resource.data.sellerId == request.auth.uid || isAdmin());
+    }
+
+    // =========================
     // PRODUCT & LIVE ACCESS
     // =========================
     match /products/{productId} {

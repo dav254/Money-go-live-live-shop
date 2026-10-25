@@ -17,6 +17,7 @@ import {
   Sparkles,
   AreaChart,
   Video,
+  Clapperboard,
   Layers,
   Heart,
   Smartphone,
@@ -248,6 +249,24 @@ export function SellerSidebar() {
       <SidebarGroup>
         <SidebarGroupLabel>Videos</SidebarGroupLabel>
         <SidebarMenu>
+          <SectionNavItem href="/dashboard/seller/video-studio">
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              size="sm"
+              asChild
+              isActive={isActive('/dashboard/seller/video-studio')}
+              className="text-sidebar-foreground"
+            >
+              <Link href="/dashboard/seller/video-studio">
+                <span className="flex h-6 w-6 items-center justify-center rounded-md bg-gradient-to-br from-red-600 to-black shadow-md shadow-red-600/25">
+                  <Clapperboard className="h-3.5 w-3.5 text-white" />
+                </span>
+                <span className="font-semibold text-sidebar-foreground">Video Studio</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          </SectionNavItem>
+
           <SectionNavItem href="/dashboard/seller/live-feed">
           <SidebarMenuItem>
             <SidebarMenuButton

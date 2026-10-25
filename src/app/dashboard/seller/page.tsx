@@ -33,6 +33,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { addDays } from 'date-fns';
+import { mirrorProductDelete } from '@/lib/products/mirror';
 import { RequestsTeaser } from '@/components/seller/requests-teaser';
 import { RecentOrdersWidget } from '@/components/seller/recent-orders-widget';
 import { AnalyticsSnapshot } from '@/components/seller/analytics-snapshot';
@@ -105,6 +106,7 @@ export default function SellerDashboardPage() {
     if (!firestore) return;
     try {
       await deleteDoc(doc(firestore, 'products', productId));
+      mirrorProductDelete(user, productId);
       toast({ title: 'Product deleted' });
     } catch (e) {
       toast({ variant: 'destructive', title: 'Error' });

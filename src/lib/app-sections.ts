@@ -213,6 +213,16 @@ export const APP_SECTIONS: AppSection[] = [
     prefixes: ['/dashboard/seller/live', '/dashboard/seller/go-live', '/dashboard/seller/stream', '/dashboard/seller/live-feed'],
   },
   {
+    id: 'video-studio',
+    label: 'Video Studio',
+    description: 'Record, edit with music, and publish seller videos.',
+    roles: ['seller'],
+    // Its own section (longest-prefix wins over `/dashboard/seller`) so an
+    // admin can switch the studio off without disabling the whole seller
+    // dashboard, and the sidebar entry disappears with it.
+    prefixes: ['/dashboard/seller/video-studio'],
+  },
+  {
     id: 'seller-earnings',
     label: 'Earnings & payouts',
     description: 'Earnings, wallet and payout history.',

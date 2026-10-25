@@ -1,36 +1,48 @@
 /**
- * PUSH DELIVERY — the server half.
+ * PUSH DELIVERY — the server half, standards-based Web Push over VAPID.
  *
- * Sends a Web Push message to every device a user has subscribed, using
- * Firebase Cloud Messaging (already available inside `firebase-admin`, so no
- * new dependency and no new vendor account).
+ * ## Why not Firebase Cloud Messaging
  *
- * ## Where this is called from
+ * The notification section is VPS-controlled end to end. FCM would put the
+ * delivery channel back behind Firebase (a second vendor, a second credential
+ * set, and a `messaging` dependency the app is otherwise done with), so
+ * delivery uses the open Web Push protocol: `web-push` signs each request
+ * with our VAPID key pair and posts straight to the browser vendor's push
+ * service (FCM's web endpoint, Mozilla, Apple…). No third-party notification
+ * backend is introduced — the same phone that used to buzz still buzzes.
  *
- * From `notify()` in `engine.ts`, immediately after the in-app document is
- * written. In-app and push are the same event: if the bell in the app updates,
- * the phone buzzes, and if the push fails the in-app notification still
- * exists. Push is additive and never load-bearing.
+ * ## Configuration
+ *
+ *   NEXT_PUBLIC_VAPID_PUBLIC_KEY   client key (base64url) — also used by the
+ *                                  browser at `pushManager.subscribe`
+ *   VAPID_PRIVATE_KEY              server-only twin of the public key
+ *   VAPID_SUBJECT                  optional; defaults to `mailto:` support
+ *
+ * Generate a pair with `npx web-push generate-vapid-keys`. The public key MUST
+ * be the one the browser subscribed with — the push service records it and
+ * rejects sends signed by any other pair. Until both halves are set every send
+ * skips with `not-configured` (logged once), because a half-configured VAPID
+ * pair fails opaquely at the vendor and would look like "push does nothing".
  *
  * ## Every failure is swallowed
+ * A dead subscription, a revoked permission or a vendor outage must never fail
+ * the order, payment or chat message that triggered the notification. Nothing
+ * here throws into feature code; each path logs and returns a count.
  *
- * A dead subscription, a revoked permission or a malformed token must never
- * fail the operation that triggered the notification — placing an order, taking
- * a payment, sending a chat message. `notify()` is called from feature code
- * that has real work to do. So every path here logs and returns a count, and
- * nothing throws.
- *
- * ## Pruning dead tokens
- *
- * FCM reports `messaging/registration-token-not-registered` when a token is
- * gone (uninstalled the PWA, cleared site data, revoked permission). Those
- * devices are deleted rather than retried forever, so the collection does not
- * grow without bound and stop being sendable.
+ * ## Pruning
+ * 404/410 from the push service means the subscription is gone (app
+ * uninstalled, site data cleared). Those records are deleted rather than
+ * retried forever, so the store does not grow without bound.
  */
 
-import { getMessaging } from 'firebase-admin/messaging';
-import type { Firestore } from 'firebase-admin/firestore';
+import webpush from 'web-push';
+import { getVidnovConfig } from './config';
 import { isPushEnabledFor } from './push-preferences';
+import {
+  listPushSubscriptions,
+  prunePushSubscription,
+  type PushSubscriptionJson,
+} from './store';
 
 export interface PushPayload {
   title: string;
@@ -41,47 +53,6 @@ export interface PushPayload {
   category?: string;
 }
 
-/**
- * Pushes a notification that was already written by something other than
- * `notify()`.
- *
- * ## Why this exists
- *
- * The engine is not the only writer of `notifications`. Three server-side
- * paths predate it and write the collection directly:
- *
- *   - `lib/ai/notify.ts`                  AI lifecycle events
- *   - `app/actions/invoice-actions.ts`    invoice raised for a seller
- *   - `app/actions/notification-actions.ts` admin broadcast + direct message
- *
- * Routing them all through `notify()` would mean rewriting their document
- * shapes — they use `status`/`timestamp` where the engine writes
- * `isRead`/`createdAt`, and every existing reader depends on those field
- * names. Changing the shape to suit the push path would risk the in-app inbox
- * to fix a delivery channel.
- *
- * So this pushes a notification that is ALREADY on its way into the inbox,
- * without touching the document. The notification is not lost if push fails —
- * push is additive, never load-bearing.
- */
-export async function pushExistingNotification(
-  db: Firestore,
-  userId: string,
-  payload: PushPayload,
-): Promise<PushResult> {
-  try {
-    // Same per-category opt-in the engine applies, so a user who muted live
-    // streams is not surprised by a push from a path that skipped the engine.
-    if (!(await isPushEnabledFor(db, userId, payload.category || 'system'))) {
-      return { sent: 0, failed: 0, pruned: 0, skipped: 'no-subscriptions' };
-    }
-    return await sendPushToUser(db, userId, payload);
-  } catch (err) {
-    console.error('[push] existing-notification push failed:', err);
-    return { sent: 0, failed: 0, pruned: 0 };
-  }
-}
-
 export interface PushResult {
   sent: number;
   failed: number;
@@ -89,106 +60,131 @@ export interface PushResult {
   skipped?: 'no-subscriptions' | 'not-configured' | 'no-token';
 }
 
+interface VapidDetails {
+  publicKey: string;
+  privateKey: string;
+  subject: string;
+}
+
+let warnedMissingKeys = false;
+
+/** Resolves the VAPID pair, or null when it is not (fully) configured. */
+function vapidDetails(): VapidDetails | null {
+  const privateKey = (process.env.VAPID_PRIVATE_KEY ?? '').trim();
+  const publicKey = (
+    process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ??
+    process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY ??
+    ''
+  )
+    .trim();
+  if (!privateKey || !publicKey) {
+    if (!warnedMissingKeys) {
+      warnedMissingKeys = true;
+      console.warn(
+        '[push] VAPID is not fully configured — skipping delivery. Generate a pair with ' +
+          '`npx web-push generate-vapid-keys`, then set NEXT_PUBLIC_VAPID_PUBLIC_KEY and ' +
+          'VAPID_PRIVATE_KEY. The public key must be the one the browser subscribed with.',
+      );
+    }
+    return null;
+  }
+  const { mailAddresses } = getVidnovConfig();
+  const subject = (process.env.VAPID_SUBJECT ?? '').trim() || `mailto:${mailAddresses.support}`;
+  return { publicKey, privateKey, subject };
+}
+
 /**
- * Delivers `payload` to every device `userId` has subscribed.
- *
- * Uses `sendEachForMulticast` rather than `sendAll`: multicast survives one bad
- * token in the batch, where `sendAll` rejects the whole batch if any single
- * registration is stale.
+ * Pushes a notification that was already written by something other than
+ * `notify()` (admin broadcasts, direct messages, invoices, AI lifecycle
+ * events). Push is additive and never load-bearing — the in-app record
+ * already exists by the time this runs.
+ */
+export async function pushExistingNotification(
+  userId: string,
+  payload: PushPayload,
+): Promise<PushResult> {
+  try {
+    // Same per-category opt-in the engine applies, so a user who muted live
+    // streams is not surprised by a push from a path that skipped the engine.
+    if (!(await isPushEnabledFor(userId, payload.category || 'system'))) {
+      return { sent: 0, failed: 0, pruned: 0, skipped: 'no-subscriptions' };
+    }
+    return await sendPushToUser(userId, payload);
+  } catch (err) {
+    console.error('[push] existing-notification push failed:', err);
+    return { sent: 0, failed: 0, pruned: 0 };
+  }
+}
+
+/** True when the payload is a usable Web Push subscription. */
+function isSendable(sub: PushSubscriptionJson): sub is PushSubscriptionJson & {
+  endpoint: string;
+  keys: { p256dh: string; auth: string };
+} {
+  return !!sub?.endpoint && !!sub.keys?.p256dh && !!sub.keys?.auth;
+}
+
+/**
+ * Delivers `payload` to every device `userId` has subscribed, in parallel.
+ * One broken device cannot hold up — or fail — the rest of the batch.
  */
 export async function sendPushToUser(
-  db: Firestore,
   userId: string,
   payload: PushPayload,
 ): Promise<PushResult> {
   const empty: PushResult = { sent: 0, failed: 0, pruned: 0 };
-
   if (!userId) return empty;
 
+  const vapid = vapidDetails();
+  if (!vapid) return { ...empty, skipped: 'not-configured' };
+
   try {
-    const snap = await db.collection('pushSubscriptions').doc(userId).get();
-    const devices = (snap.data()?.devices ?? {}) as Record<string, { token?: string }>;
+    const subs = (await listPushSubscriptions(userId)).filter(isSendable);
+    if (subs.length === 0) return { ...empty, skipped: 'no-subscriptions' };
 
-    const entries = Object.entries(devices)
-      .filter(([, d]) => typeof d?.token === 'string' && d.token.length > 0);
-
-    if (entries.length === 0) return { ...empty, skipped: 'no-subscriptions' };
+    webpush.setVapidDetails(vapid.subject, vapid.publicKey, vapid.privateKey);
 
     /*
-     * Fail loudly, and early, when the VAPID key is missing.
-     *
-     * Without it FCM rejects every send with an opaque error, and because
-     * every failure here is deliberately swallowed so it cannot break the
-     * order or payment that triggered the notification, that rejection would
-     * otherwise be invisible — the platform would look like it was quietly
-     * failing to notify anyone. This is the single most common reason push
-     * "does nothing", so it is worth naming explicitly rather than logging one
-     * generic line per send.
-     *
-     * The key itself is PUBLIC (it ships to every browser by design); the
-     * matching private key never leaves Firebase.
+     * DATA-ONLY, deliberately — same reasoning as the FCM era: the payload is
+     * JSON and `public/sw.js` owns the presentation (icon, tag, deep link).
+     * The sw's `push` handler already renders arbitrary JSON payloads, so the
+     * transport change is invisible to it.
      */
-    if (!process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY) {
-      console.warn(
-        '[push] NEXT_PUBLIC_FIREBASE_VAPID_KEY is not set — skipping delivery. ' +
-          'Generate a Web Push key pair in Firebase console → Project settings → ' +
-          'Cloud Messaging → Web Push certificates, then add the public key to the env.',
-      );
-      return { ...empty, skipped: 'not-configured' };
-    }
-
-    const messaging = getMessaging();
-    const prunedDocIds: string[] = [];
-
-    /*
-     * DATA-ONLY, deliberately.
-     *
-     * FCM's `notification` block makes the browser display a notification by
-     * itself — on Android that renders from the FCM SDK even when the app is
-     * closed, which is exactly the behaviour we want. But it also means the
-     * service worker's `push` handler never runs, so this app would lose the
-     * icon, the tag and the deep-link handler.
-     *
-     * Putting the text in `data` and rendering it in `sw.js` instead costs one
-     * extra step — the phone must be able to start the service worker — and
-     * buys full control over presentation and navigation. It is also the only
-     * way `notificationclick` can sanitise the link before opening it.
-     */
-    const response = await messaging.sendEachForMulticast({
-      tokens: entries.map(([, d]) => d.token as string),
-      data: {
-        title: payload.title,
-        body: payload.body,
-        link: payload.link || '/',
-        category: payload.category || 'system',
-      },
+    const body = JSON.stringify({
+      title: payload.title,
+      body: payload.body,
+      link: payload.link || '/',
+      category: payload.category || 'system',
     });
 
-    response.responses.forEach((r, i) => {
-      if (r.success) return;
-      const code = r.error?.code || '';
-      if (
-        code.includes('registration-token-not-registered') ||
-        code.includes('invalid-registration-token') ||
-        code.includes('invalid-argument')
-      ) {
-        prunedDocIds.push(entries[i][0]);
-      }
-    });
+    let sent = 0;
+    let failed = 0;
+    let pruned = 0;
 
-    if (prunedDocIds.length > 0) {
-      const batch = db.batch();
-      prunedDocIds.forEach((id) => {
-        batch.delete(db.collection('pushSubscriptions').doc(userId).collection('devices').doc(id));
-      });
-      await batch.commit().catch(() => undefined);
-    }
+    await Promise.all(
+      subs.map(async (sub) => {
+        try {
+          await webpush.sendNotification(
+            sub as unknown as webpush.PushSubscription,
+            body,
+          );
+          sent += 1;
+        } catch (err) {
+          failed += 1;
+          if (
+            err instanceof webpush.WebPushError &&
+            (err.statusCode === 404 || err.statusCode === 410)
+          ) {
+            await prunePushSubscription(userId, sub.endpoint).catch(() => undefined);
+            pruned += 1;
+          } else {
+            console.error('[push] delivery failed:', err);
+          }
+        }
+      }),
+    );
 
-    return {
-      sent: response.successCount,
-      failed: response.failureCount,
-      pruned: prunedDocIds.length,
-    };
+    return { sent, failed, pruned };
   } catch (err) {
     // Never throw into the caller's feature code.
     console.error('[push] delivery failed:', err);

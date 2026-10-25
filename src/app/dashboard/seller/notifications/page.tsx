@@ -10,12 +10,19 @@ import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
-import type { Notification } from '@/lib/types';
 import Link from 'next/link';
-import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where, writeBatch, doc, updateDoc } from 'firebase/firestore';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { sortNotificationsDesc } from '@/lib/notification-sort';
+import { useNotifications, type NormalizedNotification } from '@/lib/notifications/use-notifications';
+
+/**
+ * SELLER DASHBOARD · NOTIFICATIONS.
+ *
+ * Reads through the VPS-backed `/api/notifications` routes (uid from the
+ * verified token — never a userId parameter), with live updates from the
+ * hook's polling. The page keeps its tab layout and mark-read affordances
+ * exactly as they were; only the data source moved off Firestore.
+ */
 
 const notificationIcons: Record<string, React.ReactNode> = {
   commission: <Sparkles className="h-5 w-5 text-yellow-500" />,
@@ -26,10 +33,13 @@ const notificationIcons: Record<string, React.ReactNode> = {
   reseller_request: <Users className="h-5 w-5 text-teal-500" />
 };
 
-const NotificationItem = ({ notification, onMarkRead }: { notification: Notification; onMarkRead: (id: string) => void; }) => (
+/** The API's normalized record, already one shape across all writers. */
+type NotifView = NormalizedNotification;
+
+const NotificationItem = ({ notification, onMarkRead }: { notification: NotifView; onMarkRead: (id: string) => void; }) => (
   <Link href={notification.link || '#'} className={cn(
     "block transition-colors",
-    notification.status === 'unread' && "bg-primary/5"
+    !notification.isRead && "bg-primary/5"
   )}>
     <div className="flex items-start gap-4 p-4">
         <div className="flex-shrink-0 mt-1">
@@ -41,9 +51,11 @@ const NotificationItem = ({ notification, onMarkRead }: { notification: Notifica
         </div>
         <div className="flex flex-col items-end gap-2">
             <p className="text-xs text-muted-foreground whitespace-nowrap">
-                {notification.timestamp?.toDate ? formatDistanceToNow(notification.timestamp.toDate(), { addSuffix: true }) : ''}
+                {notification.createdAt
+                  ? formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })
+                  : ''}
             </p>
-            {notification.status === 'unread' && (
+            {!notification.isRead && (
                 <Button size="sm" variant="ghost" className="h-auto p-1" onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
@@ -60,72 +72,51 @@ const NotificationItem = ({ notification, onMarkRead }: { notification: Notifica
 
 export default function SellerNotificationsPage() {
     const { toast } = useToast();
-    const { user, isLoading: isUserLoading } = useUser();
-    const firestore = useFirestore();
-
-    // NOTE: no server-side orderBy here. The userId+timestamp composite index
-    // is not deployed to this Firebase project, so the ordered query failed
-    // with FAILED_PRECONDITION and surfaced as a fake "permission denied".
-    // Sorting the (small) result set client-side keeps the page working.
-    const notificationsQuery = useMemoFirebase(() => {
-        if (!user || !firestore) return null;
-        return query(
-            collection(firestore, 'notifications'),
-            where('userId', '==', user.uid),
-        );
-    }, [user, firestore]);
-
-    const { data: rawNotifications, isLoading, error: notificationsError } = useCollection<Notification>(notificationsQuery);
+    const {
+      items,
+      unread: unreadCount,
+      isLoading,
+      error: notificationsError,
+      markRead,
+      markAllRead,
+    } = useNotifications({ limit: 200, pollMs: 30_000 });
 
     const notifications = React.useMemo(
-        () => sortNotificationsDesc(rawNotifications ?? []),
-        [rawNotifications],
+        () => sortNotificationsDesc(items),
+        [items],
     );
-    
+
     const handleMarkRead = async (id: string) => {
-        if (!firestore) return;
-        const notificationRef = doc(firestore, 'notifications', id);
         try {
-            await updateDoc(notificationRef, { status: 'read' });
+            await markRead(id);
         } catch (e) {
             console.error("Error marking notification as read: ", e);
             toast({ title: 'Error', description: 'Could not mark notification as read.', variant: 'destructive' });
         }
     };
-    
+
     const handleMarkAllRead = async () => {
-        if (!firestore || !user || !notifications) return;
-        const unread = notifications.filter(n => n.status === 'unread');
-        if (unread.length === 0) return;
-
-        const batch = writeBatch(firestore);
-        unread.forEach(n => {
-            const notificationRef = doc(firestore, 'notifications', n.id);
-            batch.update(notificationRef, { status: 'read' });
-        });
-
+        if (unreadCount === 0) return;
         try {
-            await batch.commit();
+            await markAllRead();
             toast({ title: 'All Caught Up!', description: 'All notifications have been marked as read.' });
         } catch (e) {
             console.error("Error marking all notifications as read: ", e);
             toast({ title: 'Error', description: 'Could not mark all notifications as read.', variant: 'destructive' });
         }
     };
-    
-    const unreadNotifications = React.useMemo(() => notifications?.filter(n => n.status === 'unread') || [], [notifications]);
-    const orderNotifications = React.useMemo(() => notifications?.filter(n => n.type === 'order') || [], [notifications]);
-    const messageNotifications = React.useMemo(() => notifications?.filter(n => n.type === 'message') || [], [notifications]);
-    const promotionNotifications = React.useMemo(() => notifications?.filter(n => n.type === 'announcement') || [], [notifications]);
-    
-    const unreadCount = unreadNotifications.length;
 
-    const renderNotificationList = (notifs: Notification[] | undefined) => {
+    const unreadNotifications = React.useMemo(() => notifications.filter(n => !n.isRead), [notifications]);
+    const orderNotifications = React.useMemo(() => notifications.filter(n => n.type === 'order' || n.type === 'NEW_ORDER' || n.type === 'ORDER_CONFIRMED'), [notifications]);
+    const messageNotifications = React.useMemo(() => notifications.filter(n => n.type === 'message' || n.type === 'MESSAGE' || n.type === 'NEW_MESSAGE'), [notifications]);
+    const promotionNotifications = React.useMemo(() => notifications.filter(n => n.type === 'announcement'), [notifications]);
+
+    const renderNotificationList = (notifs: NotifView[] | undefined) => {
         const list = notifs ?? [];
         if (notificationsError) {
-            return <p className="p-8 text-center text-muted-foreground">Notifications are unavailable right now. Please try again shortly.</p>
+            return <p className="p-8 text-center text-muted-foreground">Notifications are unavailable right now. Please try again shortly.</p>;
         }
-        if (isLoading || isUserLoading) {
+        if (isLoading) {
             return (
                 <div className="space-y-4 p-4">
                     <Skeleton className="h-16 w-full" />
@@ -143,7 +134,7 @@ export default function SellerNotificationsPage() {
             </div>
         )
     }
-    
+
     return (
         <SellerLayout>
             <div className="flex h-[calc(100vh-theme(space.16))] flex-col p-4 md:p-8 pt-6">
@@ -166,7 +157,7 @@ export default function SellerNotificationsPage() {
                             <TabsTrigger value="messages">Messages</TabsTrigger>
                             <TabsTrigger value="promotions">Promotions</TabsTrigger>
                         </TabsList>
-                        
+
                         <ScrollArea className="flex-1">
                             <CardContent className="p-0">
                                 <TabsContent value="all">

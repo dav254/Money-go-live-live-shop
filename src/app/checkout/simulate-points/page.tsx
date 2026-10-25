@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { CheckCircle, Loader2, BadgeCent, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
+import { mirrorWalletPayment } from '@/lib/wallet/mirror';
 
 function SimulationContent() {
     const searchParams = useSearchParams();
@@ -36,7 +37,7 @@ function SimulationContent() {
                 });
 
                 // 2. Log payment in database
-                await addDoc(collection(firestore, 'payments'), {
+                const paymentRef = await addDoc(collection(firestore, 'payments'), {
                     userId: user.uid,
                     amount: amount,
                     paymentMethod: `${gateway}_simulated`,
@@ -45,6 +46,7 @@ function SimulationContent() {
                     transactionType: 'points-purchase',
                     transactionId: `SIM_PTS_${Date.now()}`,
                 });
+                mirrorWalletPayment(user, paymentRef.id);
 
                 setStatus('success');
                 toast({ title: "Points Credited!", description: `Successfully added ${pointsToCredit} points to your wallet.` });

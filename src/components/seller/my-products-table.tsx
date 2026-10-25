@@ -51,6 +51,7 @@ import { collection, query, where, doc, deleteDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '../ui/alert-dialog';
 import { cn } from '@/lib/utils';
+import { mirrorProductDelete } from '@/lib/products/mirror';
 import { ScrollArea } from '../ui/scroll-area';
 
 
@@ -90,6 +91,7 @@ export function MyProductsTable() {
     const productRef = doc(firestore, 'products', productId);
     try {
         await deleteDoc(productRef);
+        mirrorProductDelete(user, productId);
         toast({ title: "Product Deleted", description: "The product has been successfully removed." });
     } catch (e) {
         console.error("Error deleting product: ", e);

@@ -14,6 +14,7 @@ import {
 import { FirestorePermissionError } from '@/firebase/errors';
 import type { CartItem, Order } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
+import { mirrorOrder } from '@/lib/orders/mirror';
 import { Button } from '@/components/ui/button';
 import {
   BuyerCard, BuyerEmptyState, BuyerSectionTitle,
@@ -138,6 +139,7 @@ export default function BuyerSectionCart() {
 
     try {
       await setDoc(newOrderRef, newOrderData);
+      mirrorOrder(user, newOrderRef.id);
 
       // Spend the delivery credit, but only after the order exists. Decrementing
       // first would burn the credit on an order that then failed to write;

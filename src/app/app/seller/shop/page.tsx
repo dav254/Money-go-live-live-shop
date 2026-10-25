@@ -3,7 +3,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import {
-  Award, BadgeCheck, CalendarDays, Clock, Globe, MapPin, MessageSquare,
+  Award, BadgeCheck, CalendarDays, Clock, Eye, Globe, MapPin, MessageSquare,
   Package, QrCode, Radio, Rocket, RotateCcw, Share2, ShieldCheck, Star, Truck,
   Users, Zap,
 } from 'lucide-react';
@@ -362,12 +362,24 @@ export default function AppSellerShopPage() {
                   key={product.id}
                   className="vn-app-card overflow-hidden rounded-2xl border border-border/70 bg-card"
                 >
-                  <ListingThumb
-                    src={product.imageUrl}
-                    alt={product.name || 'Product image'}
-                    className="aspect-square w-full"
-                    icon={Package}
-                  />
+                  <div className="relative">
+                    <ListingThumb
+                      src={product.imageUrl}
+                      alt={product.name || 'Product image'}
+                      className="aspect-square w-full"
+                      icon={Package}
+                    />
+                    {/* Opens the product, mirroring the eye control on the
+                        website storefront card (`/products/{id}`). */}
+                    <Link
+                      href={`/app/buyer/product/${product.id}`}
+                      aria-label={`View ${product.name || 'product'}`}
+                      title="View product"
+                      className="absolute bottom-2 right-2 flex h-8 w-8 items-center justify-center rounded-full border border-white/15 bg-black/60 text-white backdrop-blur-sm transition hover:bg-black/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                    >
+                      <Eye className="h-4 w-4" aria-hidden />
+                    </Link>
+                  </div>
                   <div className="p-2.5">
                     <p className="truncate text-xs font-semibold text-foreground">{product.name}</p>
                     <p className="font-grotesk mt-0.5 text-sm font-bold tabular-nums text-primary">
@@ -405,12 +417,22 @@ export default function AppSellerShopPage() {
                   key={product.id}
                   className="vn-app-card overflow-hidden rounded-2xl border border-border/70 bg-card"
                 >
-                  <ListingThumb
-                    src={product.imageUrl}
-                    alt={product.name || 'Product image'}
-                    className="aspect-square w-full"
-                    icon={Package}
-                  />
+                  <div className="relative">
+                    <ListingThumb
+                      src={product.imageUrl}
+                      alt={product.name || 'Product image'}
+                      className="aspect-square w-full"
+                      icon={Package}
+                    />
+                    <Link
+                      href={`/app/buyer/product/${product.id}`}
+                      aria-label={`View ${product.name || 'product'}`}
+                      title="View product"
+                      className="absolute bottom-2 right-2 flex h-8 w-8 items-center justify-center rounded-full border border-white/15 bg-black/60 text-white backdrop-blur-sm transition hover:bg-black/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                    >
+                      <Eye className="h-4 w-4" aria-hidden />
+                    </Link>
+                  </div>
                   <div className="p-2.5">
                     <p className="truncate text-xs font-semibold text-foreground">{product.name}</p>
                     <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-primary">

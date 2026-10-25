@@ -37,6 +37,30 @@ export function BuyPointsDialog() {
   const { toast } = useToast();
   const [isLoadingPayment, setIsLoadingPayment] = React.useState<string | null>(null);
 
+  /*
+   * Gateways the server can actually start (GET /api/create-payment-intent).
+   * `null` while probing → render both buttons (fail-open); once the probe
+   * answers, a gateway with missing credentials is hidden rather than shown
+   * as a button that is guaranteed to fail.
+   */
+  const [gateways, setGateways] = React.useState<{
+    paystack?: boolean;
+    paypal?: boolean;
+  } | null>(null);
+
+  React.useEffect(() => {
+    let alive = true;
+    fetch('/api/create-payment-intent')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (alive && data && typeof data === 'object') setGateways(data);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
+
   const pointPackages = [
     { points: 500, price: 5, description: 'Get started' },
     { points: 1200, price: 10, description: 'Best value' },
@@ -116,7 +140,8 @@ export function BuyPointsDialog() {
                   <Button
                     size="sm"
                     onClick={() => handlePayment('paystack', pkg.points, pkg.price)}
-                    disabled={!!isLoadingPayment}
+                    disabled={!!isLoadingPayment || gateways?.paystack === false}
+                    className={gateways?.paystack === false ? 'hidden' : undefined}
                   >
                     {isLoadingPayment === 'paystack' ? <Loader2 className="animate-spin" /> : 'Paystack'}
                   </Button>
@@ -124,7 +149,8 @@ export function BuyPointsDialog() {
                     size="sm"
                     variant="secondary"
                     onClick={() => handlePayment('paypal', pkg.points, pkg.price)}
-                    disabled={!!isLoadingPayment}
+                    disabled={!!isLoadingPayment || gateways?.paypal === false}
+                    className={gateways?.paypal === false ? 'hidden' : undefined}
                   >
                     {isLoadingPayment === 'paypal' ? <Loader2 className="animate-spin" /> : 'PayPal'}
                   </Button>

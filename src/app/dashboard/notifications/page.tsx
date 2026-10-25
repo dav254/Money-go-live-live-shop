@@ -15,13 +15,12 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
-import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where, writeBatch, doc, updateDoc, deleteDoc } from 'firebase/firestore';
-import { sortNotificationsDesc } from '@/lib/notification-sort';
+import { useNotifications } from '@/lib/notifications/use-notifications';
+import { sortNotificationsDesc, toMillis } from '@/lib/notification-sort';
 
 interface NotificationDoc {
   id: string;
-  userId: string;
+  userId?: string;
   type: string;
   category?: string;
   title: string;
@@ -78,8 +77,8 @@ function isUnread(n: NotificationDoc): boolean {
 }
 
 function createdAtDate(n: NotificationDoc): Date | null {
-  const ts = (n.createdAt ?? n.timestamp) as { toDate?: () => Date } | null | undefined;
-  return ts?.toDate ? ts.toDate() : null;
+  const ms = toMillis((n.createdAt ?? n.timestamp) as never);
+  return ms ? new Date(ms) : null;
 }
 
 function linkFor(n: NotificationDoc): string {
@@ -89,38 +88,27 @@ function linkFor(n: NotificationDoc): string {
 }
 
 export default function NotificationCenterPage() {
-  const { user, isLoading: isUserLoading } = useUser();
-  const firestore = useFirestore();
   const { toast } = useToast();
   const [category, setCategory] = React.useState<Category>('all');
   const [search, setSearch] = React.useState('');
 
-  // No server-side orderBy: the userId+createdAt / userId+timestamp composite
-  // indexes are not deployed, so ordered queries failed with FAILED_PRECONDITION.
-  // A single unfiltered-by-order query covers both doc shapes; we sort locally.
-  const notificationsQuery = useMemoFirebase(() => {
-    if (!user || !firestore) return null;
-    return query(
-      collection(firestore, 'notifications'),
-      where('userId', '==', user.uid),
-    );
-  }, [user, firestore]);
+  /*
+   * VPS-backed data: `/api/notifications` derives the uid from the verified
+   * token and returns only this user's records (store: PocketBase, Firestore
+   * fallback). Live updates come from the hook's polling — interval, focus,
+   * visibility — so no server-side orderBy or composite index is involved.
+   */
+  const {
+    items,
+    unread: unreadCount,
+    isLoading,
+    markRead,
+    setRead,
+    markAllRead,
+    remove,
+  } = useNotifications({ limit: 200, pollMs: 30_000 });
 
-  const all = useCollection<NotificationDoc>(notificationsQuery);
-
-  const notifications = React.useMemo(() => {
-    const seen = new Set<string>();
-    const merged = (all.data ?? []).filter(n => {
-      if (seen.has(n.id)) return false;
-      seen.add(n.id);
-      return true;
-    });
-    return sortNotificationsDesc(merged);
-  }, [all.data]);
-
-  const isLoading = isUserLoading || all.isLoading;
-
-  const unreadCount = React.useMemo(() => notifications.filter(isUnread).length, [notifications]);
+  const notifications = React.useMemo(() => sortNotificationsDesc(items), [items]);
 
   const filtered = React.useMemo(() => {
     let list = notifications;
@@ -139,44 +127,21 @@ export default function NotificationCenterPage() {
   }, [notifications, category, search]);
 
   const handleMarkRead = async (n: NotificationDoc) => {
-    if (!firestore) return;
-    await updateDoc(doc(firestore, 'notifications', n.id), {
-      isRead: true,
-      readAt: new Date(),
-      status: 'read',
-    }).catch(() => {});
+    await markRead(n.id);
   };
 
   const handleMarkUnread = async (n: NotificationDoc) => {
-    if (!firestore) return;
-    await updateDoc(doc(firestore, 'notifications', n.id), {
-      isRead: false,
-      readAt: null,
-      status: 'unread',
-    }).catch(() => {});
+    await setRead(n.id, false);
   };
 
   const handleDelete = async (n: NotificationDoc) => {
-    if (!firestore) return;
-    await deleteDoc(doc(firestore, 'notifications', n.id)).catch(() => {});
+    await remove(n.id);
   };
 
   const handleMarkAllRead = async () => {
-    if (!firestore || !user) return;
-    const unread = notifications.filter(isUnread);
-    if (unread.length === 0) return;
-    const batch = writeBatch(firestore);
-    unread.forEach(n => {
-      batch.update(doc(firestore, 'notifications', n.id), {
-        isRead: true, readAt: new Date(), status: 'read',
-      });
-    });
-    try {
-      await batch.commit();
-      toast({ title: 'All caught up', description: 'Every notification is marked as read.' });
-    } catch {
-      toast({ variant: 'destructive', title: 'Could not update notifications' });
-    }
+    if (unreadCount === 0) return;
+    await markAllRead();
+    toast({ title: 'All caught up', description: 'Every notification is marked as read.' });
   };
 
   const renderList = () => {

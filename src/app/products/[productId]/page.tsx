@@ -17,6 +17,7 @@ import { useDoc, useFirestore, useMemoFirebase, useUser, useUserProfile, errorEm
 import { doc, setDoc, increment, serverTimestamp, collection } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
+import { mirrorOrder } from '@/lib/orders/mirror';
 import { Dialog, DialogContent, DialogTrigger, DialogClose, DialogTitle, DialogDescription, DialogHeader } from '@/components/ui/dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ProductInfo } from '@/components/live/product-info';
@@ -157,6 +158,7 @@ export default function BuyerProductPage(props: { params: Promise<{ productId: s
 
         setDoc(newOrderRef, newOrderData)
             .then(() => {
+                mirrorOrder(user, newOrderRef.id);
                 toast({ title: 'Order Created!', description: 'Redirecting to checkout...' });
                 router.push(`/checkout/${newOrderRef.id}`);
             })

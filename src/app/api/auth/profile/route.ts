@@ -5,6 +5,26 @@ import { ensureUserProfile, readUserProfile } from '@/lib/auth/profile-ensure';
 export const runtime = 'nodejs';
 
 /**
+ * Credential-shaped fields that must NEVER round-trip to a browser — legacy
+ * TikTok tokens were historically stored on userProfiles documents under
+ * `connections`, and profile reads are the classic place for such a document
+ * to leak wholesale into a JSON response. Applied to EVERY profile this
+ * route returns, so a legacy token field can never ride along.
+ */
+const SENSITIVE_FIELD =
+  /^(connections|tiktok[A-Za-z]*|.*access[Tt]oken|.*refresh[Tt]oken|.*client[Ss]ecret|.*api[Kk]ey|.*credential.*|customClaims)$/;
+
+function publicProfile<T>(profile: T | null | undefined): T | null {
+  if (!profile || typeof profile !== 'object') return profile ?? null;
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(profile as Record<string, unknown>)) {
+    if (SENSITIVE_FIELD.test(key)) continue;
+    out[key] = value;
+  }
+  return out as T;
+}
+
+/**
  * GET /api/auth/profile — the signed-in user's profile, read server-side.
  *
  * Firestore first, the local VPS (PocketBase) store second. Used by the
@@ -16,7 +36,7 @@ export async function GET(request: NextRequest) {
   const uid = await uidFromRequest(request);
   if (!uid) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const profile = await readUserProfile(uid);
-  return NextResponse.json({ ok: true, profile });
+  return NextResponse.json({ ok: true, profile: publicProfile(profile) });
 }
 
 /**
@@ -38,7 +58,7 @@ export async function POST(request: NextRequest) {
   // Never clobber an account that already has a profile.
   const existing = await readUserProfile(uid);
   if (existing?.userRole) {
-    return NextResponse.json({ ok: true, profile: existing, healed: false });
+    return NextResponse.json({ ok: true, profile: publicProfile(existing), healed: false });
   }
 
   // What Auth knows about this person — no Firestore involved.
@@ -56,7 +76,7 @@ export async function POST(request: NextRequest) {
     name: body.name || decoded.name || undefined,
     email: decoded.email || undefined,
   });
-  return NextResponse.json({ ok: true, profile, healed: true });
+  return NextResponse.json({ ok: true, profile: publicProfile(profile), healed: true });
 }
 
 function bearerToken(request: NextRequest): string | null {

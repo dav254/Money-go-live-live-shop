@@ -1,10 +1,100 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowRight, ArrowUpRight, CirclePlay, Flame, Radio, ShieldCheck, Sparkles, Star, TrendingUp, Users } from 'lucide-react';
+import { ArrowRight, ArrowUpRight, Check, CirclePlay, Flame, Radio, ShieldCheck, Sparkles, Star, TrendingUp, Users, Eye } from 'lucide-react';
 
+import { useEffect, useState } from 'react';
 import { LandingLayout } from '@/components/layout/landing-layout';
 import { Button } from '@/components/ui/button';
+
+/** A seller's room on the live strip — real (on air now) or a demo tile. */
+type LiveRoom = {
+  /** Firestore doc id — the list key. Unique, unlike the sellerId field. */
+  id: string;
+  sellerId: string;
+  title: string;
+  viewerCount: number;
+  /** Demo tiles carry real imagery; live tiles use the brand gradient. */
+  image?: string;
+};
+
+/**
+ * Demo rooms for the on-air strip — the landing page must never look empty.
+ * These are clearly tagged "Sample room" (they link to Discovery, they do
+ * not pretend to be broadcasting) and only render when NO seller is live.
+ * Imagery follows the same Unsplash CDN pattern the rest of the page uses.
+ */
+const DEMO_ROOMS: LiveRoom[] = [
+  {
+    id: 'demo-fashion',
+    sellerId: 'demo-fashion',
+    title: 'Nairobi Streetwear Drop',
+    viewerCount: 214,
+    image: 'https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=600&q=80',
+  },
+  {
+    id: 'demo-creator',
+    sellerId: 'demo-creator',
+    title: 'Beauty & Creator Picks',
+    viewerCount: 168,
+    image: 'https://images.unsplash.com/photo-1492707892479-7bc8d5a4ee93?auto=format&fit=crop&w=600&q=80',
+  },
+  {
+    id: 'demo-collector',
+    sellerId: 'demo-collector',
+    title: 'Watch Collector Hour',
+    viewerCount: 96,
+    image: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=600&q=80',
+  },
+  {
+    id: 'demo-luxury',
+    sellerId: 'demo-luxury',
+    title: 'Private Luxury Closet',
+    viewerCount: 331,
+    image: 'https://images.unsplash.com/photo-1469334031218-e382a71b716b?auto=format&fit=crop&w=600&q=80',
+  },
+];
+
+/**
+ * Real live rooms — served by GET /api/home/live, which reads the VPS store
+ * first and Firestore second, so the landing page never depends on the
+ * visitor's browser being able to reach Firebase (a blocked Firestore used to
+ * hang or empty this strip). The endpoint de-duplicates to one tile per
+ * seller and answers `[]` on any failure, which renders the designed
+ * "floor is quiet" state — never a broken section. Refreshed every 30s so a
+ * newly on-air seller shows up without a reload.
+ */
+function useLiveNow(count = 6) {
+  const [rooms, setRooms] = useState<LiveRoom[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const res = await fetch(`/api/home/live`, { cache: 'no-store' });
+        if (!res.ok) throw new Error('live strip failed');
+        const data = (await res.json()) as {
+          rooms?: Array<{ id: string; sellerId: string; title: string; viewerCount: number }>;
+        };
+        if (cancelled) return;
+        setRooms((data.rooms ?? []).slice(0, count));
+      } catch {
+        if (!cancelled) setRooms([]);
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    };
+    void load();
+    const timer = setInterval(load, 30_000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [count]);
+
+  return { rooms, isLoading };
+}
 
 const featurePills = ['Live drops', 'Luxury goods', 'Creator brands', 'Private access'];
 
@@ -39,7 +129,21 @@ const cards = [
   },
 ];
 
+/**
+ * Intro video (spec §B5). The ONLY video URL allowed here is the configured
+ * NEXT_PUBLIC_VIDNOV_INTRO_VIDEO_URL — nothing is invented. When it is unset
+ * or fails to load, the section falls back to its poster image and the rest
+ * of the homepage is untouched.
+ */
+const INTRO_VIDEO_URL = process.env.NEXT_PUBLIC_VIDNOV_INTRO_VIDEO_URL || '';
+const INTRO_POSTER =
+  'https://images.unsplash.com/photo-1611162617474-5b21e879e113?auto=format&fit=crop&w=1200&q=80';
+
 export default function VidnovHomePage() {
+  const { rooms: liveRooms, isLoading: isLiveLoading } = useLiveNow();
+  const liveCount = liveRooms.length;
+  const [introFailed, setIntroFailed] = useState(false);
+
   return (
     <LandingLayout>
       <div className="relative overflow-hidden bg-[#090909] text-[#f9f5ee]">
@@ -107,7 +211,7 @@ export default function VidnovHomePage() {
                   </div>
 
                   <div className="absolute right-4 top-4 rounded-full border border-white/10 bg-[#111111]/80 px-3 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-[#f7d9cd] backdrop-blur-sm">
-                    2.8k watching
+                    {liveCount > 0 ? `${liveCount} live now` : '2.8k watching'}
                   </div>
 
                   <div className="absolute inset-x-0 bottom-0 p-4">
@@ -152,6 +256,230 @@ export default function VidnovHomePage() {
                       <div className="mt-1 text-[9px] uppercase tracking-[0.14em] text-[#d5cdc5]">{item.label}</div>
                     </div>
                   ))}
+                </div>
+                <p className="mt-2 text-[9px] uppercase tracking-[0.14em] text-[#8a817a]">
+                  Illustrative preview figures — not live platform data
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/*
+          ON AIR RIGHT NOW — real sellers streaming into Vidnov at this moment
+          (the same `liveSessions` query the buyer header runs). Each card
+          opens the watch room; when nobody is live the section degrades into
+          a designed "floor is quiet" state instead of disappearing.
+        */}
+        <section className="relative border-t border-[#ff5a36]/25 bg-[#0b0b0b]">
+          <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
+            <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+              <div>
+                <div className="inline-flex items-center gap-2 rounded-full border border-[#ff5a36]/30 bg-[#171717] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.24em] text-[#ffcbba]">
+                  <span className="relative flex h-2.5 w-2.5">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#ff5a36] opacity-75" />
+                    <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-[#ff5a36]" />
+                  </span>
+                  {liveCount > 0
+                    ? `${liveCount} ${liveCount === 1 ? 'seller is' : 'sellers are'} live`
+                    : isLiveLoading
+                      ? 'Checking the floor…'
+                      : 'Live rooms open daily'}
+                </div>
+                <h2 className="mt-3 font-grotesk text-4xl font-black tracking-[-0.06em] text-white sm:text-5xl">
+                  On air <span className="text-[#ff5a36]">right now.</span>
+                </h2>
+              </div>
+
+              <Link
+                href="/buyer/discovery"
+                className="inline-flex items-center gap-2 text-sm font-bold text-white underline-offset-4 hover:underline"
+              >
+                Watch the live floor
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
+
+            {/*
+              Real rooms when sellers are on air; clearly-tagged demo rooms
+              with real imagery otherwise — the strip always shows what a live
+              room looks like, and never pretends a demo is broadcasting.
+            */}
+            <div className="mt-8 flex gap-4 overflow-x-auto pb-2">
+              {(liveCount > 0 ? liveRooms : DEMO_ROOMS).map((room) => {
+                const demo = liveCount === 0;
+                return (
+                  <Link
+                    key={room.id}
+                    href={demo ? '/buyer/discovery' : `/buyer/live/${room.sellerId}`}
+                    className="group relative h-[224px] w-[240px] shrink-0 overflow-hidden rounded-[24px] border border-[#ff5a36]/20 bg-[#171717] transition-all hover:-translate-y-1 hover:border-[#ff5a36]/60"
+                  >
+                    {room.image ? (
+                      <div
+                        className="absolute inset-0 bg-cover bg-center"
+                        style={{
+                          backgroundImage: `linear-gradient(180deg, rgba(10,10,10,0.12), rgba(10,10,10,0.80)), url('${room.image}')`,
+                        }}
+                      />
+                    ) : (
+                      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,90,54,0.35),transparent_60%)]" />
+                    )}
+
+                    <div className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-[#ff5a36] px-2 py-1 text-[9px] font-black uppercase tracking-[0.16em] text-[#1c0907]">
+                      <span className="h-1.5 w-1.5 rounded-full bg-[#1c0907]" />
+                      Live
+                    </div>
+
+                    {demo && (
+                      <div className="absolute right-3 top-3 rounded-full border border-white/15 bg-[#111111]/85 px-2 py-1 text-[9px] font-black uppercase tracking-[0.14em] text-[#f7d9cd]">
+                        Sample
+                      </div>
+                    )}
+
+                    <div className="absolute bottom-3 right-3 inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-[#111111]/80 px-2 py-1 text-[9px] font-black uppercase tracking-[0.14em] text-[#f7d9cd]">
+                      <Eye className="h-3 w-3" />
+                      {room.viewerCount}
+                    </div>
+
+                    <div className="absolute inset-x-0 bottom-0 p-3">
+                      <p className="truncate font-grotesk text-base font-black text-white">
+                        {room.title || 'Live show'}
+                      </p>
+                      <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-[#c9b7af] group-hover:text-[#ffcfbf]">
+                        {demo ? 'What a live room looks like' : 'Tap to enter the room'}
+                      </p>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+
+        {/*
+          AI STUDIO — what it is and what it does for a seller: one product
+          photo in, a campaign out. Links straight into the studio sellers
+          already use (/ai-studio) and the full tools list.
+        */}
+        <section className="relative border-t border-[#ff5a36]/20 bg-[#0d0d0d]">
+          <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+            <div className="grid items-center gap-10 lg:grid-cols-[0.95fr_1.05fr]">
+              <div>
+                <div className="inline-flex items-center gap-2 rounded-full border border-[#ff5a36]/30 bg-[#171717] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.24em] text-[#ffcbba]">
+                  <Sparkles className="h-3.5 w-3.5" />
+                  AI Studio
+                </div>
+
+                <h2 className="mt-4 font-grotesk text-4xl font-black tracking-[-0.06em] text-white sm:text-5xl">
+                  One photo in.
+                  <span className="block text-[#ff5a36]">A whole campaign out.</span>
+                </h2>
+
+                <p className="mt-5 max-w-lg text-base leading-relaxed text-[#d6cfc5]">
+                  The AI Studio is Vidnov's production crew in your pocket: turn a single
+                  product photo into a scroll-stopping video, write captions and deals in your
+                  brand voice, and clean up phone footage — all before your coffee goes cold.
+                </p>
+
+                <ul className="mt-8 space-y-4">
+                  {[
+                    {
+                      title: 'Photo → Video',
+                      text: 'Upload one product image; get a narrated, music-backed clip ready for the feed and your live shelf.',
+                    },
+                    {
+                      title: 'Text → Video',
+                      text: 'Describe the drop in a sentence — the studio scripts, voices and cuts the clip for you.',
+                    },
+                    {
+                      title: 'Video Enhancer',
+                      text: 'Upscale, steady and sharpen phone footage into broadcast-quality video.',
+                    },
+                    {
+                      title: 'Captions & Deal Maker',
+                      text: 'On-brand captions, hashtags and limited-time deal kits for any product.',
+                    },
+                  ].map(({ title, text }) => (
+                    <li key={title} className="flex gap-3">
+                      <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-[#ff5a36]/40 bg-[#ff5a36]/15 text-[#ffb9a5]">
+                        <Check className="h-3.5 w-3.5" />
+                      </span>
+                      <div>
+                        <p className="font-grotesk text-base font-black text-white">{title}</p>
+                        <p className="mt-1 text-sm leading-relaxed text-[#cfc6bd]">{text}</p>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+
+                <div className="mt-9 flex flex-col gap-3 sm:flex-row">
+                  <Button asChild size="lg" className="h-12 rounded-full border border-[#ff5a36] bg-[#ff5a36] px-7 text-sm font-bold text-[#150d0b] shadow-[0_12px_30px_rgba(255,90,54,0.3)] hover:-translate-y-0.5 hover:bg-[#ff6b49]">
+                    <Link href="/ai-studio">
+                      Open the AI Studio
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Link>
+                  </Button>
+                  <Button asChild variant="outline" size="lg" className="h-12 rounded-full border border-white/15 bg-transparent px-7 text-sm font-bold text-white hover:bg-white hover:text-[#111111]">
+                    <Link href="/dashboard/seller/ai-tools">See all seller tools</Link>
+                  </Button>
+                </div>
+              </div>
+
+              {/* Before → after: the product photo, then the clip it became. */}
+              <div className="relative mx-auto w-full max-w-[560px]">
+                <div className="rounded-[30px] border border-[#ff5a36]/20 bg-[linear-gradient(135deg,rgba(255,90,54,0.12),rgba(255,255,255,0.02))] p-4 shadow-[0_24px_60px_rgba(0,0,0,0.45)]">
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="rounded-[22px] border border-white/10 bg-[#111111] p-2">
+                      <div
+                        className="relative h-56 overflow-hidden rounded-[16px] bg-cover bg-center"
+                        style={{
+                          backgroundImage:
+                            "url('https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=700&q=80')",
+                        }}
+                      >
+                        <div className="absolute left-3 top-3 rounded-full border border-white/10 bg-[#111111]/80 px-2 py-1 text-[9px] font-black uppercase tracking-[0.16em] text-[#f7d9cd]">
+                          Your photo
+                        </div>
+                      </div>
+                      <p className="px-1 pb-1 pt-3 text-[10px] uppercase tracking-[0.18em] text-[#c9b7af]">
+                        One product image
+                      </p>
+                    </div>
+
+                    <div className="rounded-[22px] border border-[#ff5a36]/30 bg-[#111111] p-2">
+                      <div
+                        className="relative h-56 overflow-hidden rounded-[16px] bg-cover bg-center"
+                        style={{
+                          backgroundImage:
+                            "linear-gradient(180deg, rgba(10,10,10,0.05), rgba(10,10,10,0.55)), url('https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=700&q=80')",
+                        }}
+                      >
+                        <div className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-[#ff5a36] px-2 py-1 text-[9px] font-black uppercase tracking-[0.16em] text-[#1c0907]">
+                          <CirclePlay className="h-3 w-3 fill-current" />
+                          AI video
+                        </div>
+                        <div className="absolute inset-x-3 bottom-3 h-1.5 overflow-hidden rounded-full bg-white/20">
+                          <div className="h-full w-2/3 rounded-full bg-[#ff5a36]" />
+                        </div>
+                      </div>
+                      <p className="px-1 pb-1 pt-3 text-[10px] uppercase tracking-[0.18em] text-[#ffcfbf]">
+                        Feed-ready clip in ~60s
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 grid grid-cols-3 gap-3">
+                    {[
+                      { value: '60s', label: 'To first cut' },
+                      { value: '1 tap', label: 'Post to feed' },
+                      { value: '0 crew', label: 'Needed' },
+                    ].map((item) => (
+                      <div key={item.label} className="rounded-[18px] border border-white/10 bg-white/5 p-3 text-center">
+                        <div className="font-grotesk text-xl font-black leading-none text-white">{item.value}</div>
+                        <div className="mt-1 text-[9px] uppercase tracking-[0.14em] text-[#d5cdc5]">{item.label}</div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
@@ -267,6 +595,95 @@ export default function VidnovHomePage() {
                     </div>
                   </div>
                 </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="relative border-t border-[#ff5a36]/20 bg-[#0d0d0d]">
+          <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
+            <div className="grid gap-8 lg:grid-cols-[0.95fr_1.05fr] lg:items-center">
+              <div>
+                <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-[#ff5a36]/25 bg-[#171717] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.22em] text-[#ffb9a5]">
+                  <CirclePlay className="h-3.5 w-3.5" />
+                  What Vidnov does
+                </div>
+                <h2 className="font-grotesk text-4xl font-black tracking-[-0.06em] text-white sm:text-5xl">
+                  See the whole marketplace
+                  <span className="block text-[#ff5a36]">in under a minute.</span>
+                </h2>
+                <ul className="mt-6 space-y-2.5 text-sm leading-relaxed text-[#d0c4bb]">
+                  {[
+                    'Sellers record product videos straight from their phone in the Video Studio.',
+                    'Customers discover products and local services in the vertical feed.',
+                    'Viewers open a seller\u2019s shop and the exact listing behind any video.',
+                    'Buyers contact sellers and send enquiries through built-in messaging.',
+                    'Businesses gain real exposure from content people actually watch.',
+                  ].map((line) => (
+                    <li key={line} className="flex gap-2.5">
+                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-[#ff5a36]" />
+                      {line}
+                    </li>
+                  ))}
+                </ul>
+                <div className="mt-8 flex flex-wrap gap-3">
+                  <Button asChild className="h-11 rounded-full bg-[#ff5a36] px-6 text-sm font-bold text-[#150d0b] hover:bg-[#ff6a49]">
+                    <Link href="/buyer/discovery">
+                      Discover products <ArrowRight className="ml-2 h-4 w-4" />
+                    </Link>
+                  </Button>
+                  <Button asChild variant="outline" className="h-11 rounded-full border-white/15 px-6 text-sm font-bold text-white hover:bg-white hover:text-[#111111]">
+                    <Link href="/search">Explore Vidnov</Link>
+                  </Button>
+                  <Button asChild variant="outline" className="h-11 rounded-full border-white/15 px-6 text-sm font-bold text-white hover:bg-white hover:text-[#111111]">
+                    <Link href="/signup">Open your shop</Link>
+                  </Button>
+                  <Button asChild className="h-11 rounded-full border border-[#ff5a36]/40 bg-[#ff5a36]/10 px-6 text-sm font-bold text-[#ffb9a5] hover:bg-[#ff5a36]/20">
+                    <Link href="/dashboard/seller/video-studio">Create your first video</Link>
+                  </Button>
+                </div>
+              </div>
+
+              {/*
+                Intro video — the asset comes from NEXT_PUBLIC_VIDNOV_INTRO_VIDEO_URL
+                only. No URL is invented: when it is unset (or fails to load) the
+                section renders its fallback image and the page is unaffected.
+              */}
+              <div className="overflow-hidden rounded-[28px] border border-[#ff5a36]/20 bg-[#111111] p-3 shadow-[0_24px_60px_rgba(0,0,0,0.4)]">
+                {INTRO_VIDEO_URL && !introFailed ? (
+                  <video
+                    src={INTRO_VIDEO_URL}
+                    poster={INTRO_POSTER}
+                    controls
+                    playsInline
+                    preload="metadata"
+                    onError={() => setIntroFailed(true)}
+                    className="aspect-video w-full rounded-[20px] bg-black object-cover"
+                  >
+                    Your browser does not support embedded video.
+                  </video>
+                ) : (
+                  <div
+                    className="relative aspect-video w-full rounded-[20px] bg-cover bg-center"
+                    style={{ backgroundImage: `url('${INTRO_POSTER}')` }}
+                    role="img"
+                    aria-label="Sellers recording product videos for the Discovery feed"
+                  >
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#090909]/85 via-transparent to-transparent" />
+                    <div className="absolute inset-x-0 bottom-0 p-5">
+                      <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#ffcfbf]">
+                        Vidnov in action
+                      </div>
+                      <p className="mt-1 font-grotesk text-xl font-black text-white">
+                        Record. Publish. Sell.
+                      </p>
+                    </div>
+                  </div>
+                )}
+                <p className="px-2 pb-1 pt-3 text-[11px] leading-relaxed text-[#9d948c]">
+                  From a phone-shot product video to a live listing, a shop visit and a real
+                  enquiry — the whole flow, on one marketplace.
+                </p>
               </div>
             </div>
           </div>

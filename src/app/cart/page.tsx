@@ -14,6 +14,7 @@ import Image from 'next/image';
 import { Trash2, Plus, Minus, ShoppingCart, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
+import { mirrorOrder } from '@/lib/orders/mirror';
 import React from 'react';
 import { FirestorePermissionError } from '@/firebase/errors';
 
@@ -159,6 +160,7 @@ export default function CartPage() {
 
         try {
             await setDoc(newOrderRef, newOrderData);
+            mirrorOrder(user, newOrderRef.id);
             
             if (resellerId) {
                 localStorage.removeItem('resellerRefId');

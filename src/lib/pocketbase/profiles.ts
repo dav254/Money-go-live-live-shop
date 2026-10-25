@@ -28,7 +28,7 @@ import {
 
 export const USER_PROFILES_COLLECTION = 'user_profiles';
 
-const PROFILE_FIELDS: PbField[] = [
+export const PROFILE_FIELDS: PbField[] = [
   { name: 'uid', type: 'text', required: true },
   { name: 'email', type: 'text' },
   { name: 'fullName', type: 'text' },
@@ -38,6 +38,10 @@ const PROFILE_FIELDS: PbField[] = [
   { name: 'phoneNumber', type: 'text' },
   { name: 'profilePictureUrl', type: 'text' },
   { name: 'joinDate', type: 'text' },
+  // Live-session charge (added with the live-sessions migration): the balance
+  // and shop name go-live reads server-side must survive a Firestore outage.
+  { name: 'shopName', type: 'text' },
+  { name: 'aiPoints', type: 'number' },
 ];
 
 /** The profile fields this store keeps — same names as Firestore. */
@@ -51,6 +55,9 @@ export interface PbProfile {
   phoneNumber?: string;
   profilePictureUrl?: string;
   joinDate?: string;
+  shopName?: string;
+  /** Points balance. `undefined` = never written here — NOT a zero balance. */
+  aiPoints?: number;
 }
 
 function toProfile(record: PbRecord): PbProfile {
@@ -64,6 +71,11 @@ function toProfile(record: PbRecord): PbProfile {
     phoneNumber: record.phoneNumber != null ? String(record.phoneNumber) : undefined,
     profilePictureUrl: record.profilePictureUrl != null ? String(record.profilePictureUrl) : undefined,
     joinDate: record.joinDate != null ? String(record.joinDate) : undefined,
+    shopName: record.shopName != null ? String(record.shopName) : undefined,
+    aiPoints:
+      typeof record.aiPoints === 'number' && Number.isFinite(record.aiPoints)
+        ? record.aiPoints
+        : undefined,
   };
 }
 
@@ -93,7 +105,7 @@ export async function pbGetProfile(uid: string): Promise<PbProfile | null> {
  */
 export async function pbUpsertProfile(
   uid: string,
-  patch: Partial<Record<keyof PbProfile, string | null>>,
+  patch: Partial<Record<keyof PbProfile, string | number | null>>,
 ): Promise<boolean> {
   if (!pocketBaseEnabled()) return false;
   try {
@@ -138,6 +150,44 @@ export async function pbListProfilesByRole(
     return items.map(toProfile);
   } catch (error) {
     console.error('[pocketbase] profile list failed:', error);
+    return null;
+  }
+}
+
+/**
+ * Add `delta` points to a balance on the VPS store (negative = charge).
+ *
+ * Read-modify-write: PocketBase has no cross-document transactions, and this
+ * is a single record, so the race window is one small PATCH — the live-session
+ * double-submit guard (the studio disables the button while `starting`)
+ * covers the practical double-charge case.
+ *
+ * Returns the NEW balance, or null when PocketBase is off or the write
+ * failed — callers must treat null as "no charge happened" and fall back.
+ * Never throws.
+ */
+export async function pbAdjustAiPoints(uid: string, delta: number): Promise<number | null> {
+  if (!pocketBaseEnabled()) return null;
+  try {
+    await ensureCollection(USER_PROFILES_COLLECTION, PROFILE_FIELDS);
+    const rows = await pbListRecords(USER_PROFILES_COLLECTION, {
+      filter: `uid = '${esc(uid)}'`,
+      perPage: 1,
+    });
+    const row = rows[0];
+    if (!row) return null; // No VPS profile — caller decides how to proceed.
+    const current =
+      typeof row.aiPoints === 'number' && Number.isFinite(row.aiPoints) ? row.aiPoints : null;
+    if (current === null) return null; // Balance unknown here — never invent one.
+    const next = current + delta;
+    if (next < 0) return null; // Never drive a balance negative.
+    const res = await pbRequest(
+      `/api/collections/${USER_PROFILES_COLLECTION}/records/${row.id}`,
+      { method: 'PATCH', body: JSON.stringify({ aiPoints: next }) },
+    );
+    return res.ok ? next : null;
+  } catch (error) {
+    console.error('[pocketbase] points adjust failed:', error);
     return null;
   }
 }

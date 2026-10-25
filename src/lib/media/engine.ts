@@ -5,7 +5,8 @@ import { Readable } from 'stream';
 import { pipeline } from 'stream/promises';
 import { MEDIA_ROOT, MEDIA_TMP_ROOT, MEDIA_CONFIG } from './config';
 import { processImage, validateImageContent, generateMediaId } from './image';
-import { processVideo, validateVideoFile } from './video';
+import { processVideo, validateVideoFile, validateAudioFile } from './video';
+import { MUSIC_FOLDER_ROOT, MUSIC_MAX_SECONDS, isMusicFolder } from './music';
 import { getStorageAdapter } from './storage-adapter';
 
 /**
@@ -52,6 +53,8 @@ export interface DiskMediaStatus {
   thumbnailUrl?: string;
   error?: string | null;
   mimeType?: string;
+  /** Original client filename (sanitized) — display only, never a path. */
+  originalName?: string;
   sizeBytes?: number;
   width?: number;
   height?: number;
@@ -127,7 +130,7 @@ const RAW_DOC = new Set([
 ]);
 
 /** Owner folders a named-folder upload may target (relative to MEDIA_ROOT). */
-const FOLDER_ROOTS = new Set(['chats', 'support', 'verification', 'avatars', 'products']);
+const FOLDER_ROOTS = new Set(['chats', 'support', 'verification', 'avatars', 'products', 'music']);
 
 /**
  * Validate + authorize a named owner folder. Returns the clean relative path or
@@ -203,6 +206,19 @@ export async function intake(input: EngineIntakeInput): Promise<EngineIntakeResu
     return { accepted: false, reason: 'Unsupported file type here. Images and videos only.' };
   }
 
+  /*
+   * MUSIC FOLDER (`music/<uid>`, owner-scoped like avatars/products): audio
+   * only, and the 30-second cap is enforced HERE with ffprobe before a single
+   * byte reaches permanent storage. Images and videos are refused outright so
+   * the folder can never fill with non-audio.
+   */
+  if (isMusicFolder(destFolder) && !isAudio) {
+    return {
+      accepted: false,
+      reason: 'The music folder only accepts audio files (MP3, M4A, WAV, OGG, WebM or FLAC).',
+    };
+  }
+
   const maxMb = isImage
     ? MEDIA_CONFIG.IMAGE_MAX_UPLOAD_MB
     : isVideo
@@ -243,6 +259,7 @@ export async function intake(input: EngineIntakeInput): Promise<EngineIntakeResu
     type: isImage ? 'image' : isVideo ? 'video' : isAudio ? 'audio' : 'file',
     status: 'PROCESSING',
     mimeType: mime || 'application/octet-stream',
+    originalName: sanitizeName(file.name || `${mediaId}`),
     sizeBytes,
     isPrivate: input.isPrivate ?? !!(requestId || offerId),
     createdAt: Date.now(),
@@ -251,6 +268,19 @@ export async function intake(input: EngineIntakeInput): Promise<EngineIntakeResu
   try {
     // ---- RAW audio / documents: store byte-for-byte, READY immediately. ----
     if ((isAudio || isDoc) && destFolder) {
+      // Music uploads are probed and capped at 30s BEFORE promotion; a
+      // rejection here deletes the temp file and answers 415 with the reason.
+      let durationSeconds: number | undefined;
+      if (isMusicFolder(destFolder)) {
+        const check = await validateAudioFile(tmpPath, mime, {
+          maxDurationSeconds: MUSIC_MAX_SECONDS,
+        });
+        if (!check.ok) {
+          await fsp.rm(tmpPath, { force: true });
+          return { accepted: false, reason: check.reason };
+        }
+        durationSeconds = check.durationSeconds;
+      }
       const rel = path.posix.join(destFolder, `${mediaId}${rawExtFor(mime)}`);
       const abs = adapter.resolve(rel);
       await adapter.ensureDir(path.dirname(abs));
@@ -262,6 +292,7 @@ export async function intake(input: EngineIntakeInput): Promise<EngineIntakeResu
         storagePath: rel,
         url: engineMediaUrl(rel),
         sizeBytes: stored,
+        durationSeconds,
         mimeType: mime || 'application/octet-stream',
       };
       await writeStatus(rec);

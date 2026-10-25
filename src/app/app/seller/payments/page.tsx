@@ -52,6 +52,7 @@ import {
 } from 'firebase/firestore';
 import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
+import { mirrorPayout } from '@/lib/wallet/mirror';
 import { KENYA_BANKS } from '@/lib/constants';
 import { PAYOUT_STATUS_LABEL } from '@/lib/types';
 import type { Payout, PayoutMethod } from '@/lib/types';
@@ -437,7 +438,7 @@ function WithdrawSheet({
     setError(null);
     setIsSaving(true);
     try {
-      await addDoc(collection(firestore, 'payouts'), {
+      const payoutRef = await addDoc(collection(firestore, 'payouts'), {
         sellerId: user.uid,
         amount: parsed,
         payoutMethodId: selected.id,
@@ -445,6 +446,7 @@ function WithdrawSheet({
         status: 'pending',
         requestedAt: serverTimestamp(),
       });
+      mirrorPayout(user, payoutRef.id);
       toast({
         title: 'Request sent',
         description: 'The team is reviewing it. You will see the status here.',

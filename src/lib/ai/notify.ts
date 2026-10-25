@@ -6,8 +6,8 @@
  * notification pipeline. Written server-side with the admin SDK so it works
  * regardless of client rules.
  */
-import { db } from '@/firebase/server';
 import { pushExistingNotification } from '@/lib/notifications/push-server';
+import { createNotification } from '@/lib/notifications/store';
 
 export type AiNotificationKind = 'started' | 'completed' | 'failed';
 
@@ -40,21 +40,22 @@ export async function notifyAiEvent(params: {
 }): Promise<void> {
   try {
     const copy = MESSAGES[params.kind];
-    await db.collection('notifications').add({
+    // VPS-controlled storage (`store.ts`): PocketBase when configured,
+    // legacy Firestore only as fallback. Same normalized shape every reader
+    // of the inbox understands.
+    await createNotification({
       userId: params.userId,
       type: params.type ?? 'message',
       title: copy.title,
       message: copy.message,
       link: LINKS[params.kind],
-      status: 'unread',
-      timestamp: new Date(),
+      category: 'ai',
     });
 
-    // This writer predates the notification engine and uses its own field
-    // names, so it cannot go through `notify()` without changing the document
-    // shape every reader depends on. Push is pushed separately instead — see
+    // Push runs alongside the write with this path's own category, so the
+    // user's per-section preference is honoured — see
     // `pushExistingNotification`.
-    void pushExistingNotification(db, params.userId, {
+    void pushExistingNotification(params.userId, {
       title: copy.title,
       body: copy.message,
       link: LINKS[params.kind],

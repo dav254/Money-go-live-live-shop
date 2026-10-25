@@ -32,7 +32,9 @@ const NAV: DiscoveryNavItem[] = [
 export default function SellerSectionDiscovery() {
   return (
     <div className="vn-discovery-in-app">
-      <DiscoverySection nav={NAV} noBottomNav ownCover={sellerListingCover} />
+      {/* `fill`: the shell's header sits above this — a 100dvh section would
+          push its bottom card below the fold. */}
+      <DiscoverySection nav={NAV} noBottomNav ownCover={sellerListingCover} fill />
     </div>
   );
 }

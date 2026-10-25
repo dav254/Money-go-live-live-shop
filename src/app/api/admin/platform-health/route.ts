@@ -4,6 +4,7 @@ import { db } from '@/firebase/server';
 import { getStorageStats } from '@/lib/media/storage';
 import { getVidnovConfig } from '@/lib/notifications/config';
 import { AI_JOB_COLLECTION } from '@/lib/ai/config';
+import { pbListLiveSessions } from '@/lib/pocketbase/live-sessions';
 
 export const runtime = 'nodejs';
 
@@ -141,12 +142,19 @@ export async function GET(request: NextRequest) {
 
   // ---- Live streams ----------------------------------------------------------
   try {
-    const snap = await db.collection('liveSessions').where('status', '==', 'live').limit(200).get();
+    // VPS store first (sessions are mirrored there at go-live), Firestore
+    // second — the admin strip must not read "could not read" during an
+    // outage the VPS can see straight through.
+    const mirrored = await pbListLiveSessions({ status: 'live', limit: 200 });
+    const liveCount =
+      mirrored ??
+      (await db.collection('liveSessions').where('status', '==', 'live').limit(200).get())
+        .size;
     signals.push({
       id: 'live',
       label: 'Live streams',
       state: 'operational',
-      detail: snap.size === 0 ? 'None live' : `${snap.size} live now`,
+      detail: liveCount === 0 ? 'None live' : `${liveCount} live now`,
       href: '/dashboard/admin/live-shopping/sessions',
     });
   } catch {

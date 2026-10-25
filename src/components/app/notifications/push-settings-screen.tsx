@@ -64,6 +64,33 @@ export function PushSettingsScreen() {
     void pushSupport().then(setSupport);
   }, []);
 
+  /*
+   * Self-heal after the FCM → standards-based Web Push migration.
+   *
+   * A device that granted permission under the old flow still holds a
+   * subscription created with FIREBASE's VAPID key; sends signed with our
+   * pair are rejected by the push service, which would show "notifications:
+   * on" while nothing arrives. When permission is ALREADY granted,
+   * re-registering is silent — `requestPermission()` never prompts a second
+   * time — so this is NOT the permission ask: that still only happens on the
+   * button below, from a real user gesture.
+   */
+  React.useEffect(() => {
+    if (!user || support !== 'granted') return;
+    let alive = true;
+    void enablePush(user).then((result) => {
+      if (!alive) return;
+      if (result.status === 'error' || result.status === 'unsupported') {
+        // Server-side (missing VAPID pair) or no Push API — the panel's own
+        // state below reports it honestly; no toast for a background heal.
+        void result;
+      }
+    });
+    return () => {
+      alive = false;
+    };
+  }, [user, support]);
+
   // Load saved preferences. Failure here is not worth an error toast — the
   // toggles fall back to their defaults, which is the same behaviour as a
   // first-time visit.

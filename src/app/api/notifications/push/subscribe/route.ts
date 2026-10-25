@@ -1,79 +1,60 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db, auth } from '@/firebase/server';
-import { FieldValue } from 'firebase-admin/firestore';
+import { verifyUserUid } from '@/lib/notifications/server-utils';
+import {
+  savePushSubscription,
+  type PushSubscriptionJson,
+} from '@/lib/notifications/store';
+
+export const runtime = 'nodejs';
 
 /**
- * Registers a device for push — `POST /api/notifications/push/subscribe`.
+ * Registers a device for Web Push — `POST /api/notifications/push/subscribe`.
  *
  * ## Why the client cannot just write this itself
  *
- * Firestore rules would let any signed-in user write into their own
- * `pushSubscriptions` subtree, so the client could register a token belonging
- * to somebody else's device and then receive that person's notifications. That
- * is a real leak, not a theoretical one — it needs nothing more than a copied
- * token string.
+ * A push subscription is a bearer credential: whoever holds the endpoint plus
+ * its keys receives the messages. If the browser could register any
+ * subscription it liked, a user could paste somebody else's subscription and
+ * start receiving that person's order and payment alerts. So the route
+ * verifies the ID token, takes the uid from it, and never from the body.
  *
- * So the subscription is registered here instead, behind the ID token: the
- * server derives the uid from the verified token and never from the body.
+ * ## Body shape
+ *
+ * `{ subscription: { endpoint, keys: { p256dh, auth } }, userAgent }` —
+ * exactly what `pushManager.subscribe()` returns (`.toJSON()`). A legacy
+ * `{ token }` body (the retired FCM flow) is acknowledged but not stored:
+ * FCM tokens are not addressable by standards-based Web Push, and failing
+ * hard mid-deploy would only confuse an already-stale bundle.
  */
 export async function POST(req: NextRequest) {
-  const header = req.headers.get('authorization') || '';
-  if (!header) return NextResponse.json({ error: 'Not signed in' }, { status: 401 });
+  const uid = await verifyUserUid(req);
+  if (!uid) return NextResponse.json({ error: 'Not signed in' }, { status: 401 });
 
-  let uid: string;
-  try {
-    const decoded = await auth.verifyIdToken(header.replace(/^Bearer\s+/i, ''));
-    uid = decoded.uid;
-  } catch {
-    return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
-  }
-
-  let body: { token?: string; deviceId?: string; userAgent?: string };
+  let body: {
+    subscription?: PushSubscriptionJson;
+    token?: string;
+    userAgent?: string;
+  };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: 'Invalid body' }, { status: 400 });
   }
 
-  const token = typeof body?.token === 'string' ? body.token.trim() : '';
-  if (!token || token.length > 5000) {
-    return NextResponse.json({ error: 'Missing token' }, { status: 400 });
+  const sub = body?.subscription;
+  if (!sub?.endpoint || !sub.keys?.p256dh || !sub.keys?.auth) {
+    if (typeof body?.token === 'string' && body.token.length > 0) {
+      // Legacy FCM registration — see the doc comment above.
+      return NextResponse.json({ ok: true, requiresReRegistration: true });
+    }
+    return NextResponse.json({ error: 'Missing subscription' }, { status: 400 });
   }
 
   try {
-    const ref = db
-      .collection('pushSubscriptions')
-      .doc(uid)
-      .collection('devices')
-      .doc(body?.deviceId || hashToken(token));
-
-    await ref.set(
-      {
-        token,
-        platform: 'web',
-        userAgent: (body?.userAgent || '').slice(0, 200),
-        // `lastSeenAt` is what tells a genuinely active device apart from one
-        // that has been silently dead for weeks, so pruning can prefer the
-        // former when a batch fails.
-        lastSeenAt: FieldValue.serverTimestamp(),
-        createdAt: FieldValue.serverTimestamp(),
-      },
-      { merge: true },
-    );
-
+    await savePushSubscription(uid, sub, (body.userAgent || '').slice(0, 200));
     return NextResponse.json({ ok: true });
   } catch (err) {
-    console.error('[push] subscribe failed', err);
+    console.error('[push] subscribe failed:', err);
     return NextResponse.json({ error: 'Could not register device' }, { status: 500 });
   }
-}
-
-/** Stable short id, used as the device document id when the client omits one. */
-function hashToken(token: string): string {
-  let h = 0;
-  for (let i = 0; i < token.length; i++) {
-    h = (h << 5) - h + token.charCodeAt(i);
-    h |= 0;
-  }
-  return Math.abs(h).toString(36);
 }

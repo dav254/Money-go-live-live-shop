@@ -43,6 +43,7 @@ apphosting.yaml.save
 /media
 /var
 uploads/
+.backups/
 
 # vercel
 .vercel

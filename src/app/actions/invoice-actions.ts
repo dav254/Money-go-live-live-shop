@@ -1,9 +1,8 @@
 
 'use server';
 
-import { db } from '@/firebase/server';
-import { FieldValue } from 'firebase-admin/firestore';
 import { pushExistingNotification } from '@/lib/notifications/push-server';
+import { createNotification } from '@/lib/notifications/store';
 
 interface InvoiceNotificationPayload {
     sellerId: string;
@@ -16,20 +15,18 @@ export async function sendInvoiceNotification(payload: InvoiceNotificationPayloa
         const title = 'New Invoice Generated';
         const message = `An invoice has been generated for your sale of "${payload.productName}".`;
 
-        await db.collection('notifications').add({
+        await createNotification({
             userId: payload.sellerId,
             type: 'invoice',
             title,
             message,
             link: `/invoice/${payload.orderId}`,
-            status: 'unread',
-            timestamp: FieldValue.serverTimestamp(),
+            category: 'payments',
         });
 
-        // Pre-engine writer: it owns its own field names, so push is dispatched
-        // alongside the document rather than through `notify()`. A seller waiting
-        // on money should not have to open the app to learn an invoice exists.
-        void pushExistingNotification(db, payload.sellerId, {
+        // Push runs alongside the write. A seller waiting on money should not
+        // have to open the app to learn an invoice exists.
+        void pushExistingNotification(payload.sellerId, {
             title,
             body: message,
             link: `/invoice/${payload.orderId}`,

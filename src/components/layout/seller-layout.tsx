@@ -51,7 +51,7 @@ export function SellerLayout({ children, fullWidth = false }: { children: React.
 
   return (
     <SidebarProvider>
-      <div className="w-full max-w-full overflow-x-hidden flex min-h-screen">
+      <div className="w-full max-w-full overflow-x-hidden flex min-h-dvh">
         <Sidebar side="left" collapsible="icon" className="vn-seller-sidebar">
           <SidebarHeader className="border-b bg-card p-4">
             <Link href="/dashboard/seller">
@@ -62,7 +62,7 @@ export function SellerLayout({ children, fullWidth = false }: { children: React.
             <SellerSidebar />
           </SidebarContent>
         </Sidebar>
-        <SidebarInset className="flex flex-col flex-1 min-w-0 h-screen overflow-hidden">
+        <SidebarInset className="vn-dashboard-inset flex flex-col flex-1 min-w-0 h-dvh overflow-hidden">
           <SellerHeader />
           <main className={cn(
             "flex-1 flex flex-col w-full max-w-full overflow-hidden",

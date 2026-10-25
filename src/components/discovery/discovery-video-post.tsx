@@ -83,6 +83,7 @@ function RailButton({
 }) {
   const bubble = cn(
     'flex h-10 w-10 items-center justify-center rounded-full transition',
+    '[@media(max-height:740px)]:h-9 [@media(max-height:740px)]:w-9',
     'group-focus-visible/rail:ring-2 group-focus-visible/rail:ring-[color:var(--vn-discovery-accent)]',
     active ? 'bg-[color:var(--vn-discovery-accent)] text-[#0A0A0A]' : 'text-white',
   );
@@ -392,7 +393,7 @@ export function DiscoveryVideoPost({
   const tags = (listing.tags ?? '').trim();
   const caption = [
     listing.description?.trim(),
-    tags ? `#${tags.split(/[,/s]+/).filter(Boolean).join(' #')}` : '',
+    tags ? `#${tags.split(/[,\s]+/).filter(Boolean).join(' #')}` : '',
   ]
     .filter(Boolean)
     .join('\n\n');
@@ -562,8 +563,14 @@ export function DiscoveryVideoPost({
         </div>
       )}
 
-      {/* Bottom block */}
-      <div className="relative z-20 mt-auto w-full px-4 pb-2 pr-[76px]">
+      {/*
+        Bottom block. The bottom padding clears the video progress row pinned
+        to the same bottom edge (h-8 + pb-3 ≈ 44px) plus the phone's home
+        indicator (safe-area-inset-bottom) — without both, the View product
+        button read as cut off the screen on a notched phone. pr-[76px] keeps
+        the whole block clear of the right-hand action rail.
+      */}
+      <div className="relative z-20 mt-auto w-full px-4 pb-[calc(2.75rem+env(safe-area-inset-bottom))] pr-[76px]">
         {/* Seller */}
         <div className="flex items-center gap-2">
           <Link
@@ -626,7 +633,7 @@ export function DiscoveryVideoPost({
             </div>
             <div className="min-w-0 flex-1">
               <p className="truncate text-[13px] font-bold text-white">{listing.name}</p>
-              <p className="font-grotesk text-[17px] font-black leading-tight text-[color:var(--vn-discovery-accent)]">
+              <p className="truncate font-grotesk text-[17px] font-black leading-tight text-[color:var(--vn-discovery-accent)]">
                 {priceText(listing)}
               </p>
               <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[11px] text-white/55">
@@ -642,13 +649,15 @@ export function DiscoveryVideoPost({
           </div>
 
           <div className="mt-3 flex items-center gap-2">
+            {/* min-w-0 lets the button shrink on a phone (flex items default
+                to min-width:auto and clip otherwise); overflow-hidden backs it up. */}
             <button
               type="button"
               onClick={onOpenDetails}
               disabled={!actionable}
               aria-label={`${cta} — ${listing.name}`}
               className={cn(
-                'flex h-11 flex-1 items-center justify-center gap-2 overflow-hidden rounded-xl text-[13px] font-bold transition',
+                'flex h-11 min-w-0 flex-1 items-center justify-center gap-2 overflow-hidden rounded-xl px-3 text-[13px] font-bold transition',
                 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white',
                 actionable
                   ? sellerSurface
@@ -679,13 +688,16 @@ export function DiscoveryVideoPost({
         </div>
       </div>
 
-      <div className="absolute inset-x-0 bottom-0 z-20 flex items-center gap-3 px-4 pb-3 pt-1">
+      {/* pointer-events-none lets taps fall through to the play/pause overlay
+          and the Living Picture controls underneath; only the toggle button
+          itself stays clickable. pb clears the phone's home indicator. */}
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex items-center gap-3 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-1">
         <button
           type="button"
           onClick={() => current?.type === 'video' && setPaused((p) => !p)}
           aria-label={paused ? 'Play video' : 'Pause video'}
           disabled={current?.type !== 'video'}
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--vn-discovery-accent)] disabled:cursor-default disabled:opacity-40"
+          className="pointer-events-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--vn-discovery-accent)] disabled:cursor-default disabled:opacity-40"
         >
           {paused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
         </button>
@@ -705,12 +717,18 @@ export function DiscoveryVideoPost({
         </div>
       </div>
 
-      <div className="absolute bottom-16 right-2 z-20 flex flex-col items-center gap-3">
+      {/*
+        Action rail. bottom = 4rem (clears the progress row + card clearance)
+        plus the safe-area inset, and right-2 keeps it inside the feed. On
+        short viewports the gaps and bubbles shrink so the whole column still
+        fits without touching the product card (which reserves pr-[76px]).
+      */}
+      <div className="absolute bottom-[calc(4rem+env(safe-area-inset-bottom))] right-2 z-20 flex flex-col items-center gap-3 [@media(max-height:740px)]:gap-2">
         <div className="relative mb-1">
           <Link
             href={`/sellers/${seller.id}`}
             aria-label={`Visit ${seller.name}`}
-            className="block h-12 w-12 overflow-hidden rounded-full border-2 border-white/80"
+            className="block h-12 w-12 overflow-hidden rounded-full border-2 border-white/80 [@media(max-height:740px)]:h-10 [@media(max-height:740px)]:w-10"
           >
             <Image src={seller.avatarUrl} alt={seller.name} fill sizes="48px" className="object-cover" />
           </Link>

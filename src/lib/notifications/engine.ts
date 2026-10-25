@@ -14,6 +14,7 @@ import { appLink, type EmailCategory } from './config';
 import { sendTemplateEmail } from './email-service';
 import { sendPushToUser } from './push-server';
 import { isPushEnabledFor } from './push-preferences';
+import { createNotification } from './store';
 
 export type NotificationType =
   | 'ORDER_CONFIRMED' | 'ORDER_STATUS' | 'BOOKING_CONFIRMED' | 'BOOKING_REMINDER'
@@ -95,14 +96,27 @@ export async function notify(input: NotifyInput): Promise<string | undefined> {
 
   let notificationId: string | undefined;
   try {
-    const ref = await db.collection('notifications').add({
-      ...notification,
+    /*
+     * VPS-controlled storage: `createNotification` writes PocketBase when it
+     * is configured and only falls back to Firestore when it is not (see
+     * `store.ts`). It also suppresses duplicates — a webhook retry firing the
+     * same event twice lands once in the inbox.
+     */
+    const result = await createNotification({
+      userId: notification.userId,
+      type: notification.type,
+      title: notification.title,
+      message: notification.message,
       category: CATEGORY_BY_TYPE[notification.type] ?? 'system',
-      isRead: false,
-      readAt: null,
-      createdAt: new Date(),
+      entityType: notification.entityType,
+      entityId: notification.entityId,
+      link: notification.link,
     });
-    notificationId = ref.id;
+    if (result.duplicate) return undefined;
+    notificationId = result.id ?? undefined;
+    if (!notificationId) {
+      console.error('[notify] failed to write notification');
+    }
   } catch (error) {
     console.error('[notify] failed to write notification:', error);
   }
@@ -125,8 +139,8 @@ export async function notify(input: NotifyInput): Promise<string | undefined> {
   // already written by this point, so a push failure cannot lose the event.
   try {
     const category = CATEGORY_BY_TYPE[notification.type] ?? 'system';
-    if (await isPushEnabledFor(input.db, input.userId, category)) {
-      await sendPushToUser(input.db, input.userId, {
+    if (await isPushEnabledFor(input.userId, category)) {
+      await sendPushToUser(input.userId, {
         title: notification.title,
         body: notification.message,
         link: notification.link,

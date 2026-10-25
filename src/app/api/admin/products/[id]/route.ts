@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db, auth } from '@/firebase/server';
+import { pbDeleteProduct } from '@/lib/pocketbase/products';
 
 /**
  * DELETE /api/admin/products/{id} — remove a reported listing.
@@ -41,6 +42,9 @@ export async function DELETE(
     }
 
     await ref.delete();
+    // Tombstone the VPS copy so the listing disappears from the mirrored
+    // admin list too — never leave a row the seller can still see.
+    void pbDeleteProduct(id);
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error(`Error deleting product ${id}:`, error);

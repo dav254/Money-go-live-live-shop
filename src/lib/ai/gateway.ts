@@ -8,6 +8,9 @@ import {
 } from './config';
 import { getModel, type AiCapability } from './providers';
 import { notifyAiEvent } from './notify';
+import { pocketBaseEnabled } from '@/lib/pocketbase/server';
+import { pbGetProfile, pbAdjustAiPoints } from '@/lib/pocketbase/profiles';
+import { planAiPointsCharge } from './points-plan';
 
 /**
  * VIDNOV AI GATEWAY (spec §8–12).
@@ -264,10 +267,98 @@ export interface AiJobDoc {
 export class AiGatewayError extends Error {
   constructor(
     message: string,
-    public readonly code: 'INSUFFICIENT_POINTS' | 'DAILY_LIMIT' | 'PROVIDER_UNAVAILABLE' | 'VALIDATION' = 'VALIDATION',
+    public readonly code:
+      | 'INSUFFICIENT_POINTS'
+      | 'DAILY_LIMIT'
+      | 'PROVIDER_UNAVAILABLE'
+      | 'VALIDATION'
+      /** Neither store could confirm the balance — nothing was charged. */
+      | 'STORE_UNREACHABLE' = 'VALIDATION',
   ) {
     super(message);
   }
+}
+
+/* ------------------------------------------------------------------ */
+/* Points: VPS-first charge + refund                                   */
+/* ------------------------------------------------------------------ */
+
+type ChargeOutcome = 'charged' | 'insufficient' | 'unreadable';
+
+/**
+ * Charges `cost` points for `uid` — VPS store first, Firestore fallback,
+ * exactly like POST /api/live-session.
+ *
+ * Why VPS-first: the old code ran ONE Firestore transaction and mapped every
+ * failure to `false` — when Firebase was blocked the charge failed and the
+ * whole job was cancelled as "not enough points". Now the PocketBase copy
+ * answers whenever it knows the balance, and only a genuine outage of BOTH
+ * stores reports `unreadable` (a retryable error, never a phantom deduction).
+ *
+ * Never throws. The charged store mirrors to the other one best-effort — a
+ * mirror failure must not fail the operation that already succeeded.
+ */
+async function chargeAiPoints(uid: string, cost: number): Promise<ChargeOutcome> {
+  const pbEnabled = pocketBaseEnabled();
+  const vpsBalance = pbEnabled ? ((await pbGetProfile(uid))?.aiPoints ?? null) : null;
+  const plan = planAiPointsCharge({ pbEnabled, vpsBalance, cost });
+
+  if (plan.action === 'insufficient') return 'insufficient';
+  if (plan.action === 'unreadable') return 'unreadable';
+  if (plan.store === 'skip') return 'charged';
+
+  if (plan.store === 'vps') {
+    const next = await pbAdjustAiPoints(uid, -cost);
+    if (next !== null) {
+      // Charge landed on the VPS — mirror to Firestore best-effort.
+      await db
+        .collection('userProfiles')
+        .doc(uid)
+        .update({ aiPoints: FieldValue.increment(-cost) })
+        .catch(() => undefined);
+      return 'charged';
+    }
+    // VPS write failed after the plan said it was usable → fall through and
+    // let Firestore take the charge instead (never both).
+  }
+
+  try {
+    const charged = await db.runTransaction(async (tx) => {
+      const profileRef = db.collection('userProfiles').doc(uid);
+      const snap = await tx.get(profileRef);
+      const balance = Number((snap.data() as { aiPoints?: number } | undefined)?.aiPoints ?? 0);
+      if (balance < cost) return false;
+      tx.update(profileRef, { aiPoints: FieldValue.increment(-cost) });
+      return true;
+    });
+    if (!charged) return 'insufficient';
+    // Firestore took the charge → mirror a copy to the VPS best-effort
+    // (pbAdjustAiPoints is a no-op when the VPS has no balance row).
+    if (pbEnabled) void pbAdjustAiPoints(uid, cost * -1);
+    return 'charged';
+  } catch (error) {
+    console.error('[ai/gateway] charge failed in both stores:', error);
+    return 'unreadable';
+  }
+}
+
+/**
+ * Gives `amount` points back — the mirror image of chargeAiPoints. Refunds
+ * are best-effort by design (the old code never failed a job because a refund
+ * could not be written): the VPS copy is credited when it carries a balance,
+ * and Firestore always is, so a failed generation never silently eats points.
+ * Never throws, never logs the amount.
+ */
+async function refundAiPoints(uid: string, amount: number): Promise<void> {
+  if (!(amount > 0)) return;
+  if (pocketBaseEnabled()) {
+    await pbAdjustAiPoints(uid, amount); // no-op when the VPS has no balance copy
+  }
+  await db
+    .collection('userProfiles')
+    .doc(uid)
+    .update({ aiPoints: FieldValue.increment(amount) })
+    .catch(() => undefined);
 }
 
 export interface DispatchResult {
@@ -352,19 +443,19 @@ export async function dispatchAiJob(params: {
     }
   }
 
-  // Charge points atomically; refuse when the balance is too low.
-  const profileRef = db.collection('userProfiles').doc(params.userId);
-  const charged = await db.runTransaction(async (tx) => {
-    const snap = await tx.get(profileRef);
-    const balance = Number((snap.data() as { aiPoints?: number } | undefined)?.aiPoints ?? 0);
-    if (balance < entry.points) return false;
-    tx.update(profileRef, { aiPoints: FieldValue.increment(-entry.points) });
-    return true;
-  }).catch(() => false);
-  if (!charged) {
+  // Charge points atomically (VPS store first); refuse when the balance is
+  // too low, and say so honestly when neither store could be read.
+  const chargeOutcome = await chargeAiPoints(params.userId, entry.points);
+  if (chargeOutcome === 'insufficient') {
     throw new AiGatewayError(
       `Not enough points — this generation costs ${entry.points}. Top up in Wallet.`,
       'INSUFFICIENT_POINTS',
+    );
+  }
+  if (chargeOutcome === 'unreadable') {
+    throw new AiGatewayError(
+      'Could not confirm your points balance right now — nothing was charged. Try again in a moment.',
+      'STORE_UNREACHABLE',
     );
   }
 
@@ -535,11 +626,7 @@ async function runJob(
 
     // Billing policy: refund on failure unless admin opted out (spec §36).
     if (ctx.refundOnFailure && ctx.creditsUsed > 0) {
-      await db
-        .collection('userProfiles')
-        .doc(ctx.userId)
-        .update({ aiPoints: FieldValue.increment(ctx.creditsUsed) })
-        .catch(() => undefined);
+      await refundAiPoints(ctx.userId, ctx.creditsUsed);
     }
 
     throw error instanceof Error ? error : new Error(message);
@@ -556,7 +643,7 @@ export async function cancelAiJob(jobId: string, userId: string): Promise<void> 
   if (job.status !== 'QUEUED') throw new Error('Only queued jobs can be cancelled.');
   await ref.update({ status: 'CANCELLED' as AiJobStatus, completedAt: FieldValue.serverTimestamp() });
   if (job.creditsUsed > 0) {
-    await db.collection('userProfiles').doc(userId).update({ aiPoints: FieldValue.increment(job.creditsUsed) }).catch(() => undefined);
+    await refundAiPoints(userId, job.creditsUsed);
   }
 }
 

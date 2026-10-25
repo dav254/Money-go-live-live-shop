@@ -5,6 +5,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import {
   livekitConfigured,
   livekitUrl,
+  livekitUrlProblem,
   createViewerToken,
   getLiveStream,
   updateLiveStream,
@@ -32,6 +33,13 @@ export async function GET(
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   if (!livekitConfigured()) {
     return NextResponse.json({ error: 'Live streaming is starting up.' }, { status: 503 });
+  }
+  // Configured-but-unreachable LIVEKIT_URL would otherwise surface as an
+  // opaque "could not establish signal connection: Failed to fetch" in the
+  // player — report it as the configuration problem it is.
+  const urlProblem = livekitUrlProblem();
+  if (urlProblem) {
+    return NextResponse.json({ error: urlProblem }, { status: 503 });
   }
 
   const { id } = await params;

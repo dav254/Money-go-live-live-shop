@@ -2,6 +2,7 @@ import * as path from 'path';
 import * as fsp from 'fs/promises';
 import { spawn } from 'child_process';
 import { MEDIA_CONFIG, MEDIA_ROOT, dateFolder, ALLOWED_VIDEO_MIME } from './config';
+import { MUSIC_ALLOWED_MIME, MUSIC_MAX_SECONDS, musicDurationOk } from './music';
 import { promoteFile } from './storage';
 import { generateMediaId } from './image';
 
@@ -131,6 +132,75 @@ export async function validateVideoFile(
     };
   }
   return { ...probe, ok: true as const };
+}
+
+/** Probes an audio file: requires a real audio stream and a readable duration. */
+export async function probeAudio(filePath: string): Promise<{
+  ok: boolean;
+  reason?: string;
+  durationSeconds?: number;
+  container?: string;
+}> {
+  const { code, stdout, stderr } = await run(
+    'ffprobe',
+    ['-v', 'error', '-print_format', 'json', '-show_format', '-show_streams', filePath],
+    60_000,
+  );
+  if (code !== 0) {
+    return {
+      ok: false,
+      reason:
+        'Not a valid audio file.' +
+        (stderr.includes('spawn failed') ? ' (ffprobe not found on server)' : ''),
+    };
+  }
+  try {
+    const json = JSON.parse(stdout) as FfprobeJson;
+    const streams = json.streams ?? [];
+    const audio = streams.find((s) => s.codec_type === 'audio');
+    if (!audio) return { ok: false, reason: 'No audio stream found.' };
+    const duration = Number(json.format?.duration ?? audio.duration ?? 0);
+    if (!Number.isFinite(duration) || duration <= 0) {
+      return { ok: false, reason: 'Could not read the audio duration.' };
+    }
+    return {
+      ok: true,
+      durationSeconds: duration,
+      container: String(json.format?.format_name ?? ''),
+    };
+  } catch {
+    return { ok: false, reason: 'ffprobe output could not be parsed.' };
+  }
+}
+
+/**
+ * Validates a seller music upload: allowed MIME + a real audio stream +
+ * within the 30-second cap (the cap is enforced HERE, server-side — the
+ * browser check is convenience only).
+ */
+export async function validateAudioFile(
+  tmpPath: string,
+  declaredMime: string,
+  opts?: { maxDurationSeconds?: number },
+): Promise<{ ok: true; durationSeconds: number } | { ok: false; reason: string }> {
+  if (!MUSIC_ALLOWED_MIME.has(declaredMime.toLowerCase())) {
+    return {
+      ok: false,
+      reason: 'Unsupported audio type. Allowed: MP3, M4A/AAC, WAV, OGG, WebM, FLAC.',
+    };
+  }
+  const probe = await probeAudio(tmpPath);
+  if (!probe.ok) return { ok: false, reason: probe.reason ?? 'Not a valid audio file.' };
+
+  const max = opts?.maxDurationSeconds ?? MUSIC_MAX_SECONDS;
+  const duration = probe.durationSeconds ?? 0;
+  if (!musicDurationOk(duration, max)) {
+    return {
+      ok: false,
+      reason: `Music is too long (${Math.round(duration)}s). The maximum is ${max} seconds.`,
+    };
+  }
+  return { ok: true, durationSeconds: Math.round(duration * 10) / 10 };
 }
 
 /**

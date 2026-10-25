@@ -71,6 +71,30 @@ export default function CheckoutPage(props: { params: Promise<{ orderId: string 
     const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
     const [isMounted, setIsMounted] = useState(false);
 
+    /*
+     * Which gateways the server can actually start (GET
+     * /api/create-payment-intent). `null` until the probe answers → render
+     * the full list (fail-open), then hide any method whose credentials are
+     * missing so a buyer never taps a button guaranteed to fail.
+     */
+    const [gateways, setGateways] = useState<{
+        paystack?: boolean;
+        paypal?: boolean;
+    } | null>(null);
+
+    useEffect(() => {
+        let alive = true;
+        fetch('/api/create-payment-intent')
+            .then((r) => (r.ok ? r.json() : null))
+            .then((data) => {
+                if (alive && data && typeof data === 'object') setGateways(data);
+            })
+            .catch(() => {});
+        return () => {
+            alive = false;
+        };
+    }, []);
+
     useEffect(() => {
         setIsMounted(true);
         setUserLocation(getLocationFromStorage());
@@ -230,6 +254,7 @@ export default function CheckoutPage(props: { params: Promise<{ orderId: string 
                                 </div>
                             </Button>
 
+                            {gateways?.paypal !== false && (
                             <Button 
                                 size="lg" 
                                 className="w-full justify-start gap-4 h-24 rounded-2xl bg-[#0070BA] hover:bg-[#005ea6] text-white transition-all border-none group shadow-xl" 
@@ -244,6 +269,7 @@ export default function CheckoutPage(props: { params: Promise<{ orderId: string 
                                     <p className="text-[10px] font-bold text-white/60 uppercase tracking-tighter leading-tight">Global Credit & Wallet</p>
                                 </div>
                             </Button>
+                            )}
                         </div>
                         
                         <div className="p-4 rounded-2xl bg-neutral-900/50 border border-white/5 flex items-center gap-3">

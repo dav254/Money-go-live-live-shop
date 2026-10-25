@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server';
 import { db, auth } from '@/firebase/server';
+import { pbGetLiveSession } from '@/lib/pocketbase/live-sessions';
 import {
   livekitConfigured,
   livekitUrl,
+  livekitUrlProblem,
   createViewerToken,
   viewerIdentity,
 } from '@/lib/live/service';
@@ -45,12 +47,39 @@ export async function GET(request: Request) {
     );
   }
 
+  // Same diagnosis the seller's Go live flow runs: a URL that is set but
+  // unreachable from a phone must be reported as configuration, not left to
+  // surface later as an opaque "Failed to fetch" in the player.
+  const urlProblem = livekitUrlProblem();
+  if (urlProblem) {
+    return NextResponse.json(
+      { error: 'CONFIG_MISSING', message: urlProblem },
+      { status: 503 },
+    );
+  }
+
   try {
-    const snap = await db.collection('liveSessions').doc(sessionId).get();
-    if (!snap.exists) {
+    /*
+     * VPS store first (the session was mirrored there when the seller went
+     * live), Firestore second — a buyer can fetch a viewer token even when
+     * Firestore is the thing that is down.
+     */
+    const mirrored = await pbGetLiveSession(sessionId);
+    let session: Record<string, unknown> | null =
+      mirrored && Object.keys(mirrored.data).length > 0 ? mirrored.data : null;
+    if (!session) {
+      try {
+        const snap = await db.collection('liveSessions').doc(sessionId).get();
+        session = snap.exists ? ((snap.data() ?? {}) as Record<string, unknown>) : null;
+      } catch (error) {
+        // Neither store had it and Firestore errored — the outer catch keeps
+        // today's answer (500, retryable) instead of a misleading 404.
+        throw error;
+      }
+    }
+    if (!session) {
       return NextResponse.json({ error: 'Live session not found.' }, { status: 404 });
     }
-    const session = snap.data()!;
 
     if (session.status !== 'live') {
       return NextResponse.json(
