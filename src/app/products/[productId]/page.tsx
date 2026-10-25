@@ -18,6 +18,7 @@ import { doc, setDoc, increment, serverTimestamp, collection } from 'firebase/fi
 import { useToast } from '@/hooks/use-toast';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
 import { mirrorOrder } from '@/lib/orders/mirror';
+import { captureShareRef, trackListingView } from '@/lib/growth/client';
 import { Dialog, DialogContent, DialogTrigger, DialogClose, DialogTitle, DialogDescription, DialogHeader } from '@/components/ui/dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ProductInfo } from '@/components/live/product-info';
@@ -26,6 +27,15 @@ export default function BuyerProductPage(props: { params: Promise<{ productId: s
     const params = use(props.params);
     const productId = params.productId;
     const firestore = useFirestore();
+
+    // Growth spine (Phase 1): capture an arriving `?ref=` share code, then
+    // record a QUALIFIED view — only after 2s of visible page time, and the
+    // disposer cancels it when the visitor navigates away. Fire-and-forget:
+    // measurement must never affect browsing.
+    useEffect(() => {
+        captureShareRef();
+        return trackListingView(productId);
+    }, [productId]);
     const { user, isLoading: isUserLoading } = useUser();
     const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
     const { toast } = useToast();

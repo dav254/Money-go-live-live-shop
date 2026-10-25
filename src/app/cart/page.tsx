@@ -15,6 +15,7 @@ import { Trash2, Plus, Minus, ShoppingCart, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { mirrorOrder } from '@/lib/orders/mirror';
+import { readStoredShareRef } from '@/lib/growth/client';
 import React from 'react';
 import { FirestorePermissionError } from '@/firebase/errors';
 
@@ -156,6 +157,12 @@ export default function CartPage() {
             orderStatus: 'pending',
             paymentMethod: 'pending',
             ...(resellerId && { resellerId: resellerId }),
+            // Share attribution captured from an arriving `?ref=` link (same
+            // code format as invites). Optional and normalised — money fields
+            // above are never influenced by it, and nothing here is trusted
+            // beyond a bare code string. Spread only when present so no
+            // `undefined` field ever reaches setDoc.
+            ...((shareCode) => (shareCode ? { shareRef: shareCode } : {}))(readStoredShareRef()),
         };
 
         try {

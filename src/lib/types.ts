@@ -817,6 +817,13 @@ export interface Order {
     sellerId: string;
     resellerId?: string;
     /**
+     * Share attribution (Growth Engine Phase 1): the normalised `?ref=` code
+     * the buyer arrived with, captured client-side at order creation for
+     * measurement. Optional, never used for pricing, rewards or authorization —
+     * those continue to flow through the server-validated referral claim.
+     */
+    shareRef?: string;
+    /**
      * The business the order was placed with. Additive; falls back to
      * `sellerId` when absent so nothing about an existing order changes.
      */

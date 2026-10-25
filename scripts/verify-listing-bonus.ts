@@ -14,6 +14,26 @@
 import { db } from '@/firebase/server';
 import { reconcileListingBonus } from '@/lib/listings/bonus';
 
+/*
+ * PRODUCTION GUARD — this script writes SYNTHETIC viewCount/likes values into
+ * Firestore (then cleans them up). It is a verification harness, never a
+ * migration, and running it against a real listing — or against production —
+ * would fabricate engagement data the Growth Engine now treats as real.
+ *
+ * It therefore refuses to run unless the operator explicitly opts in with
+ *   VIDNOV_FAKE_STATS_TEST=ALLOW
+ * (e.g. in a dev sandbox: VIDNOV_FAKE_STATS_TEST=ALLOW npx tsx
+ * scripts/verify-listing-bonus.ts). Never set this against the live project.
+ */
+if (process.env.VIDNOV_FAKE_STATS_TEST !== 'ALLOW') {
+  console.error(
+    'REFUSED: verify-listing-bonus.ts writes fake engagement counters.\n' +
+      'Run it only in a dev sandbox with VIDNOV_FAKE_STATS_TEST=ALLOW.\n' +
+      'It must never run against production data.',
+  );
+  process.exit(1);
+}
+
 let failures = 0;
 
 function check(label: string, ok: boolean, detail = ''): void {

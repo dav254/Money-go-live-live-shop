@@ -56,6 +56,17 @@ service cloud.firestore {
     }
 
     // =========================
+    // GROWTH EVENTS (Growth Engine Phase 1)
+    // =========================
+    // Server-only event stream written by POST /api/events through the Admin
+    // SDK. Clients are denied outright: docs carry hashed viewer ids and
+    // day-bucket dedupe keys, and a client-writable event log would be a
+    // fake-engagement faucet.
+    match /contentEvents/{eventId} {
+      allow read, write: if false;
+    }
+
+    // =========================
     // VIDEO STUDIO DRAFTS (Video Studio)
     // =========================
     // Private workspace of one seller: drafts, render state and the
@@ -82,9 +93,15 @@ service cloud.firestore {
       
       // MERCHANT AUTONOMY: Streamlined owner permission allows all inventory metadata updates.
       // Crucial: We only block unauthorized sellerId changes.
-      allow update: if (isOwner(resource.data.sellerId) && (!('sellerId' in request.resource.data) || request.resource.data.sellerId == resource.data.sellerId)) || 
-                      (isSignedIn() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'viewCount', 'inCartCount', 'salesCount']));
-                      
+      // GROWTH SPINE (Phase 1): `viewCount`/`clickCount` are SERVER-OWNED —
+      // only POST /api/events (Admin SDK) may write them, even for the owner
+      // of the listing. Diff-based, so a normal edit (which never resends
+      // these fields) and an unchanged merge are unaffected; `likes`,
+      // `inCartCount` and `salesCount` stay client-writable everywhere.
+      // PROPOSED — review required; do not deploy without approval.
+      allow update: if (isOwner(resource.data.sellerId) && (!('sellerId' in request.resource.data) || request.resource.data.sellerId == resource.data.sellerId) &&
+                      !request.resource.data.diff(resource.data).affectedKeys().hasAny(['viewCount', 'clickCount'])) ||
+                      (isSignedIn() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'inCartCount', 'salesCount']));
       allow delete: if isOwner(resource.data.sellerId) || isAdmin();
 
       match /reviews/{reviewId} {
@@ -100,8 +117,15 @@ service cloud.firestore {
 
     match /sellerShops/{shopId} {
       allow read: if true;
-      allow update: if isOwner(shopId) && !('followers' in request.resource.data);
-      allow write: if isOwner(shopId) || isAdmin();
+      // GROWTH SPINE (Phase 1): split the former blanket `write` so the
+      // server-owned `clickCount` (share taps) and `followers` (written only
+      // by /api/follow, Admin SDK) can never be set client-side — not even by
+      // the shop owner. Owner updates are diff-checked, so the partial merge
+      // patches the settings/account/branding screens send keep working.
+      // PROPOSED — review required; do not deploy without approval.
+      allow create, delete: if isOwner(shopId) || isAdmin();
+      allow update: if isAdmin() || (isOwner(shopId) &&
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['clickCount', 'followers']));
     }
 
     match /liveSessions/{sessionId} {

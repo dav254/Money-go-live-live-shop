@@ -15,6 +15,7 @@ import { FirestorePermissionError } from '@/firebase/errors';
 import type { CartItem, Order } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { mirrorOrder } from '@/lib/orders/mirror';
+import { readStoredShareRef } from '@/lib/growth/client';
 import { Button } from '@/components/ui/button';
 import {
   BuyerCard, BuyerEmptyState, BuyerSectionTitle,
@@ -135,6 +136,10 @@ export default function BuyerSectionCart() {
       orderStatus: 'pending',
       paymentMethod: 'pending',
       ...(resellerId ? { resellerId } : {}),
+      // Share attribution from an arriving `?ref=` link — same normalised,
+      // server-validated-at-claim code format as /cart. Informational only:
+      // it never touches money fields and cannot trigger a reward on its own.
+      ...((shareCode) => (shareCode ? { shareRef: shareCode } : {}))(readStoredShareRef()),
     };
 
     try {

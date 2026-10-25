@@ -16,6 +16,8 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { useCollection, useFirestore, useMemoFirebase, useUser, useUserProfile } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { resolveCommenterName } from '@/lib/comments';
+import { referralCodeFor } from '@/lib/referrals/referral-code';
+import { trackShareClick, withShareRef } from '@/lib/growth/client';
 import { cn } from '@/lib/utils';
 import type { Comment, Product } from '@/lib/types';
 import { isService, listingPriceDisplay } from '@/components/listings/service-badge';
@@ -356,7 +358,23 @@ export function DiscoveryVideoPost({
   };
 
   const share = async () => {
-    const url = `${window.location.origin}/products/${listing.id}`;
+    const originUrl = `${window.location.origin}/products/${listing.id}`;
+    /*
+     * Shared links carry the SAME `?ref=` code the invite/signup flow
+     * already understands (the profile's name-based code, or the legacy
+     * uid-fold for accounts without one), so a visitor arriving from this
+     * share is attributable — through signup and into checkout — without
+     * trusting anything the client invents at claim time (the server still
+     * resolves and validates every code).
+     */
+    const refCode = user
+      ? ((userProfile as { referralCode?: string } | undefined)?.referralCode || referralCodeFor(user.uid))
+      : '';
+    const url = withShareRef(originUrl, refCode);
+    // The tap itself is the action: recorded immediately, deduped per day.
+    const canNativeShare =
+      typeof navigator !== 'undefined' && typeof navigator.share === 'function';
+    trackShareClick('product', listing.id, canNativeShare ? 'native' : 'copy');
     try {
       if (typeof navigator !== 'undefined' && navigator.share) {
         await navigator.share({ title: listing.name, url });

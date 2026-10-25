@@ -23,6 +23,10 @@ import {
   ShoppingBag,
   Users,
   Package,
+  Eye,
+  Share2,
+  MessageSquare,
+  CheckCircle2,
 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DatePicker } from '@/components/dashboard/date-picker';
@@ -108,7 +112,14 @@ export default function SellerAnalyticsPage() {
   const { data: orders, isLoading: areOrdersLoading } = useCollection<Order>(ordersQuery);
   const { data: shop, isLoading: isShopLoading } = useDoc<SellerShop>(shopQuery);
 
-  const isLoading = isUserLoading || areProductsLoading || areOrdersLoading || isShopLoading;
+  // Buyer conversations = enquiries received (real documents, not an estimate).
+  const chatsQuery = useMemoFirebase(() => {
+    if (!user || !firestore) return null;
+    return query(collection(firestore, 'chats'), where('participantIds', 'array-contains', user.uid));
+  }, [firestore, user]);
+  const { data: chats, isLoading: areChatsLoading } = useCollection<{ id: string }>(chatsQuery);
+
+  const isLoading = isUserLoading || areProductsLoading || areOrdersLoading || isShopLoading || areChatsLoading;
 
   const filteredOrders = React.useMemo(() => {
     if (!orders) return [];
@@ -123,7 +134,16 @@ export default function SellerAnalyticsPage() {
 
   const stats = React.useMemo(() => {
     if (!products || !shop) {
-      return { totalRevenue: 0, totalSales: 0, totalProducts: 0, followers: 0 };
+      return {
+        totalRevenue: 0,
+        totalSales: 0,
+        totalProducts: 0,
+        followers: 0,
+        totalViews: 0,
+        shareClicks: 0,
+        enquiries: 0,
+        completedOrders: 0,
+      };
     }
     const relevantOrders = filteredOrders || [];
     const totalRevenue = relevantOrders
@@ -132,8 +152,17 @@ export default function SellerAnalyticsPage() {
     const totalSales = relevantOrders.length;
     const totalProducts = products.length;
     const followers = shop?.followers || 0;
-    return { totalRevenue, totalSales, totalProducts, followers };
-  }, [filteredOrders, products, shop]);
+    // Growth spine (server-recorded): views/shares are the ONLY numbers here
+    // that come from /api/events — deduplicated per visitor per day and
+    // excluding the seller's own visits. Enquiries = buyer conversations.
+    const totalViews = products.reduce((sum, p) => sum + (p.viewCount || 0), 0);
+    const shareClicks = products.reduce((sum, p) => sum + (p.clickCount || 0), 0);
+    const enquiries = (chats ?? []).length;
+    const completedOrders = relevantOrders.filter(
+      o => o.orderStatus === 'delivered' || o.orderStatus === 'shipped',
+    ).length;
+    return { totalRevenue, totalSales, totalProducts, followers, totalViews, shareClicks, enquiries, completedOrders };
+  }, [filteredOrders, products, shop, chats]);
 
   const chartData = React.useMemo(() => {
     if (!orders) return [];
@@ -210,6 +239,51 @@ export default function SellerAnalyticsPage() {
                 isLoading={isLoading}
               />
             </div>
+
+            {/*
+              GROWTH SPINE (Phase 1) — the four stages of the customer journey
+              that we can honestly measure today. Views/shares come from
+              /api/events (server-recorded, deduplicated per visitor per day,
+              seller self-views excluded); enquiries are real conversations;
+              completed orders are delivered/shipped only. Nothing here is
+              estimated, backfilled or projected.
+            */}
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+              <StatCard
+                title="Views"
+                value={stats.totalViews.toLocaleString()}
+                icon={Eye}
+                description="Qualified · server-recorded"
+                isLoading={isLoading}
+              />
+              <StatCard
+                title="Share Clicks"
+                value={stats.shareClicks.toLocaleString()}
+                icon={Share2}
+                description="Tap-to-share on your listings"
+                isLoading={isLoading}
+              />
+              <StatCard
+                title="Buyer Enquiries"
+                value={stats.enquiries.toLocaleString()}
+                icon={MessageSquare}
+                description="Conversations started"
+                isLoading={isLoading}
+              />
+              <StatCard
+                title="Completed Orders"
+                value={stats.completedOrders.toLocaleString()}
+                icon={CheckCircle2}
+                description="Delivered or shipped"
+                isLoading={isLoading}
+              />
+            </div>
+            <p className="-mt-3 text-xs text-muted-foreground">
+              Views and share clicks are recorded server-side — deduplicated per visitor per day,
+              after at least 2 seconds on the page, and excluding your own visits. Enquiries are
+              buyer conversations; completed orders are delivered or shipped only. No number on
+              this panel is estimated or backfilled.
+            </p>
             
             <div className="grid grid-cols-1 lg:grid-cols-7 gap-4">
                 <Card className="lg:col-span-4 bg-card/50 border-white/5">

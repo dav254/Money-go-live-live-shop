@@ -1,5 +1,7 @@
 'use client';
 
+import { captureShareRef, trackListingView } from '@/lib/growth/client';
+
 /**
  * BUYER APP · PRODUCT DETAIL — `/app/buyer/product/[productId]`.
  *
@@ -87,6 +89,13 @@ export default function BuyerProductDetailPage() {
   const firestore = useFirestore();
   const { user } = useUser();
   const { toast } = useToast();
+
+  // Growth spine (Phase 1): arriving `?ref=` capture + a qualified view
+  // (2s visible-page threshold; cancelled if the visitor navigates away).
+  React.useEffect(() => {
+    captureShareRef();
+    return trackListingView(productId);
+  }, [productId]);
 
   const [quantity, setQuantity] = React.useState(1);
   const [selected, setSelected] = React.useState<MediaItem | null>(null);

@@ -40,6 +40,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { Loader2, Sparkles } from 'lucide-react';
 import { claimSignupReferral, claimFailureMessage } from '@/lib/referrals/claim';
+import { readStoredShareRef } from '@/lib/growth/client';
 
 /**
  * Phone rules, in one place because they depend on TWO other fields:
@@ -247,13 +248,17 @@ function SignupFormContent() {
         // Referral capture. Fire-and-forget: the account already exists, so a
         // failed claim must not undo it. Only a code that was PRESENT but not
         // recorded is worth telling the user about — otherwise they believe
-        // their referrer earned points that never arrived.
+        // their referrer earned points that never arrived. A code carried over
+        // from a shared product link (stored on arrival) claims through the
+        // SAME server-validated path but stays silent on failure — the visitor
+        // never typed it, so a stale code must not surface as an error toast.
+        const urlRefCode = searchParams?.get('ref');
         void claimSignupReferral({
-          code: searchParams?.get('ref'),
+          code: urlRefCode ?? readStoredShareRef(),
           name: profile.fullName,
           email: signedUpUser.email || undefined,
         }).then((result) => {
-          const message = claimFailureMessage(result.reason ?? undefined);
+          const message = urlRefCode ? claimFailureMessage(result.reason ?? undefined) : null;
           if (message) {
             toast({ variant: 'destructive', title: 'Invite code not applied', description: message });
           }
@@ -315,13 +320,14 @@ function SignupFormContent() {
       toast({ title: values.role === 'seller' ? 'Welcome Bonus Awarded! 🎁' : 'Account Created!' });
 
       // Same referral capture as the Google path above — see the comment there
-      // for why it cannot block signup.
+      // for why it cannot block signup (URL code first, stored share ref second).
+      const urlRefCode = searchParams?.get('ref');
       void claimSignupReferral({
-        code: searchParams?.get('ref'),
+        code: urlRefCode ?? readStoredShareRef(),
         name: values.fullName,
         email: values.email,
       }).then((result) => {
-        const message = claimFailureMessage(result.reason ?? undefined);
+        const message = urlRefCode ? claimFailureMessage(result.reason ?? undefined) : null;
         if (message) {
           toast({ variant: 'destructive', title: 'Invite code not applied', description: message });
         }
