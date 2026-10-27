@@ -21,6 +21,7 @@ import { ShopBrandingSection } from '@/components/app/seller/shop-branding-secti
 import { SellerFilesSection } from '@/components/app/seller/seller-files-section';
 import { SocialLinksEditor, linksFromShop } from '@/components/app/seller/social-links-editor';
 import type { SocialLink } from '@/lib/social-links';
+import { mirrorShop } from '@/lib/shops/mirror';
 import { cn } from '@/lib/utils';
 
 /**
@@ -284,6 +285,7 @@ export default function SellerSectionAccount() {
         { socialLinks },
         { merge: true },
       );
+      mirrorShop(user);
       toast({
         title: 'Links saved',
         description: 'They are on your shop now.',
@@ -326,6 +328,7 @@ export default function SellerSectionAccount() {
         { merge: true },
       );
       await batch.commit();
+      mirrorShop(user);
       toast({ title: 'Shop saved', description: 'Your storefront is updated.' });
     } catch {
       toast({ variant: 'destructive', title: 'Could not save your shop' });
@@ -383,6 +386,7 @@ export default function SellerSectionAccount() {
         );
       }
       await batch.commit();
+      mirrorShop(user);
       toast({
         title: 'Location saved',
         description: cost > 0 ? `${cost} points deducted for new markets.` : undefined,
@@ -409,6 +413,7 @@ export default function SellerSectionAccount() {
         },
         { merge: true },
       );
+      mirrorShop(user);
       toast({ title: 'Policies saved', description: 'Buyers see these on your shop page.' });
     } catch {
       toast({ variant: 'destructive', title: 'Could not save your policies' });

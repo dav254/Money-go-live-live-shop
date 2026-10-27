@@ -18,6 +18,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { doc, setDoc } from 'firebase/firestore';
 import type { SellerShop } from '@/lib/types';
+import { mirrorShop } from '@/lib/shops/mirror';
 import Link from 'next/link';
 
 // Aligned with REQUEST_CATEGORIES so the matching engine scores correctly.
@@ -87,6 +88,7 @@ export function AccountShopProfile() {
         },
         { merge: true },
       );
+      mirrorShop(user);
       toast({ title: 'Shop profile saved', description: 'Matching uses your category & location.' });
     } catch {
       toast({ variant: 'destructive', title: 'Could not save shop profile' });

@@ -347,6 +347,16 @@ export function AdminSidebar() {
             { href: 'security', label: 'Security & 2FA' },
             { href: 'backup', label: 'Backup & Restore' },
             { href: 'server-status', label: 'Server Status' },
+            // Core Engine status (distribution jobs, verified events,
+            // opportunity/application counts) — read-only admin view.
+            { href: 'core-engine', label: 'Core Engine' },
+            // Distribution Control Center: free-first destination adapters,
+            // job queues, per-destination publication confirmation, errors,
+            // analytics, safe limits/global pause and the audit trail.
+            { href: 'distribution', label: 'Distribution' },
+            // Application review queue (approve/reject against the existing
+            // admin review API — decisions record an event, never money).
+            { href: 'opportunities', label: 'Opportunity Review' },
             { href: 'media-storage', label: 'Media Storage' },
             { href: 'email', label: 'Email Delivery' },
             { href: 'app', label: 'App Manager' },

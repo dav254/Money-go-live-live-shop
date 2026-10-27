@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { verifyUserContext } from '@/lib/notifications/server-utils';
 import { listLiveStreams } from '@/lib/live/service';
 import { pbListLiveSessions } from '@/lib/pocketbase/live-sessions';
+import { pbListShops } from '@/lib/pocketbase/shops';
 import { db } from '@/firebase/server';
 import type { LiveCardView } from '@/lib/live/types';
 
@@ -95,14 +96,31 @@ export async function GET(request: NextRequest) {
       new Set([...streams.map((s) => s.sellerId), ...sessionRows.map((r) => r.sellerId)]),
     );
     const shops = new Map<string, { shopName?: string; location?: string }>();
+    // VPS copy first: one request resolves every shop the mirror already has,
+    // instead of one Firestore read per seller. Only the sellers it does not
+    // know about (created since the last mirror write) fall back to Firestore,
+    // so a brand-new shop still gets its name on the grid.
+    const mirroredShops = await pbListShops(500);
+    const resolved = new Set<string>();
+    if (mirroredShops) {
+      for (const shop of mirroredShops) {
+        if (!sellerIds.includes(shop.id)) continue;
+        const d = (shop.data ?? {}) as { shopName?: string; location?: string };
+        shops.set(shop.id, { shopName: d.shopName ?? shop.shopName, location: d.location });
+        resolved.add(shop.id);
+      }
+    }
     await Promise.all(
-      sellerIds.slice(0, 50).map(async (sid) => {
-        const snap = await db.collection('sellerShops').doc(sid).get().catch(() => null);
-        if (snap?.exists) {
-          const d = snap.data() as { shopName?: string; location?: string };
-          shops.set(sid, { shopName: d.shopName, location: d.location });
-        }
-      }),
+      sellerIds
+        .slice(0, 50)
+        .filter((sid) => !resolved.has(sid))
+        .map(async (sid) => {
+          const snap = await db.collection('sellerShops').doc(sid).get().catch(() => null);
+          if (snap?.exists) {
+            const d = snap.data() as { shopName?: string; location?: string };
+            shops.set(sid, { shopName: d.shopName, location: d.location });
+          }
+        }),
     );
 
     const cards: LiveCardView[] = streams.map((s) => ({

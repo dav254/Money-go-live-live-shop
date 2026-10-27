@@ -630,9 +630,15 @@ async function resolveUploadFolder(raw: string, userId: string): Promise<string 
   if (!UPLOAD_FOLDER_ROOTS.has(root)) return null;
   if (root === 'chats') {
     if (parts.length !== 2) return null;
-    const chat = await db.collection('chats').doc(owner).get();
-    const ids: unknown = chat.data()?.participantIds;
-    return Array.isArray(ids) && ids.includes(userId) ? clean : null;
+    // Membership comes from the VPS chat store (the message section's source
+    // of truth), not Firestore — and a storage failure denies the upload
+    // rather than throwing out of the intake path.
+    try {
+      const { isChatParticipant } = await import('@/lib/chat/store');
+      return (await isChatParticipant(owner, userId)) ? clean : null;
+    } catch {
+      return null;
+    }
   }
   // support / verification / avatars / products are private to the uploader.
   return parts.length === 2 && owner === userId ? clean : null;

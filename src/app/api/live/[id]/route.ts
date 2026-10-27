@@ -13,6 +13,7 @@ import {
   endLiveStream,
 } from '@/lib/live/service';
 import { LIVESTREAMS_COLLECTION, type LiveStream } from '@/lib/live/types';
+import { pbBumpLiveStreamCounter, pbPatchLiveStream } from '@/lib/pocketbase/live-streams';
 
 export const runtime = 'nodejs';
 export const maxDuration = 30;
@@ -76,18 +77,29 @@ export async function GET(
 
     // Presence + analytics (§37, §40): increment live counters.
     const streamRef = db.collection(LIVESTREAMS_COLLECTION).doc(id);
-    await db.runTransaction(async (tx) => {
-      const fresh = await tx.get(streamRef);
-      if (!fresh.exists) return;
-      const data = fresh.data() as LiveStream;
-      const nextCount = (data.viewerCount ?? 0) + 1;
-      tx.update(streamRef, {
-        viewerCount: FieldValue.increment(1),
-        totalJoins: FieldValue.increment(1),
-        peakViewers: Math.max(data.peakViewers ?? 0, nextCount),
-        updatedAt: new Date(),
-      });
-    }).catch(() => undefined);
+    const mirrorPatch = await db
+      .runTransaction(async (tx) => {
+        const fresh = await tx.get(streamRef);
+        if (!fresh.exists) return null;
+        const data = fresh.data() as LiveStream;
+        const nextCount = (data.viewerCount ?? 0) + 1;
+        const nextPeak = Math.max(data.peakViewers ?? 0, nextCount);
+        const nextJoins = (data.totalJoins ?? 0) + 1;
+        tx.update(streamRef, {
+          viewerCount: FieldValue.increment(1),
+          totalJoins: FieldValue.increment(1),
+          peakViewers: nextPeak,
+          updatedAt: new Date(),
+        });
+        // Exact post-transaction values for the VPS mirror: the mirror can't
+        // use FieldValue.increment, so it is written from the same fresh read
+        // the transaction just did.
+        return { viewerCount: nextCount, peakViewers: nextPeak, totalJoins: nextJoins };
+      })
+      .catch(() => null);
+    if (mirrorPatch) {
+      void pbPatchLiveStream(id, { ...mirrorPatch, updatedAt: new Date().toISOString() });
+    }
 
     const safe: LiveStream & { token: string; wsUrl: string; identity: string } = {
       ...stream,
@@ -142,5 +154,8 @@ export async function POST(
     .doc(id)
     .update({ viewerCount: FieldValue.increment(-1) })
     .catch(() => undefined);
+  // The mirror cannot use FieldValue.increment, so it reads its own current
+  // value on the VPS and subtracts one (floored at zero).
+  void pbBumpLiveStreamCounter(id, 'viewerCount', -1);
   return NextResponse.json({ ok: true });
 }

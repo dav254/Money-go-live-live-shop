@@ -55,7 +55,10 @@ const SESSION_COOKIE = 'vn_evs';
  *      measurable. Never faked, never backfilled.
  *   6. **Privacy** — the raw sid/uid is hashed with a day bucket before
  *      storage; NO IP addresses, user-agents, tokens or referrer URLs are
- *      read or stored; the optional `ref` is a normalised 40-char code.
+ *      read or stored; the optional `ref` is a normalised 40-char code and
+ *      the optional `ch` is a closed-set distribution channel label (from
+ *      `?ch=` tracked links) used for destination analytics — an attribution
+ *      LABEL only, never a reward trigger.
  *      Every doc carries `expiresAt` (30 days) for a Firestore TTL policy.
  *   7. **Browsing never breaks** — any unexpected failure answers
  *      202 { ok: true, counted: false } (clients fire-and-forget anyway);
@@ -137,6 +140,10 @@ export async function POST(request: NextRequest) {
         self,
         platform: event.platform ?? null,
         ref: event.ref ?? null,
+        // Distribution channel label — server-validated against the closed
+        // channel set inside parseEventInput (an unknown value is dropped
+        // before it ever reaches here).
+        channel: event.channel ?? null,
         createdAt: FieldValue.serverTimestamp(),
         expiresAt: eventExpiresAt(new Date()),
       });

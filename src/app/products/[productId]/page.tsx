@@ -18,6 +18,7 @@ import { doc, setDoc, increment, serverTimestamp, collection } from 'firebase/fi
 import { useToast } from '@/hooks/use-toast';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
 import { mirrorOrder } from '@/lib/orders/mirror';
+import { mirrorCartItem } from '@/lib/users/mirror';
 import { captureShareRef, trackListingView } from '@/lib/growth/client';
 import { Dialog, DialogContent, DialogTrigger, DialogClose, DialogTitle, DialogDescription, DialogHeader } from '@/components/ui/dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -122,6 +123,7 @@ export default function BuyerProductPage(props: { params: Promise<{ productId: s
         };
 
         setDoc(cartItemRef, cartData, { merge: true })
+            .then(() => mirrorCartItem(user, product.id))
             .catch(async () => {
                 errorEmitter.emit('permission-error', new FirestorePermissionError({
                     path: cartItemRef.path,

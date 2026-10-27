@@ -15,6 +15,7 @@ import { Trash2, Plus, Minus, ShoppingCart, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { mirrorOrder } from '@/lib/orders/mirror';
+import { mirrorCartItem, mirrorCartItemDelete } from '@/lib/users/mirror';
 import { readStoredShareRef } from '@/lib/growth/client';
 import React from 'react';
 import { FirestorePermissionError } from '@/firebase/errors';
@@ -29,6 +30,7 @@ const CartItemRow = ({ item }: { item: CartItem }) => {
         const cartItemRef = doc(firestore, 'userProfiles', user.uid, 'cart', item.productId);
         try {
             await updateDoc(cartItemRef, { quantity: newQuantity });
+            mirrorCartItem(user, item.productId);
         } catch (error) {
             console.error("Error updating quantity:", error);
             toast({ variant: 'destructive', title: 'Error', description: 'Could not update item quantity.' });
@@ -40,6 +42,7 @@ const CartItemRow = ({ item }: { item: CartItem }) => {
         const cartItemRef = doc(firestore, 'userProfiles', user.uid, 'cart', item.productId);
         try {
             await deleteDoc(cartItemRef);
+            mirrorCartItemDelete(user, item.productId);
             toast({ title: 'Item Removed', description: `${item.name} has been removed from your cart.` });
         } catch (error) {
              console.error("Error removing item:", error);
@@ -107,7 +110,43 @@ export default function CartPage() {
         return collection(firestore, 'userProfiles', user.uid, 'cart');
     }, [user, firestore]);
 
-    const { data: cartItems, isLoading: areItemsLoading } = useCollection<CartItem>(cartItemsQuery);
+    const {
+        data: liveCartItems,
+        isLoading: areItemsLoading,
+        error: cartError,
+    } = useCollection<CartItem>(cartItemsQuery);
+
+    /*
+     * VPS FALLBACK. Every add, quantity change and removal is mirrored to the
+     * PocketBase store on our own server, so when Firestore cannot answer the
+     * buyer still SEES their cart — an empty one here reads as "everything I
+     * added was wiped", which is a far worse failure than a slow database.
+     * Best-effort and never awaited; live Firestore data wins whenever it
+     * exists.
+     */
+    const [vpsCartItems, setVpsCartItems] = React.useState<CartItem[] | null>(null);
+    React.useEffect(() => {
+        if (!cartError || !user) return;
+        let cancelled = false;
+        (async () => {
+            try {
+                const token = await user.getIdToken();
+                const res = await fetch('/api/cart', {
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+                if (!res.ok) return;
+                const payload = (await res.json()) as { items?: CartItem[] };
+                if (!cancelled && Array.isArray(payload.items)) setVpsCartItems(payload.items);
+            } catch {
+                /* Both stores unavailable — the empty state covers it. */
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [cartError, user]);
+
+    const cartItems = cartError ? vpsCartItems : liveCartItems;
     
     const isLoading = isUserLoading || areItemsLoading || isProfileLoading;
 

@@ -9,6 +9,7 @@ import Link from 'next/link';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
 import { useUser, useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { collection, doc, serverTimestamp, increment, setDoc } from 'firebase/firestore';
+import { mirrorCartItem } from '@/lib/users/mirror';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 
@@ -63,7 +64,9 @@ export function ProductDrawer({
     };
 
     try {
-      setDoc(cartItemRef, cartItemData, { merge: true });
+      setDoc(cartItemRef, cartItemData, { merge: true }).then(() =>
+        mirrorCartItem(user, product.id),
+      );
     } catch (e) {
       errorEmitter.emit(
         'permission-error',

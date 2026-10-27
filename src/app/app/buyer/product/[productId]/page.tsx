@@ -69,6 +69,7 @@ import {
 } from '@/firebase';
 import type { Product, SellerShop, UserProfile } from '@/lib/types';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
+import { mirrorCartItem } from '@/lib/users/mirror';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -182,6 +183,7 @@ export default function BuyerProductDetailPage() {
 
       try {
         await setDoc(cartItemRef, cartData, { merge: true });
+        mirrorCartItem(user, productId);
         return true;
       } catch {
         errorEmitter.emit(

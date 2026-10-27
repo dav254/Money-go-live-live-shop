@@ -29,6 +29,7 @@ import {
   withShareRef as withShareRefPure,
   type GrowthTargetKind,
 } from './events';
+import { CHANNEL_IDS as DISTRIBUTION_CHANNELS } from '../vidnov-core/types';
 
 // Re-export so product/share surfaces import attribution from one place.
 export { withShareRefPure as withShareRef };
@@ -73,6 +74,7 @@ function send(input: TrackInput): void {
         platform: input.platform,
         dwellMs: input.dwellMs,
         ref: readStoredShareRef() || undefined,
+        ch: pageChannel() || undefined,
       }),
     })
       .then((res) => {
@@ -122,6 +124,23 @@ export function trackShareClick(
 }
 
 /* ── Share attribution (?ref= on arriving links) ─────────────────────── */
+
+/**
+ * The distribution channel (`?ch=…`) of the CURRENT page, validated against
+ * the same closed set the server enforces (the server re-validates anyway —
+ * this only keeps the wire format clean). Read at send time rather than
+ * stored: the tracked link's parameters are still in the URL while the view
+ * or share click is recorded. Never throws.
+ */
+function pageChannel(): string | null {
+  try {
+    if (typeof window === 'undefined') return null;
+    const raw = (new URLSearchParams(window.location.search).get('ch') ?? '').trim().toLowerCase();
+    return (DISTRIBUTION_CHANNELS as readonly string[]).includes(raw) ? raw : null;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Captures `?ref=<code>` from the arriving URL into localStorage (14-day

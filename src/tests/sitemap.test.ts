@@ -14,6 +14,7 @@ import {
   isPrivatePath,
   SITEMAP_ORIGIN,
 } from '../lib/sitemap-entries';
+import robots from '../app/robots';
 
 test('sitemap uses exactly the canonical https://vidnov.com origin', () => {
   assert.equal(SITEMAP_ORIGIN, 'https://vidnov.com');
@@ -127,4 +128,43 @@ test('entry list stays under the sitemap protocol ceiling', () => {
   const many = Array.from({ length: 60_000 }, (_, i) => `id${i}`);
   const entries = buildSitemapEntries({ productIds: many, shopIds: [] });
   assert.ok(entries.length <= 5000, `expected cap, got ${entries.length}`);
+});
+
+test('robots preserves sitemap pointer and the original disallow list', () => {
+  const rules = robots();
+  // Next types `rules` as object-or-array — normalize once here.
+  const list = Array.isArray(rules.rules) ? rules.rules : [rules.rules];
+  assert.equal(rules.sitemap, `${SITEMAP_ORIGIN}/sitemap.xml`);
+
+  const wildcard = list.find((r) => r.userAgent === '*');
+  assert.ok(wildcard, 'wildcard rule must exist');
+  assert.equal(wildcard.allow, '/');
+  assert.deepEqual(
+    wildcard.disallow,
+    ['/dashboard', '/app', '/admin', '/api', '/auth', '/messages', '/checkout', '/buyer'],
+    'original disallow list preserved verbatim',
+  );
+});
+
+test('robots explicitly allows OAI-SearchBot and ordinary search crawlers', () => {
+  const rules = robots();
+  const list = Array.isArray(rules.rules) ? rules.rules : [rules.rules];
+  const wildcard = list.find((r) => r.userAgent === '*')!;
+
+  for (const ua of ['OAI-SearchBot', 'Googlebot', 'Bingbot', 'DuckDuckBot']) {
+    const rule = list.find((r) => r.userAgent === ua);
+    assert.ok(rule, `${ua} must have an explicit rule`);
+    assert.equal(rule.allow, '/', `${ua} must be explicitly allowed`);
+    assert.deepEqual(rule.disallow, wildcard.disallow, `${ua} keeps the same disallow list`);
+  }
+
+  // Named rules come first: consumers take the first match.
+  assert.equal(list[0]?.userAgent, 'OAI-SearchBot');
+
+  // GPTBot must NOT be named — its permissions stay whatever the wildcard
+  // has always given it, unless changed for a separate documented reason.
+  assert.ok(
+    !list.some((r) => /GPTBot/i.test(String(r.userAgent))),
+    'GPTBot must not gain an explicit rule',
+  );
 });

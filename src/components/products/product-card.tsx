@@ -7,6 +7,7 @@ import { Heart, ShoppingCart, Eye, Video, Tag } from 'lucide-react';
 import Link from 'next/link';
 import { useUser, useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { doc, setDoc, increment, serverTimestamp, writeBatch } from 'firebase/firestore';
+import { mirrorCartItem } from '@/lib/users/mirror';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -53,7 +54,9 @@ export function ProductCard({ product }: ProductCardProps) {
       addedAt: serverTimestamp(),
     };
 
-    setDoc(cartItemRef, cartItemData, { merge: true }).catch(error => {
+    setDoc(cartItemRef, cartItemData, { merge: true })
+      .then(() => mirrorCartItem(user, product.id))
+      .catch(error => {
         errorEmitter.emit(
         'permission-error',
         new FirestorePermissionError({

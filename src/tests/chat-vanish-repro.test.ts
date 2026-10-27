@@ -33,32 +33,26 @@
  *       chat whose peer profile had not resolved (V1/V2 can both cause that)
  *       rendered as nothing at all. Fix in tree: optional chaining + fallback.
  *
- * LIVE REPRO (NOT YET FIXED) — the shared `deletedFor` clobber:
+ * LIVE REPRO — the shared `deletedFor` clobber — NOW FIXED BY THE VPS MOVE:
  *
- *  Every surface hides a conversation with a *per-user* flag
+ *  Every surface used to hide a conversation with a *per-user* flag
  *  (`deletedFor: arrayUnion(uid)`), and every list filter is per-user
- *  (`!deletedFor.includes(uid)`). But every send (and reopen) rewrites the
+ *  (`!deletedFor.includes(uid)`). But every send (and reopen) rewrote the
  *  SHARED array wholesale with `deletedFor: []` — so a message from the other
- *  participant erases *your* hide. Verified steps:
+ *  participant erased *your* hide. Verified steps:
  *
  *   1. Seller deletes the conversation → chats/{id}.deletedFor = [seller].
  *      Seller's list filter excludes it. Correct.
  *   2. Buyer sends a message → buyer client writes chats/{id}
  *      { deletedFor: [] } (buyer-messages.tsx send()).
- *   3. Firestore applies the update wholesale (the chats rule permits any
- *      participant to `update`, so it is not denied) → seller's uid is gone.
- *   4. Seller's `onSnapshot` fires (the list query filters only on
- *      participantIds, never on deletedFor) → the filter no longer excludes
- *      the chat → the deleted conversation REAPPEARS with a fresh badge.
+ *   3. Firestore applies the update wholesale → seller's uid is gone.
+ *   4. Seller's snapshot fires → the filter no longer excludes the chat → the
+ *      deleted conversation REAPPEARS with a fresh badge.
  *
- *   Manual two-account check (prod or preview):
- *     A: Messages → open chat → ⋯ → Delete  (row leaves A's inbox)
- *     B: send "hello"
- *     A: inbox — the deleted chat is back.
- *
- *   The missing fix is a per-user removal (`arrayRemove(myUid)`) instead of a
- *   wholesale `[]` reset; this suite asserts no surface uses arrayRemove yet,
- *   so a future fix flips that test and forces the simulation to be updated.
+ *  The message section now lives on the VPS (`src/lib/chat/store.ts`): no
+ *  surface writes to Firestore `chats` at all, hiding is a per-user API
+ *  action, and a send clears only the SENDER's own flag. The suite below
+ *  asserts that fix stays fixed.
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
@@ -133,48 +127,70 @@ describe('vanish V3: rows rendered as nothing when the peer profile is unresolve
   });
 });
 
-describe('live repro: the shared deletedFor clobber', () => {
-  it('premise — every send rewrites the shared array wholesale with deletedFor: []', () => {
+describe('clobber FIX — a hide is per-user and survives somebody else sending', () => {
+  it('no surface rewrites the shared array wholesale with deletedFor: [] any more', () => {
     for (const [name, src] of Object.entries(ALL_SURFACES)) {
-      assert.match(
+      assert.doesNotMatch(
         src,
         /deletedFor:\s*\[\]/,
-        `${name} no longer resets deletedFor — update the repro simulation below if this was a fix`,
+        `${name} resets the shared deletedFor array — that is the clobber bug`,
       );
     }
   });
 
-  it('premise — hiding is per-user (arrayUnion) and every list filter is per-user (includes)', () => {
-    // Hide sites: both surfaces that expose "Delete conversation".
-    assert.match(CHAT_WINDOW, /deletedFor:\s*arrayUnion\(/);
-    assert.match(SELLER_THREAD, /deletedFor:\s*arrayUnion\(/);
+  it('hiding is a per-user API action; the shared array is never written from the client', () => {
+    // The two surfaces that expose "Delete conversation".
+    assert.match(CHAT_WINDOW, /patchChat\([\s\S]{0,120}?'hide'\)/);
+    assert.match(SELLER_THREAD, /patchChat\([\s\S]{0,120}?'hide'\)/);
+    for (const [name, src] of Object.entries(ALL_SURFACES)) {
+      assert.doesNotMatch(
+        src,
+        /arrayUnion|arrayRemove/,
+        `${name} still writes the shared deletedFor array directly — hiding must go through PATCH /api/chat`,
+      );
+    }
     // List filters: identical per-user predicate on all three list surfaces.
     assert.match(SELLER_MESSAGES, /!\(chat\.deletedFor\s*\?\?\s*\[\]\)\.includes\(user\.uid\)/);
     assert.match(BUYER_MESSAGES, /!\(c\.deletedFor\s*\|\|\s*\[\]\)\.includes\(user\?\.uid\s*\?\?\s*''\)/);
     assert.match(CHAT_SYSTEM, /!chat\.deletedFor\?\.includes\(user\.uid\)/);
   });
 
-  it('premise — no surface removes only its own uid (the missing fix)', () => {
+  it("a send clears only the sender's own hide flag — the missing fix", () => {
+    const store = read('src', 'lib', 'chat', 'store.ts');
+    assert.match(
+      store,
+      /const deletedFor = \(chat\.deletedFor \?\? \[\]\)\.filter\(\(id\) => id !== senderId\)/,
+      'appendMessage must remove only the sender uid from deletedFor',
+    );
+    assert.match(
+      store,
+      /Array\.from\(new Set\(\[\.\.\.current, uid\]\)\)/,
+      "hide must append the caller's own uid, never replace the list",
+    );
+  });
+
+  it('no message surface reads or writes Firestore `chats` at all', () => {
     for (const [name, src] of Object.entries(ALL_SURFACES)) {
       assert.doesNotMatch(
         src,
-        /arrayRemove/,
-        `${name} now uses arrayRemove — the clobber is fixed: re-verify the simulation below`,
+        /collection\(\s*firestore\s*,\s*'chats'|'chats',\s*chat\.id,\s*'messages'|\bonSnapshot\(/,
+        `${name} still talks to Firestore for conversations or messages`,
       );
     }
   });
 
-  it('premise — the rules let any participant update the chat doc, so the clobber is not denied server-side', () => {
+  it("the legacy Firestore rule would still let any participant clobber it — which is why no client writes `chats`", () => {
     const chatsBlock = RULES.match(/match\s+\/chats\/\{chatId\}\s*\{([\s\S]*?)match\s+\/messages/);
     assert.ok(chatsBlock, 'chats match block missing from src/firestore.rules');
     assert.match(
       chatsBlock[1],
       /allow list, read, update: if isSignedIn\(\) && \(request\.auth\.uid in resource\.data\.participantIds \|\| isAdmin\(\)\);/,
+      'if this rule ever tightens, drop the guard above — the client must stay off Firestore chats regardless',
     );
   });
 
-  it('REPRO: seller deletes the chat, buyer sends, seller\'s hidden chat becomes visible again', () => {
-    // The chat document as it exists after the seller taps "Delete".
+  it("REGRESSION: seller deletes the chat, buyer sends, the seller's hide survives", () => {
+    // The chat row as it exists after the seller taps "Delete".
     type ChatDoc = { participantIds: string[]; deletedFor: string[]; lastMessage?: string };
     const SELLER = 'seller-uid';
     const BUYER = 'buyer-uid';
@@ -184,23 +200,21 @@ describe('live repro: the shared deletedFor clobber', () => {
 
     let chat: ChatDoc = { participantIds: [SELLER, BUYER], deletedFor: [] };
 
-    // Step 1 — seller hides it: thread.tsx removeConversation() writes
-    // `deletedFor: arrayUnion(currentUser.uid)`.
+    // Step 1 — seller hides it: PATCH /api/chat/{id} { action: 'hide' }, which
+    // appends one uid (store.ts hideOrRestore) instead of arrayUnion.
     chat = { ...chat, deletedFor: [...new Set([...chat.deletedFor, SELLER])] };
     assert.equal(sellerSees(chat), false, 'step 1: chat must leave the seller inbox');
 
-    // Step 2 — buyer sends: buyer-messages.tsx send() writes the whole chat
-    // update `{ lastMessage, lastMessageTimestamp, deletedFor: [] }`.
-    const buyerSendPayload: Partial<ChatDoc> = { deletedFor: [] };
-    chat = { ...chat, ...buyerSendPayload };
+    // Step 2 — buyer sends: store.ts appendMessage rewrites deletedFor with
+    // the SENDER's uid removed only.
+    chat = { ...chat, deletedFor: chat.deletedFor.filter((id) => id !== BUYER) };
 
-    // Step 3 — server applies the payload wholesale (participant update rule
-    // allows it), then the seller's onSnapshot re-runs the filter.
+    // Step 3 — the seller's flag is still there, so the filter still excludes it.
     assert.equal(
       sellerSees(chat),
-      true,
-      'step 3 REPRO: the seller\'s deleted conversation is visible again — this is the live bug',
+      false,
+      "step 3 REGRESSION: the seller's deleted conversation became visible again",
     );
-    assert.deepEqual(chat.deletedFor, [], 'the buyer\'s send erased the seller\'s hide flag');
+    assert.deepEqual(chat.deletedFor, [SELLER], "the buyer's send must not erase the seller's hide flag");
   });
 });

@@ -144,14 +144,14 @@ async function resolveFolder(raw: string, userId: string): Promise<string | null
   const [root, owner] = parts;
   if (!FOLDER_ROOTS.has(root)) return null;
   if (root === 'chats') {
-    // Chat membership is the one place we still consult Firestore — but as a
-    // best-effort guard, never a hard dependency for the publish path.
+    // Chat membership lives on the VPS with the rest of the message section,
+    // so this is the ONE place the media engine consults the chat store — and
+    // only to decide whether this uid may write into this conversation's
+    // folder. It is never a hard dependency for the product publish path.
     if (parts.length !== 2) return null;
     try {
-      const { db } = await import('@/firebase/server');
-      const chat = await db.collection('chats').doc(owner).get();
-      const ids: unknown = chat.data()?.participantIds;
-      return Array.isArray(ids) && ids.includes(userId) ? clean : null;
+      const { isChatParticipant } = await import('@/lib/chat/store');
+      return (await isChatParticipant(owner, userId)) ? clean : null;
     } catch {
       return null;
     }

@@ -247,6 +247,35 @@ where a Firestore outage used to halt the business rather than just hide data:
 Run the three backfills once, in any order, after setting the PocketBase env
 vars — all are safe to re-run (matched by original Firestore id).
 
+### Migrated sections — shops and per-user data
+
+Two more sets of documents were only ever in Firestore, and each one was a
+single point of failure for something the rest of the mirrored data points at:
+
+- **Shops** (`seller_shops`). `sellerShops/{uid}` is the storefront — name,
+  logo, banner, category, location, policies, links — and Discovery, the buyer
+  dashboard, invoices and the LIVE grid all read it. The listings were already
+  mirrored, so the catalog survived an outage while the shops in front of it
+  did not. Every seller save (settings, branding, account, social links)
+  syncs to the VPS (`/api/shops/sync`), the public business endpoint and the
+  LIVE grid read the VPS copy first, and the LIVE grid resolves every shop in
+  one request instead of one Firestore read per seller.
+  Backfill: `npx -y tsx scripts/migrate-shops.ts`
+- **Per-user data** (`user_carts`, `user_payment_methods`,
+  `user_payout_methods`). The `payments`/`payouts` ledgers were mirrored but
+  the documents they depend on were not: the cart both cart screens read at
+  checkout, and the payout destinations a withdrawal is sent to. Every add,
+  quantity change and removal syncs (`/api/users/sync`, always scoped to the
+  caller's own profile — the route cannot name another account at all), and
+  `GET /api/cart` serves the VPS copy first so a Firestore failure shows the
+  buyer their cart instead of an empty one. Backfill (collection-group reads,
+  one query per set): `npx -y tsx scripts/migrate-user-data.ts`
+
+Like the others, both backfills are safe to re-run — shops match on their
+Firestore id, per-user documents on owner + document id — and every mirror
+helper returns `false`/`null` instead of throwing when PocketBase is off, so
+deploying this changes nothing until the env vars are set.
+
 One-time setup on the VPS:
 
 ```bash

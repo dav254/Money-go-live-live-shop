@@ -15,6 +15,7 @@ import { FirestorePermissionError } from '@/firebase/errors';
 import type { CartItem, Order } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { mirrorOrder } from '@/lib/orders/mirror';
+import { mirrorCartItem, mirrorCartItemDelete } from '@/lib/users/mirror';
 import { readStoredShareRef } from '@/lib/growth/client';
 import { Button } from '@/components/ui/button';
 import {
@@ -47,7 +48,41 @@ export default function BuyerSectionCart() {
     return collection(firestore, 'userProfiles', user.uid, 'cart');
   }, [user, firestore]);
 
-  const { data: cartItems, isLoading: areItemsLoading } = useCollection<CartItem>(cartQuery);
+  const {
+    data: liveCartItems,
+    isLoading: areItemsLoading,
+    error: cartError,
+  } = useCollection<CartItem>(cartQuery);
+
+  /*
+   * VPS FALLBACK — same as the website's /cart. The cart is mirrored to the
+   * PocketBase store on every change, so a Firestore failure still shows the
+   * buyer what they put in the cart instead of an empty one. Best-effort,
+   * never awaited; live Firestore data wins whenever it exists.
+   */
+  const [vpsCartItems, setVpsCartItems] = React.useState<CartItem[] | null>(null);
+  React.useEffect(() => {
+    if (!cartError || !user) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const token = await user.getIdToken();
+        const res = await fetch('/api/cart', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) return;
+        const payload = (await res.json()) as { items?: CartItem[] };
+        if (!cancelled && Array.isArray(payload.items)) setVpsCartItems(payload.items);
+      } catch {
+        /* Both stores unavailable — the empty state covers it. */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [cartError, user]);
+
+  const cartItems = cartError ? vpsCartItems : liveCartItems;
   const isLoading = areItemsLoading || isProfileLoading;
 
   const subtotal = React.useMemo(
@@ -81,6 +116,7 @@ export default function BuyerSectionCart() {
       await updateDoc(doc(firestore, 'userProfiles', user.uid, 'cart', item.productId), {
         quantity: newQuantity,
       });
+      mirrorCartItem(user, item.productId);
     } catch {
       toast({ variant: 'destructive', title: 'Could not update item quantity.' });
     }
@@ -90,6 +126,7 @@ export default function BuyerSectionCart() {
     if (!user || !firestore) return;
     try {
       await deleteDoc(doc(firestore, 'userProfiles', user.uid, 'cart', item.productId));
+      mirrorCartItemDelete(user, item.productId);
       toast({ title: 'Item removed', description: `${item.name} is no longer in your cart.` });
     } catch {
       toast({ variant: 'destructive', title: 'Could not remove that item.' });

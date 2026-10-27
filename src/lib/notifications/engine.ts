@@ -13,8 +13,7 @@ import type { Firestore as AdminFirestore } from 'firebase-admin/firestore';
 import { appLink, type EmailCategory } from './config';
 import { sendTemplateEmail } from './email-service';
 import { sendPushToUser } from './push-server';
-import { isPushEnabledFor } from './push-preferences';
-import { createNotification } from './store';
+import { createNotification, isPushEnabledFor } from './store';
 
 export type NotificationType =
   | 'ORDER_CONFIRMED' | 'ORDER_STATUS' | 'BOOKING_CONFIRMED' | 'BOOKING_REMINDER'

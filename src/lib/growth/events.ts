@@ -28,6 +28,8 @@
  * write per viewer per target per day, never one per refresh.
  */
 
+import { CHANNEL_IDS as DISTRIBUTION_CHANNELS } from '../vidnov-core/types';
+
 /* ── Limits & whitelists ────────────────────────────────────────────────── */
 
 /** Max JSON body size accepted by /api/events (bytes). */
@@ -46,6 +48,13 @@ export const EVENT_RETENTION_DAYS = 30;
 
 export const EVENT_TYPES = ['view', 'click'] as const;
 export type GrowthEventType = (typeof EVENT_TYPES)[number];
+
+/**
+ * Distribution channel labels (`?ch=` on tracked links — see
+ * vidnov-core/attribution). The SAME closed set the engine's destination
+ * registry uses, imported from the pure canonical-types module (no I/O, no
+ * cycles) so URL attribution can never invent a channel name.
+ */
 
 export const TARGET_KINDS = ['product', 'shop'] as const;
 export type GrowthTargetKind = (typeof TARGET_KINDS)[number];
@@ -85,6 +94,14 @@ export interface ParsedEvent {
   sid?: string;
   /** Normalised referral code carried on the arriving link, if any. */
   ref?: string;
+  /**
+   * Distribution channel (`?ch=google` etc.) present on the arriving URL.
+   * Attribution LABEL only: validated against the closed channel set, used
+   * for destination analytics, and it can never by itself trigger a reward
+   * or a counter. An unrecognised value is DROPPED — attribution may not
+   * break measurement.
+   */
+  channel?: string;
 }
 
 export type ParseResult =
@@ -156,6 +173,14 @@ export function parseEventInput(body: unknown): ParseResult {
       return { ok: false, error: 'Invalid ref.' };
     }
     value.ref = body.ref;
+  }
+
+  if (typeof body.ch === 'string' && body.ch.length <= 16) {
+    if ((DISTRIBUTION_CHANNELS as readonly string[]).includes(body.ch)) {
+      value.channel = body.ch;
+    }
+    // Unknown label ⇒ dropped silently: a forged `ch` must never reject the
+    // event (measurement) nor survive as free-form text (no junk storage).
   }
 
   return { ok: true, value };

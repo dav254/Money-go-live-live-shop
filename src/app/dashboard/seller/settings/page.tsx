@@ -40,6 +40,7 @@ import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { mergeSocialLinks, type SocialLink } from '@/lib/social-links';
+import { mirrorShop } from '@/lib/shops/mirror';
 import { SOCIAL_LINK_ICONS } from '@/components/seller/social-link-icons';
 import {
   SocialLinksEditor,
@@ -157,6 +158,7 @@ export default function SellerSettingsPage() {
     setIsSaving(true);
     try {
       await setDoc(sellerShopRef, { socialLinks: links }, { merge: true });
+      mirrorShop(user);
       setSocialLinks(links);
       setSocialLinksSaved(true);
       toast({ title: 'Links saved', description: 'They are on your shop now.' });
@@ -315,6 +317,7 @@ export default function SellerSettingsPage() {
         );
       }
       await batch.commit();
+      mirrorShop(user);
       toast({
         title: 'Settings saved',
         description: pointsToDeduct > 0

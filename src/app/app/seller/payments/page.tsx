@@ -53,6 +53,7 @@ import {
 import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { mirrorPayout } from '@/lib/wallet/mirror';
+import { mirrorPayoutMethod } from '@/lib/users/mirror';
 import { KENYA_BANKS } from '@/lib/constants';
 import { PAYOUT_STATUS_LABEL } from '@/lib/types';
 import type { Payout, PayoutMethod } from '@/lib/types';
@@ -193,12 +194,14 @@ function AddDestinationSheet({
     try {
       const ref = collection(firestore, 'userProfiles', user.uid, 'payoutMethods');
       const bank = KENYA_BANKS.find((b) => b.code === bankCode);
+      // Captured so the VPS mirror can name the document that was created.
+      let createdId: string | null = null;
 
       if (kind === 'bank') {
         // `details` is the one-line summary the admin console reads in the
         // payout row, so it is built here exactly as the website builds it:
         // only the last four digits of the account are ever surfaced.
-        await addDoc(ref, {
+        createdId = (await addDoc(ref, {
           type: 'bank',
           details: `${bank?.name ?? 'Bank'} - *...${trimmedNumber.slice(-4)}`,
           bankName: bank?.name ?? 'Unknown Bank',
@@ -206,27 +209,28 @@ function AddDestinationSheet({
           accountNumber: trimmedNumber,
           bankCode,
           country: 'Kenya',
-        });
+        })).id;
       } else if (kind === 'phone') {
         const normalized = trimmedPhone.startsWith('+')
           ? trimmedPhone
           : trimmedPhone.startsWith('0')
             ? `+254${trimmedPhone.slice(1)}`
             : `+254${trimmedPhone}`;
-        await addDoc(ref, {
+        createdId = (await addDoc(ref, {
           type: 'phone',
           details: `M-PESA - ${normalized}`,
           phoneNumber: normalized,
           country: 'Kenya',
-        });
+        })).id;
       } else {
-        await addDoc(ref, {
+        createdId = (await addDoc(ref, {
           type: 'paypal',
           details: paypalEmail.trim(),
           paypalEmail: paypalEmail.trim(),
-        });
+        })).id;
       }
 
+      if (createdId) mirrorPayoutMethod(user, createdId);
       toast({
         title: 'Saved',
         description: 'Your payment details are with the team now.',
@@ -631,6 +635,7 @@ export default function SellerSectionPayments() {
     setDeletingId(method.id);
     try {
       await deleteDoc(doc(firestore, 'userProfiles', user.uid, 'payoutMethods', method.id));
+      mirrorPayoutMethod(user, method.id, 'delete');
       toast({ title: 'Removed', description: 'That destination has been deleted.' });
     } catch (err) {
       console.error('Error deleting payout method:', err);

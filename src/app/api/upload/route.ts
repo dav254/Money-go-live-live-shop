@@ -19,17 +19,6 @@ const ALLOWED_FOLDER = /^sellers\/[A-Za-z0-9_-]{6,128}\/products$/;
 const ALLOWED_RESOURCE_TYPES = new Set(['image', 'video']);
 
 /**
- * Health check node for Cloudinary connectivity.
- */
-export async function healthCheck() {
-    const config = cloudinary.config();
-    if (config.cloud_name && config.api_key && config.api_secret) {
-        return { status: 'operational' };
-    }
-    return { status: 'outage', message: 'Cloudinary credentials missing.' };
-}
-
-/**
  * Generates a secure, scoped signature for client-side uploads.
  *
  * The client no longer decides what it can sign — it only tells us which

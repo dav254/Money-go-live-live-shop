@@ -2,6 +2,15 @@
 // This file is designated for server-side health checks.
 // It is crucial that this file does not contain the 'use client';' directive.
 import { db } from '@/firebase/server';
+import { v2 as cloudinary } from 'cloudinary';
+
+// Cloudinary config mirrors the signature route's setup; credentials are read
+// from env at call time, never logged.
+cloudinary.config({
+    cloud_name: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
 type Status = 'operational' | 'degraded' | 'outage';
 
@@ -21,4 +30,17 @@ export async function checkFirestoreHealth(): Promise<Status> {
         console.error("Firestore health check failed:", error);
         return 'outage';
     }
+}
+
+/**
+ * Health check node for Cloudinary connectivity.
+ * Lives here (not in `app/api/upload/route.ts`) because Next.js route modules may
+ * only export standard HTTP handlers — extra exports fail route type validation.
+ */
+export async function cloudinaryHealthCheck(): Promise<{ status: Status; message?: string }> {
+    const config = cloudinary.config();
+    if (config.cloud_name && config.api_key && config.api_secret) {
+        return { status: 'operational' };
+    }
+    return { status: 'outage', message: 'Cloudinary credentials missing.' };
 }

@@ -31,32 +31,26 @@
  *
  * ## Firestore rules this must respect
  *
- * `chats` may only be read with `participantIds array-contains uid`; a bare
- * `list()` is rejected. Profiles are read one `getDoc` at a time, because
- * `userProfiles` allows `get` for anyone but restricts `list` to self,
- * referrer and admin — so a batched `in` query is denied for other people's
- * profiles. Both `participantIds` and `deletedFor` are normalised on the way
- * in — older documents omit them, and reading them unguarded throws inside
- * `onSnapshot`, which kills the screen.
+ * Conversations themselves are no longer read from Firestore at all: the inbox
+ * and the thread come from the VPS store (`useChats` / `useMessages` →
+ * `/api/chat`), polled and scoped server-side to the caller's own uid.
+ * Profiles are still read one `getDoc` at a time, because `userProfiles`
+ * allows `get` for anyone but restricts `list` to self, referrer and admin —
+ * so a batched `in` query is denied for other people's profiles. Both
+ * `participantIds` and `deletedFor` are normalised on the way in — older
+ * records omit them, and reading them unguarded throws, which kills the
+ * screen.
  *
- * The write contract is deliberately identical to the seller's and the
- * website's, so history written on any surface renders here:
- *   chats/{id}/messages  { senderId, timestamp, isRead, messageType, … }
- *   chats/{id}           lastMessage, lastMessageTimestamp, deletedFor,
- *                        unreadCounts.{uid}
- *
- * Note `messageText` is the runtime key (`ChatMessage.text` in `@/lib/types`
- * is a stale legacy alias), so both are read.
+ * The message shape is deliberately identical to the seller's and the
+ * website's, so history written on any surface renders here. Note
+ * `messageText` is the runtime key (`ChatMessage.text` in `@/lib/types` is a
+ * stale legacy alias), so both are read.
  */
 
 import * as React from 'react';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
-import {
-  addDoc, collection, deleteDoc, doc, getDoc, getDocs,
-  increment, onSnapshot, orderBy, query, serverTimestamp, setDoc,
-  updateDoc, where,
-} from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import {
   ArrowLeft, Check, CheckCheck, ImagePlus, Loader2, MessageCircle,
   Search, Send, Trash2,
@@ -64,6 +58,15 @@ import {
 
 import { useFirestore, useUser } from '@/firebase';
 import type { Chat, ChatMessage, UserProfile } from '@/lib/types';
+import { useChats, useMessages } from '@/lib/chat/use-chat';
+import {
+  deleteChatMessage,
+  openChat,
+  patchChat,
+  sendChatMessage,
+  type SendMessagePayload,
+} from '@/lib/chat/client';
+import { uploadMedia } from '@/lib/media/upload-client';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
@@ -122,64 +125,59 @@ export function BuyerMessages() {
   /** `?chatWith=<sellerId>` — the entry point from the feed and product card. */
   const chatWith = searchParams?.get('chatWith') || null;
 
-  // Keep the inbox live. `participantIds array-contains uid` is the only
-  // shape the rules allow.
+  // Keep the inbox live: conversations come from the VPS store, polled.
+  const {
+    chats: liveChats,
+    isLoading: chatsLoading,
+    error: chatsError,
+    refresh: refreshChats,
+  } = useChats();
+
   React.useEffect(() => {
-    if (!firestore || !user) return;
+    setChats(liveChats);
+  }, [liveChats]);
+
+  React.useEffect(() => {
+    if (!firestore || !user || chatsLoading) return;
     let alive = true;
 
-    const q = query(collection(firestore, 'chats'), where('participantIds', 'array-contains', user.uid));
-    const unsub = onSnapshot(
-      q,
-      async (snap) => {
-        const rows: Chat[] = snap.docs.map((d) => {
-          const data = d.data();
-          return {
-            ...data,
-            id: d.id,
-            participantIds: Array.isArray(data.participantIds) ? data.participantIds : [],
-            deletedFor: Array.isArray(data.deletedFor) ? data.deletedFor : [],
-          } as Chat;
-        });
-        if (alive) setChats(rows);
-
-        // Profiles change far less often than chats: fetch only unknown ids.
-        const wanted: string[] = [];
-        rows.forEach((c) =>
-          c.participantIds.forEach((id) => {
-            if (id !== user.uid && !profilesRef.current.has(id)) wanted.push(id);
-          }),
-        );
-        if (wanted.length === 0) return;
-
-        const fetched: Record<string, UserProfile> = {};
-        // One `getDoc` per profile, NOT a batched `in` query.
-        //
-        // `firestore.rules` allows `get` on any userProfiles document but
-        // restricts `list` to self, referrer or admin. A `where('__name__',
-        // 'in', ...)` is a list, so it is denied for other people's profiles
-        // and every seller would render as a nameless "Seller" with a
-        // placeholder avatar. `get` is public, so this is the only shape that
-        // works. Sequential on purpose: a rejected bulk query would fail the
-        // whole batch, and parallel requests would spike the read quota.
-        for (const id of wanted) {
-          const snap = await getDoc(doc(firestore, 'userProfiles', id)).catch(() => null);
-          if (!snap?.exists()) continue;
-          fetched[id] = snap.data() as UserProfile;
-          profilesRef.current.add(id);
-        }
-        if (alive && Object.keys(fetched).length) setProfiles((p) => ({ ...p, ...fetched }));
-      },
-      () => {
-        if (alive) setIsLoading(false);
-      },
+    // Profiles change far less often than chats: fetch only unknown ids.
+    const wanted: string[] = [];
+    liveChats.forEach((c) =>
+      c.participantIds.forEach((id) => {
+        if (id !== user.uid && !profilesRef.current.has(id)) wanted.push(id);
+      }),
     );
+    if (wanted.length === 0) {
+      setIsLoading(false);
+      return;
+    }
+
+    (async () => {
+      const fetched: Record<string, UserProfile> = {};
+      // One `getDoc` per profile, NOT a batched `in` query.
+      //
+      // `firestore.rules` allows `get` on any userProfiles document but
+      // restricts `list` to self, referrer or admin. A `where('__name__',
+      // 'in', ...)` is a list, so it is denied for other people's profiles
+      // and every seller would render as a nameless "Seller" with a
+      // placeholder avatar. `get` is public, so this is the only shape that
+      // works. Sequential on purpose: a rejected bulk query would fail the
+      // whole batch, and parallel requests would spike the read quota.
+      for (const id of wanted) {
+        const snap = await getDoc(doc(firestore, 'userProfiles', id)).catch(() => null);
+        if (!snap?.exists()) continue;
+        fetched[id] = snap.data() as UserProfile;
+        profilesRef.current.add(id);
+      }
+      if (alive && Object.keys(fetched).length) setProfiles((p) => ({ ...p, ...fetched }));
+      if (alive) setIsLoading(false);
+    })();
 
     return () => {
       alive = false;
-      unsub();
     };
-  }, [firestore, user]);
+  }, [firestore, user, liveChats, chatsLoading]);
 
   // Arriving from "Message seller": open (or create) that conversation.
   const [openingChatWith, setOpeningChatWith] = React.useState<string | null>(null);
@@ -201,28 +199,11 @@ export function BuyerMessages() {
         }
       }
 
-      // Reuse the existing 1:1 chat if there is one, else open a new one.
-      const snap = await getDocs(
-        query(collection(firestore, 'chats'), where('participantIds', 'array-contains', user.uid)),
-      );
-      let existing: string | null = null;
-      snap.forEach((d) => {
-        const ids: string[] = Array.isArray(d.data().participantIds) ? d.data().participantIds : [];
-        if (ids.includes(chatWith)) existing = d.id;
-      });
-
-      if (!existing) {
-        const ref = doc(collection(firestore, 'chats'));
-        await setDoc(ref, {
-          id: ref.id,
-          participantIds: [user.uid, chatWith],
-          lastMessage: 'Say hello to the seller.',
-          lastMessageTimestamp: serverTimestamp(),
-        });
-        if (!cancelled) existing = ref.id;
-      }
-
-      if (!cancelled && existing) setOpenId(existing);
+      // Reuse the existing 1:1 chat if there is one, else open a new one —
+      // the store is idempotent, and it also clears MY hide flag so a chat I
+      // deleted earlier becomes reachable again (mine only).
+      const chat = await openChat(user, chatWith, 'Say hello to the seller.');
+      if (!cancelled) setOpenId(chat.id);
     })().catch(() => {
       toast({ variant: 'destructive', title: 'Could not open that conversation.' });
     });
@@ -311,6 +292,12 @@ export function BuyerMessages() {
           />
         </div>
       </div>
+
+      {chatsError && (
+        <p className="mx-4 mt-3 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-destructive">
+          {chatsError}
+        </p>
+      )}
 
       <div className="mt-4 flex-1 overflow-y-auto px-4 pb-6">
         {visible.length === 0 ? (
@@ -409,49 +396,30 @@ function BuyerThread({
   onBack: () => void;
 }) {
   const { user } = useUser();
-  const firestore = useFirestore();
   const { toast } = useToast();
-  const [messages, setMessages] = React.useState<ChatMessage[]>([]);
+  const {
+    messages,
+    error: messagesError,
+    refresh: refreshMessages,
+  } = useMessages(chat.id);
   const [draft, setDraft] = React.useState('');
   const [sending, setSending] = React.useState(false);
   const [atBottom, setAtBottom] = React.useState(true);
   const scrollerRef = React.useRef<HTMLDivElement>(null);
   const fileRef = React.useRef<HTMLInputElement>(null);
 
-  const otherId = chat.participantIds.find((id) => id !== user?.uid) ?? '';
-
+  // Opening the thread clears its unread badge, for me only — one API call per
+  // NEW unread message (keyed by id), not one per poll tick.
+  const lastReadRef = React.useRef('');
   React.useEffect(() => {
-    if (!firestore || !chat.id) return;
-    const q = query(
-      collection(firestore, 'chats', chat.id, 'messages'),
-      orderBy('timestamp', 'asc'),
-    );
-    return onSnapshot(
-      q,
-      (snap) => {
-        setMessages(
-          snap.docs.map((d) => ({ ...(d.data() as ChatMessage), id: d.id }) as ChatMessage),
-        );
-      },
-      () => undefined,
-    );
-  }, [firestore, chat.id]);
-
-  // Opening the thread clears its unread badge, for me only.
-  React.useEffect(() => {
-    if (!firestore || !user || messages.length === 0) return;
+    if (!user || messages.length === 0) return;
     const unread = messages.filter((m) => m.senderId !== user.uid && !m.isRead);
     if (unread.length === 0) return;
-    unread.forEach((m) => {
-      updateDoc(doc(firestore, 'chats', chat.id, 'messages', m.id), {
-        isRead: true,
-        readAt: serverTimestamp(),
-      }).catch(() => undefined);
-    });
-    updateDoc(doc(firestore, 'chats', chat.id), {
-      [`unreadCounts.${user.uid}`]: 0,
-    }).catch(() => undefined);
-  }, [messages, firestore, user, chat.id]);
+    const newest = unread[unread.length - 1].id;
+    if (lastReadRef.current === newest) return;
+    lastReadRef.current = newest;
+    patchChat(user, chat.id, 'read').catch(() => undefined);
+  }, [messages, user, chat.id]);
 
   // Stay pinned to the newest message unless the buyer has scrolled up.
   React.useEffect(() => {
@@ -460,24 +428,15 @@ function BuyerThread({
     if (el) el.scrollTop = el.scrollHeight;
   }, [messages, atBottom]);
 
-  const send = async (payload: Record<string, unknown>, preview: string) => {
-    if (!firestore || !user) return;
+  const send = async (payload: SendMessagePayload) => {
+    if (!user) return;
     setSending(true);
     try {
-      await addDoc(collection(firestore, 'chats', chat.id, 'messages'), {
-        senderId: user.uid,
-        timestamp: serverTimestamp(),
-        isRead: false,
-        ...payload,
-      });
-
-      const update: Record<string, unknown> = {
-        lastMessage: preview.slice(0, 140),
-        lastMessageTimestamp: serverTimestamp(),
-        deletedFor: [],
-      };
-      if (otherId) update[`unreadCounts.${otherId}`] = increment(1);
-      await updateDoc(doc(firestore, 'chats', chat.id), update);
+      // The id is minted here so a retry of this exact send cannot double-post.
+      await sendChatMessage(user, chat.id, payload);
+      // Pull the thread straight away so the bubble appears now rather than at
+      // the next poll tick.
+      refreshMessages();
     } catch {
       toast({ variant: 'destructive', title: 'Message not sent.' });
     } finally {
@@ -489,24 +448,47 @@ function BuyerThread({
     const text = draft.trim();
     if (!text) return;
     setDraft('');
-    await send({ messageType: 'text', messageText: text }, text);
+    await send({ messageType: 'text', messageText: text });
   };
 
   const handleImage = async (file: File) => {
-    // Images are written by URL, not uploaded here: the app has no buyer-side
-    // upload surface yet, so this posts a link the seller can open rather than
-    // pretending to attach bytes it does not have.
-    const url = URL.createObjectURL(file);
-    await send(
-      { messageType: 'image', messageText: file.name, mediaUrl: url },
-      `Shared a photo: ${file.name}`,
-    );
+    if (!user) return;
+    setSending(true);
+    try {
+      // The photo is uploaded to the VPS under this conversation's own folder
+      // and the message carries its URL. It used to be sent as a `blob:` URL —
+      // a local object the SELLER could never open, so the attachment only
+      // ever worked on the sender's own device.
+      const result = await uploadMedia(
+        file,
+        user,
+        undefined,
+        { folder: `chats/${chat.id}` },
+      ).promise;
+      if (result.phase === 'failed' || !result.url) {
+        throw new Error(result.error || 'Upload failed.');
+      }
+      await send({
+        messageType: 'image',
+        mediaUrl: result.url,
+        mediaMetadata: { name: file.name, size: file.size, type: file.type || 'image/jpeg' },
+      });
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Could not send that photo',
+        description: error instanceof Error ? error.message : 'Please try again.',
+      });
+    } finally {
+      setSending(false);
+    }
   };
 
   const handleDelete = async (message: ChatMessage) => {
-    if (!firestore || !user) return;
+    if (!user) return;
     try {
-      await deleteDoc(doc(firestore, 'chats', chat.id, 'messages', message.id));
+      await deleteChatMessage(user, chat.id, message.id);
+      refreshMessages();
     } catch {
       toast({ variant: 'destructive', title: 'Could not delete that message.' });
     }
@@ -556,8 +538,14 @@ function BuyerThread({
         className="flex-1 space-y-2 overflow-y-auto px-3 py-4"
       >
         {messages.length === 0 && (
-          <p className="py-10 text-center text-sm text-muted-foreground">
-            No messages yet. Ask about price, delivery or availability.
+          <p
+            className={cn(
+              'py-10 text-center text-sm',
+              messagesError ? 'font-semibold text-destructive' : 'text-muted-foreground',
+            )}
+          >
+            {messagesError ||
+              'No messages yet. Ask about price, delivery or availability.'}
           </p>
         )}
 

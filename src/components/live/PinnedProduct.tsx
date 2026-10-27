@@ -9,6 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useUser, useFirestore } from '@/firebase';
 import { useRouter } from 'next/navigation';
 import { setDoc, doc, increment, serverTimestamp } from 'firebase/firestore';
+import { mirrorCartItem } from '@/lib/users/mirror';
 import Link from 'next/link';
 
 export function PinnedProduct({ product }: { product: Product }) {
@@ -33,7 +34,7 @@ export function PinnedProduct({ product }: { product: Product }) {
       imageUrl: product.imageUrl,
       addedAt: serverTimestamp(),
       sellerId: product.sellerId,
-    }, { merge: true });
+    }, { merge: true }).then(() => mirrorCartItem(user, product.id));
     toast({ title: "Added to Cart", description: `${product.name} has been added.` });
   };
 

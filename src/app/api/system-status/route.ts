@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import { checkFirestoreHealth } from '@/lib/server-health';
-import { healthCheck as cloudinaryHealth } from '../upload/route';
+import { checkFirestoreHealth, cloudinaryHealthCheck as cloudinaryHealth } from '@/lib/server-health';
 
 type Status = 'operational' | 'degraded' | 'outage';
 

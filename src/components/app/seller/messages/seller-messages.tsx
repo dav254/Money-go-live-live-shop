@@ -2,11 +2,10 @@
 
 import * as React from 'react';
 import { useSearchParams } from 'next/navigation';
-import {
-  collection, doc, getDoc, onSnapshot, query, where,
-} from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import { useFirestore, useUser } from '@/firebase';
-import type { Chat, UserProfile } from '@/lib/types';
+import type { UserProfile } from '@/lib/types';
+import { useChats } from '@/lib/chat/use-chat';
 import { SellerConversationList, type Conversation } from './conversation-list';
 import { SellerThread } from './thread';
 import { cn } from '@/lib/utils';
@@ -22,119 +21,103 @@ import { cn } from '@/lib/utils';
  * and — in a chat bubble — a "PAY NOW" button telling a seller to pay their
  * own invoice.
  *
- * This is the app's own implementation. Same Firestore documents, same write
- * contract, same feature set, but written for one-handed use in this shell:
- * a full-screen list that pushes into a full-screen thread and comes back,
- * which is how a phone actually works.
+ * This is the app's own implementation. Same feature set, but written for
+ * one-handed use in this shell: a full-screen list that pushes into a
+ * full-screen thread and comes back, which is how a phone actually works.
  *
  * ## Read rules
  *
- * `firestore.rules` permits only `chats` filtered by
- * `participantIds array-contains uid`, so that is the only query issued here —
- * never a bare `list()`. Participants are fetched in batches of 30 because
- * `in` queries are capped at 30 values.
+ * Conversations come from the VPS store (`useChats` → `/api/chat`, polled) —
+ * this screen no longer issues a Firestore query on `chats` at all. The API
+ * scopes every row to the caller's own uid from their verified token.
  *
- * Both `participantIds` and `deletedFor` are normalised at the point documents
- * enter state. Older chat documents, and any created outside the app, omit
- * them; reading them unguarded threw inside `onSnapshot`, which crashed the
- * whole screen once real data arrived — after a perfect server render.
+ * Participant profiles are still read from `userProfiles`, one `getDoc` per
+ * id: `firestore.rules` allows anyone to `get` a profile but restricts `list`
+ * to self, referrer or admin, so a batched `in` query is denied the moment a
+ * seller reads a buyer's profile. That rejection used to be uncaught inside an
+ * `onSnapshot` callback, which aborted it and left the seller with an empty
+ * inbox that looked exactly like "the buyer never messaged me". `get` is
+ * public, so this is the only shape that works, and a rejected read can no
+ * longer take the inbox down with it.
+ *
+ * Both `participantIds` and `deletedFor` are normalised before use: older chat
+ * records omit them, and reading them unguarded is what crashed the screen.
  */
 export function SellerMessages() {
   const { user } = useUser();
   const firestore = useFirestore();
   const searchParams = useSearchParams();
 
-  const [chats, setChats] = React.useState<Conversation[]>([]);
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
   const profilesRef = React.useRef(new Map<string, UserProfile>());
+  // Profiles live in a ref (they change far less often than chats), so the
+  // list needs a nudge when a batch lands.
+  const [profileVersion, setProfileVersion] = React.useState(0);
+
+  const {
+    chats: liveChats,
+    isLoading: chatsLoading,
+    error: chatsError,
+    refresh: refreshChats,
+  } = useChats();
 
   const chatWith = searchParams?.get('chatWith');
 
   React.useEffect(() => {
-    if (!firestore || !user) return;
+    if (!firestore || !user || chatsLoading) return;
     let alive = true;
-    setIsLoading(true);
 
-    const chatsQuery = query(
-      collection(firestore, 'chats'),
-      where('participantIds', 'array-contains', user.uid),
-    );
+    const wanted = new Set<string>();
+    liveChats.forEach((chat) => {
+      chat.participantIds.forEach((id) => {
+        if (id !== user.uid && !profilesRef.current.has(id)) wanted.add(id);
+      });
+    });
+    if (wanted.size === 0) {
+      setIsLoading(false);
+      return;
+    }
 
-    const unsubscribe = onSnapshot(
-      chatsQuery,
-      async (snapshot) => {
-        const normalised: Chat[] = snapshot.docs.map((d) => {
-          const data = d.data();
-          return {
-            ...data,
-            id: d.id,
-            participantIds: Array.isArray(data.participantIds) ? data.participantIds : [],
-            deletedFor: Array.isArray(data.deletedFor) ? data.deletedFor : [],
-          } as Chat;
-        });
-
-        // Profiles change far less often than chats, so they are cached for the
-        // life of the screen and only fetched for ids not already known.
-        const wanted = new Set<string>();
-        normalised.forEach((chat) => {
-          chat.participantIds.forEach((id) => {
-            if (id !== user.uid && !profilesRef.current.has(id)) wanted.add(id);
-          });
-        });
-
-        // One `getDoc` per profile, NOT a batched `where('id', 'in', …)`.
-        //
-        // `firestore.rules` allows anyone to `get` a userProfiles document but
-        // restricts `list` to self, referrer or admin, so a batched `in` query is
-        // denied the moment a seller reads a buyer's profile. That rejection used
-        // to be uncaught here, which aborted the whole `onSnapshot` callback and
-        // left the seller with an empty inbox that looked exactly like "the buyer
-        // never messaged me". `get` is public, so this is the only shape that
-        // works, and a rejected read can no longer take the inbox down with it.
-        if (wanted.size > 0) {
-          for (const id of wanted) {
-            const profileSnap = await getDoc(doc(firestore, 'userProfiles', id)).catch(
-              () => null,
-            );
-            const profile = profileSnap?.exists() ? (profileSnap.data() as UserProfile) : null;
-            // Cache even a miss, so a profile that will never resolve is not
-            // re-fetched on every snapshot.
-            profilesRef.current.set(id, profile ?? ({ id } as UserProfile));
-          }
-        }
-
-        if (!alive) return;
-
-        setChats(
-          normalised
-            .filter((chat) => !(chat.deletedFor ?? []).includes(user.uid))
-            .map((chat) => {
-              const otherId = chat.participantIds.find((id) => id !== user.uid);
-          return {
-            ...chat,
-            otherParticipant: otherId ? profilesRef.current.get(otherId) : undefined,
-            unreadCount: chat.unreadCounts?.[user.uid] ?? 0,
-          } satisfies Conversation;
-            })
-            .sort(
-              (a, b) =>
-                (b.lastMessageTimestamp?.toMillis?.() ?? 0) -
-                (a.lastMessageTimestamp?.toMillis?.() ?? 0),
-            ),
+    (async () => {
+      for (const id of wanted) {
+        const profileSnap = await getDoc(doc(firestore, 'userProfiles', id)).catch(
+          () => null,
         );
-        setIsLoading(false);
-      },
-      () => {
-        if (alive) setIsLoading(false);
-      },
-    );
+        const profile = profileSnap?.exists() ? (profileSnap.data() as UserProfile) : null;
+        // Cache even a miss, so a profile that will never resolve is not
+        // re-fetched on every poll.
+        profilesRef.current.set(id, profile ?? ({ id } as UserProfile));
+      }
+      if (!alive) return;
+      setProfileVersion((v) => v + 1);
+      setIsLoading(false);
+    })();
 
     return () => {
       alive = false;
-      unsubscribe();
     };
-  }, [firestore, user]);
+  }, [firestore, user, liveChats, chatsLoading]);
+
+  const chats = React.useMemo<Conversation[]>(() => {
+    if (!user) return [];
+    return liveChats
+      .filter((chat) => !(chat.deletedFor ?? []).includes(user.uid))
+      .map((chat) => {
+        const otherId = chat.participantIds.find((id) => id !== user.uid);
+        return {
+          ...chat,
+          otherParticipant: otherId ? profilesRef.current.get(otherId) : undefined,
+          unreadCount: chat.unreadCounts?.[user.uid] ?? 0,
+        } satisfies Conversation;
+      })
+      .sort(
+        (a, b) =>
+          (b.lastMessageTimestamp?.toMillis?.() ?? 0) -
+          (a.lastMessageTimestamp?.toMillis?.() ?? 0),
+      );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveChats, user, profileVersion, isLoading]);
 
   /**
    * Deep link support: `/app/seller/messages?chatWith=<uid>` (used by Requests,
@@ -160,6 +143,11 @@ export function SellerMessages() {
           selected ? 'hidden md:block' : 'block',
         )}
       >
+        {chatsError && (
+          <p className="border-b border-destructive/30 bg-destructive/10 px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-destructive">
+            {chatsError}
+          </p>
+        )}
         <SellerConversationList
           conversations={chats}
           selectedId={selectedId}
@@ -188,11 +176,10 @@ export function SellerMessages() {
             other={other}
             onBack={() => setSelectedId(null)}
             onDeleted={() => {
-              // Drop it locally first so the row disappears immediately, then
-              // let the snapshot catch up. Waiting on the write made the delete
-              // feel broken on a slow connection.
-              setChats((prev) => prev.filter((c) => c.id !== selected.id));
+              // Back out of the thread at once, then re-read the inbox so the
+              // row leaves now instead of at the next poll tick.
               setSelectedId(null);
+              refreshChats();
             }}
           />
         ) : (

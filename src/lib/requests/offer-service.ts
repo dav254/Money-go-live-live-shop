@@ -5,6 +5,12 @@ import { notify } from '@/lib/notifications/engine';
 import { sendTemplateEmail } from '@/lib/notifications/email-service';
 import { appLink } from '@/lib/notifications/config';
 import { pbMirrorOrder } from '@/lib/pocketbase/orders';
+import {
+  pbBumpRequestCounter,
+  pbMirrorOffer,
+  pbPatchOffer,
+  pbPatchRequest,
+} from '@/lib/pocketbase/requests';
 import { OFFERS_COLLECTION, REQUESTS_COLLECTION } from '@/lib/media/config';
 import {
   type MarketplaceOffer,
@@ -54,6 +60,11 @@ export async function createOfferDraft(
     updatedAt: now,
   };
   await ref.set(offer);
+
+  // VPS copy of the draft (best-effort): the serverTimestamp sentinels have no
+  // JSON form, so the mirror gets real ISO stamps.
+  const mirroredAt = new Date().toISOString();
+  void pbMirrorOffer(ref.id, { ...offer, createdAt: mirroredAt, updatedAt: mirroredAt });
   return offer;
 }
 
@@ -75,6 +86,7 @@ export async function submitOffer(
   if (message.length < 10) throw new Error('Tell the customer more — description is too short.');
 
   const wasDraft = offer.status === 'draft';
+  const submittedAt = new Date().toISOString();
   await offerRef.update({
     price,
     message,
@@ -84,12 +96,25 @@ export async function submitOffer(
     updatedAt: FieldValue.serverTimestamp(),
   });
 
+  // VPS copy of the submitted offer (best-effort; `createdAt` was already
+  // written when the draft was reserved, and PATCH merges leave it intact).
+  void pbPatchOffer(offerId, {
+    ...offer,
+    price,
+    message,
+    deliveryDays: input.deliveryDays ?? null,
+    mediaIds: (input.mediaIds ?? offer.mediaIds ?? []).slice(0, 7),
+    status: 'submitted',
+    updatedAt: submittedAt,
+  });
+
   if (wasDraft) {
     await db
       .collection(REQUESTS_COLLECTION)
       .doc(offer.requestId)
       .update({ offersCount: FieldValue.increment(1), updatedAt: FieldValue.serverTimestamp() })
       .catch(() => undefined);
+    void pbBumpRequestCounter(offer.requestId, 'offersCount', 1);
     void notifyCustomerOfOffer(offerId);
   }
 
@@ -246,11 +271,24 @@ export async function acceptOffer(
   });  await batch.commit();
 
   /*
-   * VPS copy of the order the batch just created (best-effort — the sale is
-   * already committed in Firestore). Plain values only: the batch's
-   * `now` sentinel has no JSON form.
+   * VPS copies of what the batch just committed (best-effort — the sale is
+   * already real in Firestore). The winner, the declined losers and the
+   * closed brief all move together, so the mirror never shows an open brief
+   * with an accepted offer.
    */
   const mirroredAt = new Date().toISOString();
+  void pbPatchOffer(offerId, { status: 'accepted', updatedAt: mirroredAt });
+  others.forEach((doc) => {
+    if (doc.id !== offerId) void pbPatchOffer(doc.id, { status: 'declined', updatedAt: mirroredAt });
+  });
+  void pbPatchRequest(requestId, {
+    status: 'closed',
+    acceptedOfferId: offerId,
+    acceptedOfferSellerId: offer.sellerId,
+    orderId: orderRef.id,
+    closedAt: mirroredAt,
+    updatedAt: mirroredAt,
+  });
   void pbMirrorOrder(orderRef.id, {
     buyerId: customerId,
     sellerId: offer.sellerId,

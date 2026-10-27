@@ -33,6 +33,7 @@ import {
 import {
   arrayRemove, arrayUnion, collection, doc, increment, serverTimestamp, setDoc, updateDoc,
 } from 'firebase/firestore';
+import { mirrorCartItem } from '@/lib/users/mirror';
 
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
@@ -265,6 +266,7 @@ function DetailsBody({
         },
         { merge: true },
       );
+      mirrorCartItem(user, listing.id);
       toast({ title: 'Added to cart', description: `${quantity} × ${listing.name}` });
     } catch {
       toast({ variant: 'destructive', title: 'Could not add to cart' });

@@ -6,6 +6,7 @@ import { sendTemplateEmail } from '@/lib/notifications/email-service';
 import { appLink } from '@/lib/notifications/config';
 import { findMatchingSellers } from './matching';
 import { REQUESTS_COLLECTION, MEDIA_COLLECTION } from '@/lib/media/config';
+import { pbMirrorRequest, pbPatchRequest } from '@/lib/pocketbase/requests';
 import { getStorageAdapter } from '@/lib/media/storage-adapter';
 import {
   type MarketplaceRequest,
@@ -115,6 +116,16 @@ export async function createRequest(
   };
   await ref.set(request);
 
+  // VPS copy of the brief (best-effort, never blocks the create): the
+  // serverTimestamp sentinels have no JSON form, so the mirror is given real
+  // ISO stamps instead of `now`.
+  const mirroredAt = new Date().toISOString();
+  void pbMirrorRequest(ref.id, {
+    ...request,
+    createdAt: mirroredAt,
+    updatedAt: mirroredAt,
+  });
+
   // Claim uploaded media records for this request (uploaded pre-request with
   // a placeholder ownership; now bound + marked private + SYNCED, spec §33).
   if (request.mediaIds.length > 0) {
@@ -142,14 +153,16 @@ async function fanOutToMatches(requestId: string): Promise<void> {
   const matches = await findMatchingSellers(request, 20);
   if (matches.length === 0) return;
 
+  const matchedSellers = matches.map((m) => m.sellerId);
   await db
     .collection(REQUESTS_COLLECTION)
     .doc(requestId)
     .update({
-      matchedSellers: matches.map((m) => m.sellerId),
+      matchedSellers,
       matchedAt: FieldValue.serverTimestamp(),
     })
     .catch(() => undefined);
+  void pbPatchRequest(requestId, { matchedSellers, matchedAt: new Date().toISOString() });
 
   // Where the seller lands when they tap the notification: their own Requests
   // queue in the app with this brief already expanded (the screen reads
@@ -219,6 +232,8 @@ export async function closeRequest(requestId: string, customerId: string): Promi
   const request = snap.data() as MarketplaceRequest;
   if (request.customerId !== customerId) throw new Error('Not your request.');
   await ref.update({ status: 'closed', closedAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() });
+  const closedAt = new Date().toISOString();
+  void pbPatchRequest(requestId, { status: 'closed', closedAt, updatedAt: closedAt });
 }
 
 /**
@@ -232,6 +247,8 @@ export async function deleteRequest(requestId: string, customerId: string): Prom
   const request = snap.data() as MarketplaceRequest;
   if (request.customerId !== customerId) throw new Error('Not your request.');
   await ref.update({ status: 'deleted', closedAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() });
+  const deletedAt = new Date().toISOString();
+  void pbPatchRequest(requestId, { status: 'deleted', closedAt: deletedAt, updatedAt: deletedAt });
   await softDeleteRequestMedia(requestId);
 }
 

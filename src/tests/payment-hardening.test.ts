@@ -72,6 +72,48 @@ describe('PayPal webhook hardening', () => {
   });
 });
 
+describe('Paystack webhook hardening', () => {
+  const src = read('src/app/api/webhooks/paystack/route.ts');
+
+  it('fails closed when no webhook secret is configured', () => {
+    // An HMAC over a missing/empty key is attacker-computable, so an
+    // unconfigured deployment must refuse the delivery, not "verify" it.
+    assert.ok(
+      !src.includes('PAYSTACK_SECRET_KEY!'),
+      'the secret must not be non-null-asserted — absence is a real state',
+    );
+    assert.ok(
+      src.includes("(process.env.PAYSTACK_SECRET_KEY ?? '').trim()"),
+      'the secret is read defensively and trimmed',
+    );
+    assert.ok(/if \(!paystackSecret\)/.test(src), 'an empty secret is rejected before any HMAC');
+    assert.ok(src.includes('status: 410'), 'unconfigured must answer 410, like the PayPal handler');
+    const gateIdx = src.indexOf('if (!paystackSecret)');
+    const hmacIdx = src.indexOf('createHmac(');
+    assert.ok(gateIdx !== -1 && hmacIdx !== -1 && gateIdx < hmacIdx, 'gate before HMAC');
+  });
+
+  it('compares the signature constant-time, never with ===', () => {
+    assert.ok(src.includes('timingSafeEqual'), 'the compare must be constant-time');
+    assert.ok(
+      src.includes('presented.length === hash.length'),
+      'length guard first so a malformed header cannot throw',
+    );
+    assert.equal(/hash\s*!==\s*signature|signature\s*!==\s*hash/.test(src), false,
+      'a plain string compare on a secret-derived value is a timing oracle');
+    assert.ok(/if \(!validSignature\)/.test(src), 'an invalid signature stops processing');
+    assert.ok(src.includes('status: 401'), 'forged deliveries are rejected');
+  });
+
+  it('verifies before it reads any event field', () => {
+    const verifyIdx = src.indexOf('if (!validSignature)');
+    const useIdx = src.indexOf("event.event === 'charge.success'");
+    assert.ok(verifyIdx !== -1 && useIdx !== -1 && verifyIdx < useIdx,
+      'signature verification must precede event handling');
+    assert.ok(src.indexOf('await request.text()') < useIdx, 'the raw body is what gets signed');
+  });
+});
+
 describe('profile API never leaks credential-shaped fields', () => {
   const src = read('src/app/api/auth/profile/route.ts');
 

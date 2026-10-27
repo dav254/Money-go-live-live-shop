@@ -3,17 +3,10 @@
 import * as React from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { useFirestore } from '@/firebase';
-import {
-  collection,
-  doc,
-  getDoc,
-  limitToLast,
-  onSnapshot,
-  orderBy,
-  query,
-  where,
-} from 'firebase/firestore';
+import { useFirestore, useUser } from '@/firebase';
+import { doc, getDoc } from 'firebase/firestore';
+import { fetchChats } from '@/lib/chat/client';
+import { useMessages } from '@/lib/chat/use-chat';
 import type { ChatMessage, UserProfile } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { Loader2, MessageSquareOff } from 'lucide-react';
@@ -32,13 +25,13 @@ import { Loader2, MessageSquareOff } from 'lucide-react';
  * appear in the thread as a third party mid-argument. Moderation reads;
  * participation happens through support tickets.
  *
- * Chat lookup is a single `array-contains` query on the complainant's uid (the
- * only shape the rules can serve without listing everything), then the pair is
- * matched client-side. Messages are capped to the most recent `MESSAGE_CAP`
- * so a very old, very busy thread cannot stall the dialog that embeds this.
+ * Chat lookup is one admin-scoped read of the VPS conversation list (the pair
+ * is matched client-side), then the thread itself comes from the same
+ * `/api/chat/{id}/messages` route the app uses — an admin's verified token is
+ * allowed to read any thread, a participant's only their own. The route caps
+ * a thread at its newest messages, so a very old, very busy conversation
+ * cannot stall the dialog that embeds this.
  */
-
-const MESSAGE_CAP = 200;
 
 interface Party {
   id: string;
@@ -146,15 +139,22 @@ export function PartyConversation({
   className,
 }: PartyConversationProps) {
   const firestore = useFirestore();
+  const { user } = useUser();
 
   const [chatId, setChatId] = React.useState<string | null>(chatIdProp ?? null);
   const [isFindingChat, setIsFindingChat] = React.useState(
     !chatIdProp && !!userAId && !!userBId && userAId !== userBId,
   );
-  const [messages, setMessages] = React.useState<ChatMessage[] | null>(null);
-  const [readError, setReadError] = React.useState<string | null>(null);
   const [parties, setParties] = React.useState<Record<string, Party>>({});
   const scrollRef = React.useRef<HTMLDivElement>(null);
+
+  const {
+    messages: liveMessages,
+    error: readError,
+  } = useMessages(chatId);
+  // `null` means "not loaded yet" to the renderer below; once a thread is
+  // selected the hook always has an array (possibly empty).
+  const messages = chatId === null ? null : liveMessages;
 
   // Explicit chat id wins; otherwise find the one chat containing both uids.
   React.useEffect(() => {
@@ -163,64 +163,29 @@ export function PartyConversation({
       setIsFindingChat(false);
       return;
     }
-    if (!firestore || !userAId || !userBId || userAId === userBId) {
+    if (!user || !userAId || !userBId || userAId === userBId) {
       setChatId(null);
       setIsFindingChat(false);
       return;
     }
 
     setIsFindingChat(true);
-    const pair = query(
-      collection(firestore, 'chats'),
-      where('participantIds', 'array-contains', userAId),
-    );
-    const unsubscribe = onSnapshot(
-      pair,
-      (snapshot) => {
-        const match = snapshot.docs.find((d) => {
-          const ids = d.data()?.participantIds;
-          return Array.isArray(ids) && ids.includes(userBId);
-        });
+    // Admin scope: every conversation, read once and matched on the pair.
+    fetchChats(user, 'all')
+      .then((chats) => {
+        const match = chats.find(
+          (chat) => chat.participantIds.includes(userAId) && chat.participantIds.includes(userBId),
+        );
         setChatId(match?.id ?? null);
         setIsFindingChat(false);
-      },
-      () => {
-        // A rules denial or a missing index must read as "no thread found",
+      })
+      .catch(() => {
+        // A denied read or a storage outage must read as "no thread found",
         // not as a spinner that never resolves.
         setChatId(null);
         setIsFindingChat(false);
-      },
-    );
-    return () => unsubscribe();
-  }, [firestore, chatIdProp, userAId, userBId]);
-
-  // Subscribe to the thread itself.
-  React.useEffect(() => {
-    if (!firestore || !chatId) {
-      setMessages(null);
-      return;
-    }
-    setReadError(null);
-    const messagesQuery = query(
-      collection(firestore, 'chats', chatId, 'messages'),
-      orderBy('timestamp', 'asc'),
-      limitToLast(MESSAGE_CAP),
-    );
-    const unsubscribe = onSnapshot(
-      messagesQuery,
-      (snapshot) => {
-        setMessages(
-          snapshot.docs.map((d) => ({ ...(d.data() as ChatMessage), id: d.id })),
-        );
-      },
-      () => {
-        // Never leave the panel blank without an explanation.
-        setMessages([]);
-        setReadError('This thread could not be loaded.');
-      },
-    );
-    return () => unsubscribe();
-  }, [firestore, chatId]);
+      });
+  }, [user, chatIdProp, userAId, userBId]);
 
   // Profiles are public `get()` reads, fetched once per participant and cached
   // for the life of the panel — the same shape the seller inbox uses, because

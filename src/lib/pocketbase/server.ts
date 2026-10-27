@@ -110,6 +110,12 @@ export function scrubForPocketBase(value: unknown): unknown {
     return value;
   }
   if (Array.isArray(value)) return value.map(scrubForPocketBase);
+  // Plain JS `Date` (the live/request services stamp `new Date()`): it has no
+  // `toDate()`, so without this branch it fell through to the object walk and
+  // serialised as `{}` — a whole timestamp lost.
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value.toISOString();
+  }
   const maybeDate = value as { toDate?: () => Date };
   if (typeof maybeDate.toDate === 'function') {
     try {
@@ -226,10 +232,21 @@ export async function pbDelete(collection: string, id: string): Promise<boolean>
   return true;
 }
 
-export async function pbListRecords(
+/** One page of records plus the collection total — the pagination contract. */
+export interface PbRecordPage {
+  items: PbRecord[];
+  totalItems: number;
+}
+
+/**
+ * One paginated page of a collection. `totalItems` lets callers walk pages
+ * until every record is read (the sitemap's catalogue pass needs the whole
+ * collection, capped) without a second count request.
+ */
+export async function pbListRecordsPage(
   collection: string,
   params: { sort?: string; perPage?: number; page?: number; filter?: string; fields?: string } = {},
-): Promise<PbRecord[]> {
+): Promise<PbRecordPage> {
   const qs = new URLSearchParams();
   if (params.sort) qs.set('sort', params.sort);
   if (params.filter) qs.set('filter', params.filter);
@@ -241,6 +258,18 @@ export async function pbListRecords(
     const detail = await res.text().catch(() => '');
     throw new Error(`PocketBase list "${collection}" failed (${res.status}): ${detail.slice(0, 300)}`);
   }
-  const data = (await res.json()) as { items?: PbRecord[] };
-  return data.items ?? [];
+  const data = (await res.json()) as { items?: PbRecord[]; totalItems?: number };
+  const items = data.items ?? [];
+  const totalItems =
+    typeof data.totalItems === 'number' && Number.isFinite(data.totalItems)
+      ? data.totalItems
+      : items.length;
+  return { items, totalItems };
+}
+
+export async function pbListRecords(
+  collection: string,
+  params: { sort?: string; perPage?: number; page?: number; filter?: string; fields?: string } = {},
+): Promise<PbRecord[]> {
+  return (await pbListRecordsPage(collection, params)).items;
 }

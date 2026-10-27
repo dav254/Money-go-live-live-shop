@@ -8,6 +8,7 @@ import {
   listOffersBySeller,
 } from '@/lib/requests/offer-service';
 import { OFFERS_COLLECTION, REQUESTS_COLLECTION } from '@/lib/media/config';
+import { pbBumpRequestCounter, pbPatchOffer } from '@/lib/pocketbase/requests';
 import { listMediaForOwner, type MediaSummary } from '@/lib/media/service';
 import type { MarketplaceOffer, MarketplaceRequest } from '@/lib/requests/types';
 
@@ -107,12 +108,14 @@ export async function PATCH(request: NextRequest) {
     }
     const wasLive = offer.status === 'submitted';
     await ref.update({ status: 'withdrawn', updatedAt: FieldValue.serverTimestamp() });
+    void pbPatchOffer(id, { status: 'withdrawn', updatedAt: new Date().toISOString() });
     if (wasLive) {
       await db
         .collection(REQUESTS_COLLECTION)
         .doc(offer.requestId)
         .update({ offersCount: FieldValue.increment(-1) })
         .catch(() => undefined);
+      void pbBumpRequestCounter(offer.requestId, 'offersCount', -1);
     }
     return NextResponse.json({ ok: true });
   } catch (error) {

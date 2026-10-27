@@ -9,6 +9,7 @@ import { SellerCard } from '@/components/app/seller/seller-app-shell';
 import { uploadMedia } from '@/lib/media/upload-client';
 import { IMAGE_LIMITS } from '@/lib/media/limits';
 import { useToast } from '@/hooks/use-toast';
+import { mirrorShop } from '@/lib/shops/mirror';
 import { cn } from '@/lib/utils';
 
 /**
@@ -145,6 +146,8 @@ export function ShopBrandingSection({
           );
         }
         await batch.commit();
+        // VPS copy of the shop record (fire-and-forget, same as listings).
+        mirrorShop(user);
 
         onChange(patch);
         toast({
@@ -182,6 +185,7 @@ export function ShopBrandingSection({
           );
         }
         await batch.commit();
+        mirrorShop(user);
         onChange({ [kind === 'logo' ? 'logoUrl' : 'bannerUrl']: '' });
         toast({ title: kind === 'logo' ? 'Logo removed' : 'Banner removed' });
       } catch {

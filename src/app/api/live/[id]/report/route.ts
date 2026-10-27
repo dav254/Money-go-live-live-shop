@@ -4,6 +4,7 @@ import { db } from '@/firebase/server';
 import { FieldValue } from 'firebase-admin/firestore';
 import { getLiveStream } from '@/lib/live/service';
 import { LIVESTREAMS_COLLECTION, LIVE_REPORT_REASONS, type LiveReportReason } from '@/lib/live/types';
+import { pbBumpLiveStreamCounter, pbMirrorLiveReport } from '@/lib/pocketbase/live-streams';
 
 export const runtime = 'nodejs';
 
@@ -27,16 +28,30 @@ export async function POST(
     ? (body.reason as LiveReportReason)
     : 'Other';
 
-  await db.collection('contentModerationQueue').add({
+  const details = (body.details ?? '').slice(0, 500);
+  const reportRef = await db.collection('contentModerationQueue').add({
     contentType: 'liveStream',
     contentId: id,
     reporterId: user.uid,
     reason,
-    details: (body.details ?? '').slice(0, 500),
+    details,
     streamTitle: stream.title,
     sellerId: stream.sellerId,
     status: 'pending',
     createdAt: new Date(),
+  });
+
+  // VPS copy of the report (best-effort — the moderation queue in Firestore
+  // stays the queue admins review; this keeps a copy that survives an outage).
+  void pbMirrorLiveReport(reportRef.id, {
+    streamId: id,
+    streamTitle: stream.title,
+    sellerId: stream.sellerId,
+    reporterId: user.uid,
+    reason,
+    details,
+    status: 'pending',
+    createdAt: new Date().toISOString(),
   });
 
   await db
@@ -44,6 +59,7 @@ export async function POST(
     .doc(id)
     .update({ reportsCount: FieldValue.increment(1) })
     .catch(() => undefined);
+  void pbBumpLiveStreamCounter(id, 'reportsCount', 1);
 
   return NextResponse.json({ ok: true });
 }

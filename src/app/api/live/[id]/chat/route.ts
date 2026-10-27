@@ -4,6 +4,7 @@ import { db } from '@/firebase/server';
 import { FieldValue } from 'firebase-admin/firestore';
 import { getLiveStream } from '@/lib/live/service';
 import { LIVESTREAMS_COLLECTION, type LiveChatMessage } from '@/lib/live/types';
+import { pbBumpLiveStreamCounter, pbMirrorLiveChatMessage } from '@/lib/pocketbase/live-streams';
 
 export const runtime = 'nodejs';
 
@@ -80,11 +81,15 @@ export async function POST(
   };
 
   await ref.set(msg);
+  // VPS copy of the message (flattened into live_chat_messages with its
+  // streamId) — best-effort, never blocks sending.
+  void pbMirrorLiveChatMessage(id, ref.id, msg);
   await db
     .collection(LIVESTREAMS_COLLECTION)
     .doc(id)
     .update({ chatMessagesCount: FieldValue.increment(1) })
     .catch(() => undefined);
+  void pbBumpLiveStreamCounter(id, 'chatMessagesCount', 1);
 
   return NextResponse.json({ message: msg });
 }

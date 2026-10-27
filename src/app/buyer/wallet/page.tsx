@@ -38,6 +38,7 @@ import { Input } from '@/components/ui/input';
 import { useUser, useFirestore, useCollection, useMemoFirebase, useUserProfile } from '@/firebase';
 import { inviteLinkFor, normaliseReferralCode, referralCodeFor } from '@/lib/referrals/referral-code';
 import { collection, addDoc, deleteDoc, doc, serverTimestamp, query, where, orderBy } from 'firebase/firestore';
+import { mirrorPaymentMethod } from '@/lib/users/mirror';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -103,7 +104,8 @@ const AddPaymentMethodDialog = ({ onMethodAdded }: { onMethodAdded: () => void }
         }
 
         try {
-            await addDoc(payoutMethodsRef, newMethodData);
+            const created = await addDoc(payoutMethodsRef, newMethodData);
+            mirrorPaymentMethod(user, created.id);
             toast({ title: "Success", description: `Your ${type} method has been saved.` });
             onMethodAdded();
         } catch (error) {
@@ -224,6 +226,7 @@ export default function BuyerPaymentsPage() {
         const methodRef = doc(firestore, 'userProfiles', user.uid, 'paymentMethods', methodId);
         try {
             await deleteDoc(methodRef);
+            mirrorPaymentMethod(user, methodId, 'delete');
             toast({ title: 'Success', description: 'Payment method has been removed.' });
         } catch(error) {
             console.error('Error deleting payment method:', error);

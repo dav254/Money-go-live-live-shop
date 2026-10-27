@@ -46,6 +46,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { useUser, useFirestore, useCollection, useMemoFirebase, errorEmitter } from '@/firebase';
 import { collection, addDoc, deleteDoc, doc, serverTimestamp, query, where, orderBy } from 'firebase/firestore';
+import { mirrorPayoutMethod } from '@/lib/users/mirror';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -111,11 +112,12 @@ const AddPayoutMethodDialog = ({ onMethodAdded }: { onMethodAdded: () => void })
         setIsSaving(true);
         try {
             const payoutMethodsRef = collection(firestore, 'userProfiles', user.uid, 'payoutMethods');
-            await addDoc(payoutMethodsRef, {
+            const created = await addDoc(payoutMethodsRef, {
                 type: 'paypal',
                 details: values.email,
                 paypalEmail: values.email,
             });
+            mirrorPayoutMethod(user, created.id);
             toast({ title: "Success", description: "PayPal payout method saved." });
             onMethodAdded();
         } catch (error) {
@@ -132,12 +134,13 @@ const AddPayoutMethodDialog = ({ onMethodAdded }: { onMethodAdded: () => void })
         const selectedBank = KENYA_BANKS.find(b => b.code === values.bankCode);
         try {
             const payoutMethodsRef = collection(firestore, 'userProfiles', user.uid, 'payoutMethods');
-            await addDoc(payoutMethodsRef, {
+            const created = await addDoc(payoutMethodsRef, {
                 type: 'bank',
                 details: `${selectedBank?.name || 'Bank'} - *...${values.accountNumber.slice(-4)}`,
                 bankName: selectedBank?.name || 'Unknown Bank',
                 ...values
             });
+            mirrorPayoutMethod(user, created.id);
             toast({ title: "Success", description: "Bank account saved for Paystack payouts." });
             onMethodAdded();
         } catch (error) {
@@ -404,6 +407,7 @@ export default function SellerWalletPage() {
     const methodRef = doc(firestore, 'userProfiles', user.uid, 'payoutMethods', methodId);
     try {
         await deleteDoc(methodRef);
+        mirrorPayoutMethod(user, methodId, 'delete');
         toast({
             title: 'Success',
             description: 'Payout method has been removed.',

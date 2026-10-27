@@ -47,6 +47,7 @@ import {
   type NormalizedNotification,
   type RawNotification,
 } from './normalize';
+import { ALWAYS_ON } from './push-preferences';
 
 /* --------------------------------------------------------------------------- */
 /* Collection schemas                                                          */
@@ -621,6 +622,34 @@ export async function setPushPrefs(
   await firestoreDb
     .doc(`users/${userId}/settings/push`)
     .set({ categories, updatedAt: new Date() }, { merge: true });
+}
+
+/**
+ * True when a notification in `category` should be pushed.
+ *
+ * Preferences are read through the VPS-controlled store (PocketBase
+ * `push_prefs`, Firestore fallback) — the same storage the settings screen
+ * writes, so the screen and the delivery path cannot disagree.
+ *
+ * Lives here rather than in `./push-preferences` because that module is
+ * imported by the CLIENT settings screen and must stay server-free.
+ */
+export async function isPushEnabledFor(userId: string, category: string): Promise<boolean> {
+  if (!userId) return false;
+  if (ALWAYS_ON.has(category)) return true;
+
+  try {
+    const categories = await getPushPrefs(userId);
+    const value = categories[category];
+    // No document at all → default on (see the push-preferences file header).
+    // A category with no explicit setting follows the global switch, and
+    // follows ON when that is also unset.
+    if (value === undefined) return true;
+    return value !== false;
+  } catch {
+    // An unreadable preference must not silence a payment alert.
+    return true;
+  }
 }
 
 /** Stable short key for legacy device docs — mirrors the old client hash. */

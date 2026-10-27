@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createHmac } from 'crypto';
+import { createHmac, timingSafeEqual } from 'crypto';
 import { db } from '@/firebase/server';
 import { FieldValue } from 'firebase-admin/firestore';
 import { notify } from '@/lib/notifications';
@@ -12,15 +12,31 @@ import type { Order } from '@/lib/types';
 
 /**
  * Paystack Webhook Handler (App Router)
+ *
+ * Verification rules (hardened):
+ *   • NO secret configured → 410 and no processing. An HMAC over a missing or
+ *     empty key is attacker-computable, so "verify with whatever is in the
+ *     env" would accept forged events.
+ *   • The signature is compared constant-time over the two fixed-length
+ *     SHA-512 hex digests (a plain `!==` on a secret-derived string is a
+ *     timing oracle), after an explicit length guard so `timingSafeEqual`
+ *     cannot throw on a malformed header.
  */
 export async function POST(request: Request) {
-  const paystackSecret = process.env.PAYSTACK_SECRET_KEY!;
+  const paystackSecret = (process.env.PAYSTACK_SECRET_KEY ?? '').trim();
+  if (!paystackSecret) {
+    return NextResponse.json({ error: 'Paystack is not configured.' }, { status: 410 });
+  }
+
   const signature = request.headers.get('x-paystack-signature');
-  
   const rawBody = await request.text();
   const hash = createHmac('sha512', paystackSecret).update(rawBody).digest('hex');
 
-  if (hash !== signature) {
+  const presented = signature ?? '';
+  const validSignature =
+    presented.length === hash.length &&
+    timingSafeEqual(Buffer.from(hash, 'utf8'), Buffer.from(presented, 'utf8'));
+  if (!validSignature) {
     console.warn('Paystack Webhook: Invalid signature');
     return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
   }

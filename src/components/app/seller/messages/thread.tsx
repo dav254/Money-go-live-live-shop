@@ -7,12 +7,15 @@ import {
   Paperclip, Pause, Play, Send, Square, Trash2,
 } from 'lucide-react';
 import type { User } from 'firebase/auth';
-import {
-  addDoc, arrayUnion, collection, doc, increment,
-  orderBy, query, serverTimestamp, updateDoc, where, writeBatch,
-} from 'firebase/firestore';
+import { collection, doc, query, where } from 'firebase/firestore';
 import { uploadMedia } from '@/lib/media/upload-client';
-import { blobToDataUrl, compressImageForChat, MAX_CHAT_EMBED_BYTES } from '@/lib/chat/device-media';
+import { useMessages } from '@/lib/chat/use-chat';
+import {
+  newMessageId,
+  patchChat,
+  sendChatMessage,
+  type SendMessagePayload,
+} from '@/lib/chat/client';
 import {
   useCollection, useDoc, useFirestore, useMemoFirebase, useUser,
 } from '@/firebase';
@@ -41,16 +44,23 @@ import { cn } from '@/lib/utils';
  *
  * ## Write contract
  *
- * Identical to the website's, because these are the same Firestore documents:
- *   chats/{id}/messages  { senderId, timestamp, isRead, messageType, … }
- *   chats/{id}           lastMessage, lastMessageTimestamp, deletedFor,
- *                        unreadCounts.{uid}
+ * Messages and conversations live in the VPS store (PocketBase), reached
+ * through `/api/chat`:
+ *   POST   /api/chat                     open (or reuse) the conversation
+ *   GET    /api/chat                     my inbox, newest first
+ *   GET    /api/chat/{id}/messages       the thread, oldest → newest
+ *   POST   /api/chat/{id}/messages       send (validated server-side)
+ *   PATCH  /api/chat/{id}                read / hide / restore for ME
  *
- * Note the field name: the runtime key is `messageText`, while the `ChatMessage`
- * type declares `text`. `ChatMessage` in `@/lib/types` predates the chat
- * rewrite and was never updated, so messages written by either surface carry
- * `messageText`. Reading both here means this thread renders history written by
- * the website, and vice versa.
+ * The sender, the participants, the inbox preview and the unread counters are
+ * all derived on the server from the verified ID token — the client sends the
+ * message body and nothing else. Attachments are files this server stored
+ * under `chats/<chatId>/`, so no bytes ever ride inside a message record.
+ *
+ * Note the field name: the body of a text message is `messageText` (the
+ * `text` field on `ChatMessage` predates the chat rewrite and was never
+ * written to). Reading both means this thread renders history from either
+ * surface.
  */
 
 const ONLINE_WINDOW_MS = 120_000;
@@ -82,7 +92,6 @@ export function SellerThread({
   onBack: () => void;
   onDeleted: () => void;
 }) {
-  const firestore = useFirestore();
   const { toast } = useToast();
 
   const [draft, setDraft] = React.useState('');
@@ -99,29 +108,21 @@ export function SellerThread({
   const chunksRef = React.useRef<Blob[]>([]);
   const timerRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const messagesQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return query(collection(firestore, 'chats', chat.id, 'messages'), orderBy('timestamp', 'asc'));
-  }, [firestore, chat.id]);
+  const { messages, refresh: refreshMessages, error: messagesError } = useMessages(chat.id);
 
-  const { data: messages } = useCollection<ChatMessage>(messagesQuery);
-
-  // Open the conversation ⇒ clear its unread badge, for me only.
+  // Open the conversation ⇒ clear its unread badge, for me only. One API call
+  // per NEW unread message (keyed by its id), not one per poll tick.
+  const lastReadRef = React.useRef('');
   React.useEffect(() => {
     if (!messages || !messages.length) return;
     const unread = messages.filter((m) => m.senderId !== currentUser.uid && !m.isRead);
     if (unread.length === 0) return;
 
-    const batch = writeBatch(firestore!);
-    unread.forEach((m) => {
-      batch.set(doc(firestore!, 'chats', chat.id, 'messages', m.id), {
-        isRead: true,
-        readAt: serverTimestamp(),
-      });
-    });
-    batch.set(doc(firestore!, 'chats', chat.id), { [`unreadCounts.${currentUser.uid}`]: 0 });
-    batch.commit().catch(() => undefined);
-  }, [messages, chat.id, currentUser.uid, firestore]);
+    const newest = unread[unread.length - 1].id;
+    if (lastReadRef.current === newest) return;
+    lastReadRef.current = newest;
+    patchChat(currentUser, chat.id, 'read').catch(() => undefined);
+  }, [messages, chat.id, currentUser]);
 
   // Stay pinned to the newest message unless the seller has scrolled up.
   React.useEffect(() => {
@@ -135,42 +136,30 @@ export function SellerThread({
   };
 
   /**
-   * Write a message and roll the conversation forward.
+   * Write a message through the VPS store.
    *
-   * `deletedFor` is reset to `[]` on every send: re-opening a chat the seller
-   * previously deleted is a deliberate action, and it must not stay invisible
-   * because of a stale flag left by whoever last wrote in it.
+   * The client picks the record id (`clientMsgId`) so a retry of a failed send
+   * collides with itself instead of posting twice, and `deletedFor` is never
+   * touched: the server clears only the sender's own hide flag, so re-opening
+   * a chat cannot erase somebody else's.
    */
   const send = React.useCallback(
     async (payload: Partial<ChatMessage>) => {
-      const otherId = chat.participantIds.find((id) => id !== currentUser.uid);
-      await addDoc(collection(firestore!, 'chats', chat.id, 'messages'), {
-        senderId: currentUser.uid,
-        timestamp: serverTimestamp(),
-        isRead: false,
-        ...payload,
-      });
-
-      const preview =
-        payload.messageType === 'voice'
-          ? 'Voice note'
-          : payload.messageType === 'product'
-            ? 'Shared a product'
-            : payload.messageType === 'order'
-              ? 'Shared an order'
-              : payload.messageType === 'text'
-                ? bodyOf(payload as ChatMessage)
-                : 'Sent a file';
-
-      const update: Record<string, unknown> = {
-        lastMessage: preview.slice(0, 140),
-        lastMessageTimestamp: serverTimestamp(),
-        deletedFor: [],
+      const clientMsgId = newMessageId();
+      const messagePayload: SendMessagePayload = {
+        messageType: payload.messageType ?? 'text',
+        ...(payload.messageText ? { messageText: payload.messageText } : {}),
+        ...(payload.mediaUrl ? { mediaUrl: payload.mediaUrl } : {}),
+        ...(payload.mediaMetadata ? { mediaMetadata: payload.mediaMetadata } : {}),
+        ...(payload.productId ? { productId: payload.productId } : {}),
+        ...(payload.orderId ? { orderId: payload.orderId } : {}),
       };
-      if (otherId) update[`unreadCounts.${otherId}`] = increment(1);
-      await updateDoc(doc(firestore!, 'chats', chat.id), update);
+      await sendChatMessage(currentUser, chat.id, messagePayload, clientMsgId);
+      // Pull the thread straight away so the bubble appears now rather than at
+      // the next poll tick.
+      refreshMessages();
     },
-    [firestore, chat.id, chat.participantIds, currentUser.uid],
+    [chat.id, currentUser, refreshMessages],
   );
 
   const submit = async () => {
@@ -192,34 +181,15 @@ export function SellerThread({
 
   const upload = React.useCallback(
     (file: File, messageType: 'image' | 'video' | 'file', duration?: number) => {
-      // Device-only first: images are compressed and small attachments are
-      // embedded straight into the message document, so private conversation
-      // media never lands in platform storage. Only videos/large files that
-      // physically cannot fit in a 1 MB Firestore document fall back to the
-      // upload pipeline.
+      /*
+       * Every attachment is uploaded to the VPS disk under `chats/<chatId>/`
+       * (compressed in the browser first by the upload client). Nothing is
+       * embedded inside the message record any more: the message carries the
+       * file's URL on this server and the bytes live on this server.
+       */
       setUploadPct(0);
       void (async () => {
         try {
-          if (messageType === 'image') {
-            const { dataUrl, bytes } = await compressImageForChat(file);
-            await send({
-              messageType: 'image',
-              mediaUrl: dataUrl,
-              mediaMetadata: { name: file.name, size: bytes, type: 'image/jpeg', duration },
-            });
-            setAtBottom(true);
-            return;
-          }
-          if (file.size <= MAX_CHAT_EMBED_BYTES) {
-            const dataUrl = await blobToDataUrl(file);
-            await send({
-              messageType,
-              mediaUrl: dataUrl,
-              mediaMetadata: { name: file.name, size: file.size, type: file.type, duration },
-            });
-            setAtBottom(true);
-            return;
-          }
           const result = await uploadMedia(
             file,
             currentUser,
@@ -280,32 +250,39 @@ export function SellerThread({
       };
       recorder.onstop = async () => {
         stream.getTracks().forEach((t) => t.stop());
-        // Voice notes stay on the two participants' devices only: the audio
-        // rides inside the message document as a data URL and never touches
-        // platform storage. Fully guarded — an exception here used to escape
-        // as an unhandled error from the recorder callback.
+        // Voice notes are uploaded to the VPS like any other attachment — the
+        // audio lands under `chats/<chatId>/` and the message carries its URL.
+        // Fully guarded: an exception here used to escape as an unhandled
+        // error from the recorder callback.
         try {
           const type = recorder.mimeType || 'audio/webm';
           const blob = new Blob(chunksRef.current, { type });
           const seconds = recordingSecondsRef.current;
           if (blob.size <= 200) return;
-          if (blob.size > MAX_CHAT_EMBED_BYTES) {
-            toast({
-              variant: 'destructive',
-              title: 'Voice note too long',
-              description: 'Record a shorter note so it stays on-device.',
-            });
-            return;
+
+          const cleanType = type.split(';')[0];
+          const extension = cleanType.includes('ogg') ? 'ogg' : 'webm';
+          const voiceFile = new File([blob], `voice-note.${extension}`, { type: cleanType });
+          setUploadPct(0);
+          const result = await uploadMedia(
+            voiceFile,
+            currentUser,
+            (p) => setUploadPct(p.percent),
+            { folder: `chats/${chat.id}` },
+          ).promise;
+          if (result.phase === 'failed' || !result.url) {
+            throw new Error(result.error || 'Upload failed.');
           }
-          const dataUrl = await blobToDataUrl(blob);
           await send({
             messageType: 'voice',
-            mediaUrl: dataUrl,
-            mediaMetadata: { name: 'Voice Note', size: blob.size, type, duration: seconds },
+            mediaUrl: result.url,
+            mediaMetadata: { name: 'Voice Note', size: blob.size, type: cleanType, duration: seconds },
           });
           setAtBottom(true);
         } catch {
           toast({ variant: 'destructive', title: 'Voice note not sent' });
+        } finally {
+          setUploadPct(null);
         }
       };
 
@@ -333,8 +310,8 @@ export function SellerThread({
     if (timerRef.current) clearInterval(timerRef.current);
   };
 
-  // Auto-stop a long recording: device-only voice notes must fit the on-device
-  // size limit, and a note that can never be sent is worse than a stopped one.
+  // Auto-stop a long recording so a voice note cannot grow past the server's
+  // own attachment ceiling.
   React.useEffect(() => {
     if (recording && recordingSeconds >= 150) stopRecording();
   }, [recording, recordingSeconds]);
@@ -349,9 +326,9 @@ export function SellerThread({
 
   const removeConversation = async () => {
     try {
-      await updateDoc(doc(firestore!, 'chats', chat.id), {
-        deletedFor: arrayUnion(currentUser.uid),
-      });
+      // Per-user hide, applied by the server: my inbox loses the row and no
+      // later message from the other side can bring it back.
+      await patchChat(currentUser, chat.id, 'hide');
       onDeleted();
     } catch {
       toast({ variant: 'destructive', title: 'Could not delete this chat' });
@@ -433,11 +410,13 @@ export function SellerThread({
           {ordered.length === 0 ? (
             <div className="flex h-full flex-col items-center justify-center px-8 text-center">
               <p className="font-grotesk text-sm font-semibold text-foreground">
-                No messages yet
+                {messagesError || 'No messages yet'}
               </p>
-              <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
-                Answer quickly — replies within a few hours are what turn a question into a sale.
-              </p>
+              {!messagesError && (
+                <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
+                  Answer quickly — replies within a few hours are what turn a question into a sale.
+                </p>
+              )}
             </div>
           ) : (
             ordered.map((message) => {

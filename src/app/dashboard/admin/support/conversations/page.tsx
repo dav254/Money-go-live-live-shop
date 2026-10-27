@@ -8,13 +8,8 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useFirestore } from '@/firebase';
-import {
-  collection,
-  doc,
-  getDoc,
-  onSnapshot,
-  query,
-} from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
+import { useChats } from '@/lib/chat/use-chat';
 import type { Chat, UserProfile } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { MessagesSquare, Search, ArrowLeft } from 'lucide-react';
@@ -28,10 +23,12 @@ import { MessagesSquare, Search, ArrowLeft } from 'lucide-react';
  * the platform, with both participants named and badged by role, and the full
  * transcript readable in place.
  *
- * Reads go through the client SDK on purpose: the deployed rules already allow
- * admins to `list` /chats and to `get` any userProfiles document, so no new
- * admin API surface is needed, and the transcript stays real-time — a
- * conversation that flares up while the admin is looking at it updates live.
+ * Reads go through the VPS message store (`useChats` → `GET /api/chat?scope=all`),
+ * which is admin-scoped on the server: a verified admin token gets every
+ * conversation, anybody else is refused. Profiles still come from
+ * `userProfiles` through public `get()` reads. The list polls and refreshes on
+ * focus, so a conversation that flares up while the admin is looking at it
+ * still updates on its own.
  *
  * Read-only by design (see `PartyConversation`): an admin typing into a private
  * thread would appear mid-argument as a third party.
@@ -54,6 +51,12 @@ const ChatRowSkeleton = () => (
 export default function AdminConversationsPage() {
   const firestore = useFirestore();
 
+  const {
+    chats: liveChats,
+    isLoading: chatsLoading,
+    error: chatsError,
+  } = useChats({ scope: 'all' });
+
   const [chats, setChats] = React.useState<Chat[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [profiles, setProfiles] = React.useState<Record<string, UserProfile | null>>({});
@@ -68,56 +71,37 @@ export default function AdminConversationsPage() {
     if (!firestore) return;
     let alive = true;
 
-    // No orderBy in the query: an unindexed `lastMessageTimestamp`-sorted list
-    // needs a composite index some deployments lack, and the first snapshot
-    // would fail silently. Sorting happens client-side instead.
-    const unsubscribe = onSnapshot(
-      query(collection(firestore, 'chats')),
-      async (snapshot) => {
-        const fetched: Chat[] = snapshot.docs.map((d) => {
-          const data = d.data();
-          return {
-            ...data,
-            id: d.id,
-            participantIds: Array.isArray(data.participantIds) ? data.participantIds : [],
-            deletedFor: Array.isArray(data.deletedFor) ? data.deletedFor : [],
-          } as Chat;
-        });
+    // Fill any profile the cache has not seen yet (get() is publicly
+    // readable; list() would be denied even to these participants).
+    const wanted = new Set<string>();
+    liveChats.forEach((chat) => {
+      chat.participantIds.forEach((id) => {
+        if (!(id in profilesRef.current)) wanted.add(id);
+      });
+    });
 
-        // Fill any profile the cache has not seen yet (get() is publicly
-        // readable; list() would be denied even to these participants).
-        const wanted = new Set<string>();
-        fetched.forEach((chat) => {
-          chat.participantIds.forEach((id) => {
-            if (!(id in profilesRef.current)) wanted.add(id);
-          });
-        });
-        for (const id of wanted) {
-          const snap = await getDoc(doc(firestore, 'userProfiles', id)).catch(() => null);
-          profilesRef.current[id] = snap?.exists() ? (snap.data() as UserProfile) : null;
-        }
+    (async () => {
+      for (const id of wanted) {
+        const snap = await getDoc(doc(firestore, 'userProfiles', id)).catch(() => null);
+        profilesRef.current[id] = snap?.exists() ? (snap.data() as UserProfile) : null;
+      }
 
-        if (!alive) return;
-        setChats(
-          fetched.sort(
-            (a, b) =>
-              (b.lastMessageTimestamp?.toMillis?.() || 0) -
-              (a.lastMessageTimestamp?.toMillis?.() || 0),
-          ),
-        );
-        setProfiles({ ...profilesRef.current });
-        setIsLoading(false);
-      },
-      () => {
-        if (alive) setIsLoading(false);
-      },
-    );
+      if (!alive) return;
+      setChats(
+        [...liveChats].sort(
+          (a, b) =>
+            (b.lastMessageTimestamp?.toMillis?.() || 0) -
+            (a.lastMessageTimestamp?.toMillis?.() || 0),
+        ),
+      );
+      setProfiles({ ...profilesRef.current });
+      setIsLoading(false);
+    })();
 
     return () => {
       alive = false;
-      unsubscribe();
     };
-  }, [firestore]);
+  }, [firestore, liveChats, chatsLoading]);
 
   const filtered = React.useMemo(() => {
     const needle = search.trim().toLowerCase();
@@ -151,6 +135,12 @@ export default function AdminConversationsPage() {
             side said.
           </p>
         </div>
+
+        {chatsError && (
+          <p className="border-b border-destructive/30 bg-destructive/10 px-6 py-2 text-xs font-semibold text-destructive">
+            {chatsError}
+          </p>
+        )}
 
         <div className="flex min-h-0 flex-1 flex-col md:flex-row">
           {/* Conversation list */}

@@ -1,6 +1,7 @@
 import { AccessToken } from 'livekit-server-sdk';
 import { db } from '@/firebase/server';
 import { MAX_LIVE_SECONDS } from '@/lib/listings/limits';
+import { pbMirrorLiveStream, pbPatchLiveStream } from '@/lib/pocketbase/live-streams';
 import {
   LIVESTREAMS_COLLECTION,
   type LiveStream,
@@ -216,6 +217,8 @@ export async function createLiveStream(input: {
     updatedAt: now,
   };
   await ref.set(stream);
+  // VPS copy of the broadcast (best-effort — never blocks going live).
+  void pbMirrorLiveStream(ref.id, stream);
   return stream;
 }
 
@@ -244,6 +247,9 @@ export async function updateLiveStream(
     .collection(LIVESTREAMS_COLLECTION)
     .doc(id)
     .update({ ...patch, updatedAt: new Date() });
+  // Mirror the same partial update (PB PATCH merges, so a status flip or an
+  // ENDED stamp lands without rewriting the whole document).
+  void pbPatchLiveStream(id, { ...patch, updatedAt: new Date().toISOString() });
 }
 
 /** Marks the stream ENDED and stamps duration (spec §34). */

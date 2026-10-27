@@ -23,9 +23,15 @@
  * toggled. Silencing that category is a legitimate preference for noise, but a
  * hijacked account is not noise — and a user who has turned off everything else
  * still needs to be told when someone else logs into their account.
+ *
+ * WHY THIS MODULE IS SERVER-FREE
+ * The settings screen (`push-settings-screen.tsx`, a client component) imports
+ * `PUSH_CATEGORIES` from here, so everything in this file must stay free of
+ * server imports. `isPushEnabledFor` — the delivery gate that reads stored
+ * preferences — therefore lives in `./store` next to `getPushPrefs`. A top-level
+ * import of the store used to drag firebase-admin into the browser bundle and
+ * fail the production build ("Can't resolve 'http2'/'child_process'").
  */
-
-import { getPushPrefs } from './store';
 
 export type PushCategory =
   | 'orders'
@@ -85,29 +91,11 @@ export const PUSH_CATEGORIES: {
  * A security alert is the one thing where "the user asked us not to" is not a
  * good enough reason to stay quiet.
  */
-const ALWAYS_ON: ReadonlySet<string> = new Set(['security']);
+export const ALWAYS_ON: ReadonlySet<string> = new Set(['security']);
 
-/**
- * True when a notification in `category` should be pushed.
- *
- * Preferences are read through the VPS-controlled store (PocketBase
- * `push_prefs`, Firestore fallback) — the same storage the settings screen
- * writes, so the screen and the delivery path cannot disagree.
+/*
+ * The delivery gate (`isPushEnabledFor`) lives in `./store` — it reads the
+ * stored preferences, and this module stays client-safe so the settings
+ * screen can import `PUSH_CATEGORIES` without pulling the server store (and
+ * firebase-admin) into the browser bundle.
  */
-export async function isPushEnabledFor(userId: string, category: string): Promise<boolean> {
-  if (!userId) return false;
-  if (ALWAYS_ON.has(category)) return true;
-
-  try {
-    const categories = await getPushPrefs(userId);
-    const value = categories[category];
-    // No document at all → default on (see the file header). A category with
-    // no explicit setting follows the global switch, and follows ON when that
-    // is also unset.
-    if (value === undefined) return true;
-    return value !== false;
-  } catch {
-    // An unreadable preference must not silence a payment alert.
-    return true;
-  }
-}

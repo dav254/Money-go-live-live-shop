@@ -37,8 +37,8 @@
 
 import webpush from 'web-push';
 import { getVidnovConfig } from './config';
-import { isPushEnabledFor } from './push-preferences';
 import {
+  isPushEnabledFor,
   listPushSubscriptions,
   prunePushSubscription,
   type PushSubscriptionJson,

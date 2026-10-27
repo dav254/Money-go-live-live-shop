@@ -6,6 +6,7 @@ import { createRequest, closeRequest, deleteRequest } from '@/lib/requests/reque
 import { getMyOffer, submitOffer, acceptOffer } from '@/lib/requests/offer-service';
 import { findMatchingSellers } from '@/lib/requests/matching';
 import { REQUESTS_COLLECTION } from '@/lib/media/config';
+import { pbBumpRequestCounter } from '@/lib/pocketbase/requests';
 import { listMediaForOwner, type MediaSummary } from '@/lib/media/service';
 import type { MarketplaceRequest } from '@/lib/requests/types';
 
@@ -224,5 +225,8 @@ export async function PUT(request: NextRequest) {
     .doc(id)
     .update({ views: FieldValue.increment(1) })
     .catch(() => undefined);
+  // The mirror's views counter follows the same rule: a bump only, never a
+  // client-supplied number.
+  void pbBumpRequestCounter(id, 'views', 1);
   return NextResponse.json({ ok: true });
 }

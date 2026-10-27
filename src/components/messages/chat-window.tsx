@@ -12,7 +12,6 @@ import {
     Trash2,
     PlusCircle,
     Send,
-    File,
     Download,
     Loader2,
     ArrowLeft,
@@ -38,9 +37,15 @@ import type { Chat, ChatMessage, Product, UserProfile, Order } from '@/lib/types
 import type { User } from 'firebase/auth';
 import { useUser, useUserProfile } from '@/firebase';
 import { useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
-import { collection, addDoc, serverTimestamp, orderBy, query, where, doc, updateDoc, arrayUnion, getDoc, writeBatch, increment, setDoc } from 'firebase/firestore';
+import { collection, query, where, doc, getDoc } from 'firebase/firestore';
+import { useMessages } from '@/lib/chat/use-chat';
+import {
+    newMessageId,
+    patchChat,
+    sendChatMessage,
+    type SendMessagePayload,
+} from '@/lib/chat/client';
 import { uploadMedia } from '@/lib/media/upload-client';
-import { blobToDataUrl, compressImageForChat, MAX_CHAT_EMBED_BYTES } from '@/lib/chat/device-media';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogClose, DialogDescription, DialogFooter } from '../ui/dialog';
 import Image from 'next/image';
 import {
@@ -318,16 +323,10 @@ export function ChatWindow({ chat, currentUser: currentUserProp, onChatDeleted, 
   const audioChunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  const messagesQuery = useMemoFirebase(() => {
-    if (!chat || !firestore) return null;
-    return query(collection(firestore, 'chats', chat.id, 'messages'), orderBy('timestamp', 'asc'));
-  }, [firestore, chat]);
-
-  const { data: serverMessages } = useCollection<ChatMessage>(messagesQuery);
-  
-  useEffect(() => {
-    if (serverMessages) setOptimisticMessages([]);
-  }, [serverMessages]);
+  // The thread itself comes from the VPS store, polled (see use-chat.ts).
+  // Products, orders and the peer profile below still read their own
+  // collections — those are marketplace records, not message data.
+  const { messages: serverMessages, error: messagesError } = useMessages(chat?.id);
 
   useEffect(() => {
     if (chat && activeUser && firestore) {
@@ -340,22 +339,24 @@ export function ChatWindow({ chat, currentUser: currentUserProp, onChatDeleted, 
     }
   }, [chat, activeUser, firestore]);
 
+  /*
+   * Opening the thread marks their messages read — one API call per NEW
+   * unread message rather than one per poll tick (the key is the newest
+   * unread id, so re-renders of the same data are a no-op).
+   */
+  const lastReadRef = useRef<{ chatId: string; messageId: string }>({ chatId: '', messageId: '' });
   useEffect(() => {
-    if (!chat || !activeUser || !firestore || !serverMessages) return;
+    if (!chat || !activeUser || !serverMessages) return;
     const unreadFromOther = serverMessages.filter(m => m.senderId !== activeUser.uid && !m.isRead);
-    if (unreadFromOther.length > 0) {
-        const batch = writeBatch(firestore);
-        unreadFromOther.forEach(m => {
-            batch.update(doc(firestore, 'chats', chat.id, 'messages', m.id), { isRead: true, readAt: serverTimestamp() });
-        });
-        
-        batch.update(doc(firestore, 'chats', chat.id), {
-            [`unreadCounts.${activeUser.uid}`]: 0
-        });
+    if (unreadFromOther.length === 0) return;
 
-        batch.commit().catch(console.error);
-    }
-  }, [serverMessages, chat, activeUser, firestore]);
+    const newest = unreadFromOther[unreadFromOther.length - 1].id;
+    if (lastReadRef.current.chatId === chat.id && lastReadRef.current.messageId === newest) return;
+    lastReadRef.current = { chatId: chat.id, messageId: newest };
+    patchChat(activeUser, chat.id, 'read').catch((error) => {
+      console.error('Could not mark the conversation read:', error);
+    });
+  }, [serverMessages, chat, activeUser]);
 
   const scrollToBottom = useCallback(() => {
     const viewport = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]');
@@ -380,37 +381,40 @@ export function ChatWindow({ chat, currentUser: currentUserProp, onChatDeleted, 
   const handleScroll = (viewport: HTMLDivElement) => {
     const isAtBottom = viewport.scrollHeight - viewport.scrollTop <= viewport.clientHeight + 100;
     setShowScrollBottom(!isAtBottom);
-  };
-
-  const sendMessage = async (messageData: Partial<ChatMessage>) => {
-      if (!chat || !currentUser || !firestore) return;
-      const tempId = `temp-${Date.now()}`;
+  };  const sendMessage = async (messageData: Partial<ChatMessage>) => {
+      if (!chat || !currentUser) return;
+      /*
+       * The id is minted HERE and handed to the server, which stores it as the
+       * message's record id. That is what makes the optimistic bubble safe: it
+       * disappears the moment the poll returns the real row with the same id,
+       * so a retry can never double-post and a slow poll can never leave a
+       * duplicate on screen.
+       */
+      const clientMsgId = newMessageId();
       const senderId = currentUser.uid;
-      setOptimisticMessages(prev => [...prev, { id: tempId, senderId, timestamp: new Date(), isOptimistic: true, ...messageData }]);
+      setOptimisticMessages(prev => [...prev, {
+          id: clientMsgId,
+          senderId,
+          timestamp: new Date(),
+          sentAt: Date.now(),
+          isOptimistic: true,
+          ...messageData,
+      }]);
+
+      const payload: SendMessagePayload = {
+          messageType: messageData.messageType ?? 'text',
+          ...(messageData.messageText ? { messageText: messageData.messageText } : {}),
+          ...(messageData.mediaUrl ? { mediaUrl: messageData.mediaUrl } : {}),
+          ...(messageData.mediaMetadata ? { mediaMetadata: messageData.mediaMetadata } : {}),
+          ...(messageData.productId ? { productId: messageData.productId } : {}),
+          ...(messageData.orderId ? { orderId: messageData.orderId } : {}),
+      };
 
       try {
-          await addDoc(collection(firestore, 'chats', chat.id, 'messages'), {
-              senderId,
-              timestamp: serverTimestamp(),
-              isRead: false,
-              ...messageData
-          });
-
-          const otherId = chat.participantIds.find(id => id !== senderId);
-          const updateObj: any = { 
-              lastMessage: messageData.messageType === 'voice' ? 'Sent a voice note' : (messageData.messageText || 'Sent a file'), 
-              lastMessageTimestamp: serverTimestamp(),
-              deletedFor: [] 
-          };
-          
-          if (otherId) {
-              updateObj[`unreadCounts.${otherId}`] = increment(1);
-          }
-
-          await updateDoc(doc(firestore, 'chats', chat.id), updateObj);
+          await sendChatMessage(currentUser, chat.id, payload, clientMsgId);
           scrollToBottom();
       } catch (error) {
-          setOptimisticMessages(prev => prev.filter(m => m.id !== tempId));
+          setOptimisticMessages(prev => prev.filter(m => m.id !== clientMsgId));
           throw error;
       }
   };
@@ -426,44 +430,37 @@ export function ChatWindow({ chat, currentUser: currentUserProp, onChatDeleted, 
     const file = e.target.files?.[0];
     if (!file || !chat || !currentUser) return;
 
-    // Device-only first: images are compressed and small files are embedded
-    // straight into the message document, so private chat media never lands
-    // in platform storage. Only videos/large files that physically cannot fit
-    // (Firestore caps a document at 1 MB) fall back to the upload pipeline.
+    /*
+     * EVERY attachment goes to the VPS disk through the media pipeline
+     * (`chats/<chatId>/` owner folder). The old path embedded photos and small
+     * files as `data:` URLs inside the message document, which put conversation
+     * bytes inside Firebase and made the message enormous — it is gone: this
+     * server stores the file and the message only carries its URL.
+     */
     try {
-      const kind = file.type.startsWith('image/') ? 'image' : file.type.startsWith('video/') ? 'video' : 'file';
+      const kind = file.type.startsWith('image/')
+        ? 'image'
+        : file.type.startsWith('video/')
+          ? 'video'
+          : file.type.startsWith('audio/')
+            ? 'voice'
+            : 'file';
 
-      if (kind === 'image') {
-        const { dataUrl, bytes } = await compressImageForChat(file);
-        await sendMessage({
-          messageType: 'image',
-          mediaUrl: dataUrl,
-          mediaMetadata: { name: file.name, size: bytes, type: 'image/jpeg' }
-        });
-      } else if (file.size <= MAX_CHAT_EMBED_BYTES) {
-        const dataUrl = await blobToDataUrl(file);
-        await sendMessage({
-          messageType: kind,
-          mediaUrl: dataUrl,
-          mediaMetadata: { name: file.name, size: file.size, type: file.type }
-        });
-      } else {
-        setUploadProgress(0);
-        const result = await uploadMedia(
-          file,
-          currentUser,
-          (p) => setUploadProgress(p.percent),
-          { folder: `chats/${chat.id}` },
-        );
-        if (result.phase === 'failed' || !result.url) {
-          throw new Error(result.error || 'Upload failed.');
-        }
-        await sendMessage({
-          messageType: kind,
-          mediaUrl: result.url,
-          mediaMetadata: { name: file.name, size: file.size, type: file.type }
-        });
+      setUploadProgress(0);
+      const result = await uploadMedia(
+        file,
+        currentUser,
+        (p) => setUploadProgress(p.percent),
+        { folder: `chats/${chat.id}` },
+      ).promise;
+      if (result.phase === 'failed' || !result.url) {
+        throw new Error(result.error || 'Upload failed.');
       }
+      await sendMessage({
+        messageType: kind,
+        mediaUrl: result.url,
+        mediaMetadata: { name: file.name, size: file.size, type: file.type },
+      });
     } catch (error) {
       console.error("Upload error:", error);
       toast({
@@ -485,6 +482,11 @@ export function ChatWindow({ chat, currentUser: currentUserProp, onChatDeleted, 
   }, [chat, activeUser, firestore, toast, sendMessage]);
 
   const startRecording = async () => {
+    // Captured before the recorder callback closes over it: the composer only
+    // renders when a chat is selected, but a closure made earlier than that
+    // narrowing cannot assume it.
+    const chatId = chat?.id;
+    if (!chatId || !currentUser) return;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       // Not every browser supports webm (Firefox records ogg); ask for a
@@ -501,9 +503,9 @@ export function ChatWindow({ chat, currentUser: currentUserProp, onChatDeleted, 
       mediaRecorder.ondataavailable = (event) => {
         if (event.data.size > 0) audioChunksRef.current.push(event.data);
       };      mediaRecorder.onstop = async () => {
-        // Voice notes stay on the two participants' devices only: the audio
-        // rides inside the message document as a data URL and never touches
-        // platform storage. The whole callback is guarded — an exception here
+        // Voice notes are uploaded to the VPS like every other attachment: the
+        // server stores the audio under `chats/<chatId>/` and the message only
+        // references its URL. The whole callback is guarded — an exception here
         // used to escape as an unhandled recorder error.
         try {
             const audioType = mediaRecorder.mimeType || 'audio/webm';
@@ -511,25 +513,35 @@ export function ChatWindow({ chat, currentUser: currentUserProp, onChatDeleted, 
             const finalDuration = recordingTime;
 
             if (audioBlob.size > 100) {
-                if (audioBlob.size > MAX_CHAT_EMBED_BYTES) {
-                    toast({
-                        variant: 'destructive',
-                        title: 'Voice note too long',
-                        description: 'Record a shorter note so it stays on-device.',
-                    });
-                } else {
-                    const dataUrl = await blobToDataUrl(audioBlob);
-                    await sendMessage({
-                        messageType: 'voice',
-                        mediaUrl: dataUrl,
-                        mediaMetadata: { name: 'Voice Note', size: audioBlob.size, type: audioType, duration: finalDuration }
-                    });
+                const cleanType = audioType.split(';')[0];
+                const extension = cleanType.includes('ogg') ? 'ogg' : 'webm';
+                const voiceFile = new File([audioBlob], `voice-note.${extension}`, { type: cleanType });
+                setUploadProgress(0);
+                const result = await uploadMedia(
+                    voiceFile,
+                    currentUser,
+                    (p) => setUploadProgress(p.percent),
+                    { folder: `chats/${chatId}` },
+                ).promise;
+                if (result.phase === 'failed' || !result.url) {
+                    throw new Error(result.error || 'Upload failed.');
                 }
+                await sendMessage({
+                    messageType: 'voice',
+                    mediaUrl: result.url,
+                    mediaMetadata: {
+                        name: 'Voice Note',
+                        size: audioBlob.size,
+                        type: cleanType,
+                        duration: finalDuration,
+                    },
+                });
             }
         } catch (error) {
             console.error('Voice note failed:', error);
             toast({ variant: 'destructive', title: 'Voice note not sent' });
         } finally {
+            setUploadProgress(null);
             stream.getTracks().forEach(track => track.stop());
         }
       };
@@ -563,8 +575,8 @@ export function ChatWindow({ chat, currentUser: currentUserProp, onChatDeleted, 
     }
   };
 
-  // Auto-stop a long recording: device-only voice notes must fit the on-device
-  // size limit, and a note that can never be sent is worse than a stopped one.
+  // Auto-stop a long recording so a voice note cannot grow past the server's
+  // own attachment ceiling.
   useEffect(() => {
     if (isRecording && recordingTime >= 150) stopRecording();
   }, [isRecording, recordingTime]);
@@ -584,7 +596,18 @@ export function ChatWindow({ chat, currentUser: currentUserProp, onChatDeleted, 
   }
 
   const isOnline = otherParticipantProfile?.lastSeen ? (Date.now() - otherParticipantProfile.lastSeen.toMillis() < 120000) : false;
-  const allMessages = [...(serverMessages || []), ...optimisticMessages];
+  /*
+   * Server rows first, then my still-unsent bubbles. An optimistic row carries
+   * the id the server will give it, so it drops out of this list the moment the
+   * poll returns — no gap after a send, no duplicate when the poll catches up.
+   * A row that never made it (rejected by the server) is swept after 30s rather
+   * than haunting the thread.
+   */
+  const serverIds = new Set((serverMessages ?? []).map(m => m.id));
+  const allMessages = [
+      ...(serverMessages || []),
+      ...optimisticMessages.filter(m => !serverIds.has(m.id) && (m.sentAt ?? 0) > Date.now() - 30_000),
+  ];
 
   return (
     <div className="flex h-full w-full bg-background overflow-hidden relative">
@@ -610,7 +633,14 @@ export function ChatWindow({ chat, currentUser: currentUserProp, onChatDeleted, 
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="rounded-full h-7 w-7 shrink-0"><MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-44 rounded-xl shadow-2xl">
-                    <DropdownMenuItem className="text-destructive text-[10px] font-bold uppercase tracking-widest" onClick={() => updateDoc(doc(firestore, 'chats', chat.id), { deletedFor: arrayUnion(activeUser?.uid ?? '') }).then(onChatDeleted)}>
+                    <DropdownMenuItem className="text-destructive text-[10px] font-bold uppercase tracking-widest" onClick={() => {
+                        if (!activeUser) return;
+                        // Per-user hide, applied server-side: it can never be
+                        // undone by the other participant's next message.
+                        patchChat(activeUser, chat.id, 'hide')
+                            .then(onChatDeleted)
+                            .catch(() => toast({ variant: 'destructive', title: 'Could not delete this chat' }));
+                    }}>
                         <Trash2 className="mr-2 h-3 w-3" /> Delete Chat
                     </DropdownMenuItem>
                     </DropdownMenuContent>
@@ -624,6 +654,11 @@ export function ChatWindow({ chat, currentUser: currentUserProp, onChatDeleted, 
                     className="px-4 md:px-8 py-4 space-y-4 pb-12 w-full"
                     onScrollCapture={(e) => handleScroll(e.currentTarget)}
                 >
+                {messagesError && allMessages.length === 0 && (
+                    <p className="py-8 text-center text-[10px] font-black uppercase tracking-widest text-destructive">
+                        {messagesError}
+                    </p>
+                )}
                 {allMessages.map((msg) => {
                     const senderIsMe = msg.senderId === activeUser?.uid;
                     const alignRight = senderIsMe;

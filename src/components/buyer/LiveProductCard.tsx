@@ -7,6 +7,7 @@ import type { Product } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { useUser, useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { doc, setDoc, increment, serverTimestamp } from 'firebase/firestore';
+import { mirrorCartItem } from '@/lib/users/mirror';
 import { useRouter } from "next/navigation";
 
 
@@ -40,7 +41,7 @@ export function LiveProductCard({ product }: { product: Product }) {
     };
 
     try {
-        setDoc(cartItemRef, itemData, { merge: true });
+        setDoc(cartItemRef, itemData, { merge: true }).then(() => mirrorCartItem(user, product.id));
         toast({ title: 'Added to cart!', description: `${product.name} has been added.` });
     } catch (e) {
         errorEmitter.emit('permission-error', new FirestorePermissionError({

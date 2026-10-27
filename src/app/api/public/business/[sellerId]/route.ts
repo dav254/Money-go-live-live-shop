@@ -4,6 +4,7 @@ import { type OrderReviewDoc } from '@/lib/reviews';
 import { type Business } from '@/lib/business/types';
 import { resolveEffectiveVerification } from '@/lib/verification';
 import { tierForCompletedTransactions, type AccountTier } from '@/lib/tiers';
+import { pbGetShop } from '@/lib/pocketbase/shops';
 
 /**
  * THE PUBLIC BUSINESS OF A SELLER.
@@ -41,11 +42,20 @@ export async function GET(
   if (!sellerId) return NextResponse.json({ error: 'Missing seller' }, { status: 400 });
 
   try {
-    const shopSnap = await db.collection('sellerShops').doc(sellerId).get();
-    if (!shopSnap.exists) {
-      return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    // The shop record, VPS copy first: this endpoint only needs
+    // `sellerShops/{uid}.businessId`, and the mirror is refreshed by every
+    // seller save — so a Firestore outage can no longer hide a storefront's
+    // business page. Firestore stays the fallback (and the source the mirror
+    // is copied from).
+    const mirroredShop = await pbGetShop(sellerId);
+    let shop: Record<string, any> | null = mirroredShop?.data ?? null;
+    if (!shop) {
+      const shopSnap = await db.collection('sellerShops').doc(sellerId).get();
+      if (!shopSnap.exists) {
+        return NextResponse.json({ error: 'Not found' }, { status: 404 });
+      }
+      shop = shopSnap.data() as Record<string, any>;
     }
-    const shop = shopSnap.data() as any;
 
     // The account's verification status, read in the same round trip as the
     // shop. The admin queue approves THIS field, so without it an approval
