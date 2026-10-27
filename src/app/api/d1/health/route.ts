@@ -32,12 +32,16 @@ export async function GET() {
       latencyMs: Date.now() - startedAt,
     });
   } catch (error) {
-    console.error('[d1/health]', error);
+    // Static log only — the raw upstream message is never echoed to an
+    // UNAUTHENTICATED caller (Cloudflare error text can carry account or
+    // token-shaped details) and never reaches the response.
+    console.error('[d1/health] query failed');
+    void error;
     return NextResponse.json(
       {
         ok: false,
         configured: true,
-        message: error instanceof Error ? error.message : 'D1 query failed.',
+        message: 'D1 query failed. Check the server logs and the D1 credentials in Settings → Environment.',
       },
       { status: 502 },
     );
