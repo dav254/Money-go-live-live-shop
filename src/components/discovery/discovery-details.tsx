@@ -42,7 +42,7 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import type { Product } from '@/lib/types';
 import { isService } from '@/components/listings/service-badge';
-import { availabilityLabel, isPurchasable, listingMedia, timeAgo } from '@/lib/discovery';
+import { availabilityLabel, isPurchasable, listingCover, listingMedia, timeAgo } from '@/lib/discovery';
 import type { DiscoverySeller } from './discovery-video-post';
 
 interface ReviewDoc {
@@ -74,12 +74,19 @@ export function DiscoveryDetails({
   listing,
   seller,
   sponsored,
+  related,
   open,
   onOpenChange,
 }: {
   listing: Product | null;
   seller: DiscoverySeller | null;
   sponsored: boolean;
+  /**
+   * "You may also like" candidates, computed by the feed from the SAME
+   * loaded pool it already shows — no extra query, no duplicate items, always
+   * excluding the listing being viewed. Empty means the section is hidden.
+   */
+  related?: Product[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
@@ -89,6 +96,7 @@ export function DiscoveryDetails({
       listing={listing}
       seller={seller}
       sponsored={sponsored}
+      related={related ?? []}
       open={open}
       onOpenChange={onOpenChange}
     />
@@ -99,12 +107,14 @@ function DetailsBody({
   listing,
   seller,
   sponsored,
+  related = [],
   open,
   onOpenChange,
 }: {
   listing: Product;
   seller: DiscoverySeller;
   sponsored: boolean;
+  related?: Product[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
@@ -617,6 +627,43 @@ function DetailsBody({
                 </Link>
               )}
             </section>
+
+            {/* You may also like — real listings from the same loaded pool.
+                Every card links to the existing product route, so variants,
+                stock checks and the purchase flow are untouched. */}
+            {related.length > 0 && (
+              <section>
+                <h3 className={cn(headingClass, 'mb-2')}>You may also like</h3>
+                <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-1">
+                  {related.map((item) => {
+                    const itemPrice = Number(item.localPrice || item.price || 0);
+                    return (
+                      <Link
+                        key={item.id}
+                        href={`/products/${item.id}`}
+                        className="vn-discovery-card w-32 shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--vn-cyan)]"
+                      >
+                        <div className="relative h-24 w-full bg-black">
+                          <Image
+                            src={listingCover(item) || '/placeholder-image.svg'}
+                            alt={item.name}
+                            fill
+                            sizes="128px"
+                            className="object-cover"
+                          />
+                        </div>
+                        <div className="p-2">
+                          <p className="truncate text-[11px] font-bold text-white">{item.name}</p>
+                          <p className="truncate text-[11px] font-bold text-[color:var(--vn-discovery-accent)]">
+                            {item.localCurrency || 'USD'} {itemPrice.toLocaleString()}
+                          </p>
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
+              </section>
+            )}
 
             {/* Reviews */}
             <section>

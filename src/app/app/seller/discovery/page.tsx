@@ -12,7 +12,9 @@
  * "Discovery" and a buyer looking at Discovery are provably looking at the same
  * list in the same order. Anything else and the screen stops being a mirror.
  *
- * Immersive, so the shell's tab bar is hidden and this route supplies its own.
+ * Immersive, so the shell's own tab bar is hidden on this route and the
+ * section renders the shared Discovery bottom bar instead (one footer, never
+ * two). Destinations and the rest of the shell are untouched.
  */
 
 import { Compass, Home, MessageSquare, Plus, UserRound } from 'lucide-react';
@@ -34,7 +36,7 @@ export default function SellerSectionDiscovery() {
     <div className="vn-discovery-in-app">
       {/* `fill`: the shell's header sits above this — a 100dvh section would
           push its bottom card below the fold. */}
-      <DiscoverySection nav={NAV} noBottomNav ownCover={sellerListingCover} fill />
+      <DiscoverySection nav={NAV} fill ownCover={sellerListingCover} />
     </div>
   );
 }

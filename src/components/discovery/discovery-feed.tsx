@@ -157,6 +157,9 @@ export function DiscoveryFeed({
         isVerified: !!shop?.isVerified,
         location: shop?.location || '',
         isLive: liveSellerIds.has(listing.sellerId),
+        // Real shop rating only. An absent/zero score stays undefined so the
+        // post renders no star rather than a decorative one.
+        rating: (shop?.rating ?? 0) > 0 ? shop?.rating : undefined,
       };
     },
     [shopsById, liveSellerIds],
@@ -207,10 +210,31 @@ export function DiscoveryFeed({
     listing: Product;
     seller: DiscoverySeller;
     sponsored: boolean;
+    related: Product[];
   } | null>(null);
 
   const openDetails = (listing: Product) => {
-    setDetails({ listing, seller: sellerFor(listing), sponsored: isSponsoredNow(listing) });
+    /*
+     * Related content, from the SAME loaded pool the feed already shows —
+     * never a second query. Same category first (that is what "you may also
+     * like" means to a shopper), then the rest of this seller's listings,
+     * deduped, capped, and always excluding the listing being viewed.
+     */
+    const pool = filtered.filter((p) => p.id !== listing.id);
+    const category = (listing.category ?? '').trim().toLowerCase();
+    const sameCategory = category
+      ? pool.filter((p) => (p.category ?? '').trim().toLowerCase() === category)
+      : [];
+    const sameSeller = pool.filter(
+      (p) => p.sellerId === listing.sellerId && !sameCategory.includes(p),
+    );
+    const related = [...sameCategory, ...sameSeller].slice(0, 6);
+    setDetails({
+      listing,
+      seller: sellerFor(listing),
+      sponsored: isSponsoredNow(listing),
+      related,
+    });
   };
 
   const loading = products.isLoading && products.data === null;
@@ -302,6 +326,7 @@ export function DiscoveryFeed({
         listing={details?.listing ?? null}
         seller={details?.seller ?? null}
         sponsored={details?.sponsored ?? false}
+        related={details?.related ?? []}
         open={!!details}
         onOpenChange={(next) => {
           if (!next) setDetails(null);

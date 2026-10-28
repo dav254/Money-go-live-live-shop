@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   Bookmark, Heart, Loader2, MapPin, MessageCircle,
-  Pause, Play, Plus, Send, Share2, ShoppingBag, Store,
+  Pause, Play, Plus, Send, Share2, ShoppingBag, Store, Star, Truck,
 } from 'lucide-react';
 import {
   addDoc, arrayRemove, arrayUnion, collection, doc, increment,
@@ -30,6 +30,12 @@ export interface DiscoverySeller {
   isVerified: boolean;
   location: string;
   isLive: boolean;
+  /**
+   * Genuine shop rating, only ever set from a shop document that carries a
+   * non-zero score. Absent/zero means "no rating data" and the badge is
+   * simply not rendered — a star nobody earned is worse than no star.
+   */
+  rating?: number;
 }
 
 /* ── Formatting ────────────────────────────────────────────────────────── */
@@ -415,8 +421,30 @@ export function DiscoveryVideoPost({
   ]
     .filter(Boolean)
     .join('\n\n');
-  const cta = isService(listing) ? 'View service' : 'View product';
+  const service = isService(listing);
+  const cta = service ? 'View service' : 'View product';
   const actionable = purchasable || isService(listing);
+  const availability = availabilityLabel(listing);
+  /*
+   * Real discount only: `wasPrice` strictly above the price actually shown.
+   * A listing without one renders no badge — an invented "-40%" is a lie the
+   * seller would have to answer for.
+   */
+  const discountPct = (() => {
+    const price = Number(listing.localPrice || listing.price || 0);
+    const was = Number(listing.wasPrice || 0);
+    if (price > 0 && was > price) return Math.round(((was - price) / was) * 100);
+    return 0;
+  })();
+  /* Thumbnail window: a six-slot row that slides with the current index, so
+     the SELECTED thumb is always visible however many media items exist. */
+  const THUMB_WINDOW = 6;
+  const thumbStart =
+    playable.length > THUMB_WINDOW
+      ? Math.max(0, Math.min(safeIndex - 3, playable.length - THUMB_WINDOW))
+      : 0;
+  const visibleThumbs = playable.slice(thumbStart, thumbStart + THUMB_WINDOW);
+  const hiddenThumbCount = playable.length - visibleThumbs.length;
 
   /*
    * Where the Message button sends the buyer: the messages section of
@@ -430,16 +458,13 @@ export function DiscoveryVideoPost({
       ? `/app/buyer/messages?chatWith=${encodeURIComponent(seller.id)}`
       : `/messages?chatWith=${encodeURIComponent(seller.id)}`;
   /*
-   * The CTA carries the surface's own colour: blue on buyer surfaces, orange
-   * on seller ones (the dashboard live-feed included). The lime accent stays
-   * for prices and follow badges — it was too close to "buy" to also mean
-   * "open".
+   * The primary action is the SAME red on every surface (the reference's
+   * crimson "View product"); what still varies is WHICH action it is —
+   * services open the real quote conversation, products open the listing.
    */
-  const sellerSurface =
-    pathname.startsWith('/app/seller') || pathname.startsWith('/dashboard/seller');
 
   return (
-    <section className="absolute inset-0 flex overflow-hidden bg-black">
+    <section className="absolute inset-0 flex overflow-hidden bg-[#050a16]">
       {/* Media */}
       <div className="absolute inset-0">
         {current?.type === 'video' ? (
@@ -593,7 +618,7 @@ export function DiscoveryVideoPost({
         <div className="flex items-center gap-2">
           <Link
             href={`/sellers/${seller.id}`}
-            className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full border border-white/60"
+            className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full border border-white/60 ring-2 ring-[color:var(--vn-cyan)]/60"
           >
             <Image src={seller.avatarUrl} alt={seller.name} fill sizes="36px" className="object-cover" />
           </Link>
@@ -606,28 +631,57 @@ export function DiscoveryVideoPost({
             {seller.isVerified && (
               <span
                 title="Verified business"
-                className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[#2D9CFF] text-[9px] font-black text-white"
+                className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-[color:var(--vn-cyan)] bg-[color:var(--vn-cyan)]/15 text-[9px] font-black text-[color:var(--vn-cyan)]"
               >
                 ✓
               </span>
             )}
+            {/* Genuine rating data only — never a decorative star. */}
+            {typeof seller.rating === 'number' && seller.rating > 0 && (
+              <span className="flex shrink-0 items-center gap-1 rounded-full border border-white/20 bg-white/10 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                <Star className="h-3 w-3 fill-[color:var(--vn-cyan)] text-[color:var(--vn-cyan)]" aria-hidden />
+                {seller.rating.toFixed(1)}
+              </span>
+            )}
+            {/* Shown only when the streaming service reports a live session. */}
+            {seller.isLive && (
+              <span className="flex shrink-0 items-center gap-1 rounded-full bg-[#FF0033] px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-white">
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white" aria-hidden />
+                Live
+              </span>
+            )}
           </Link>
 
-          {user?.uid !== seller.id && (
-            <button
-              type="button"
-              onClick={toggleFollow}
-              aria-pressed={following}
-              className={cn(
-                'ml-1 h-7 shrink-0 rounded-full px-3.5 text-[11px] font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white',
-                following
-                  ? 'border border-white/35 bg-white/10 text-white/85'
-                  : 'bg-[color:var(--vn-discovery-accent)] text-[#0A0A0A] hover:bg-[color:var(--vn-discovery-accent-hover)]',
-              )}
-            >
-              {following ? 'Following' : 'Follow'}
-            </button>
-          )}
+          <span className="ml-auto flex shrink-0 items-center gap-1.5">
+            {/* The direct line to the seller, kept one tap away on the post.
+                Services skip it — their primary action already opens chat. */}
+            {user?.uid !== seller.id && !isService(listing) && (
+              <Link
+                href={messagesHref}
+                aria-label={`Chat with ${seller.name}`}
+                title="Chat with the seller"
+                className="flex h-7 w-7 items-center justify-center rounded-full border border-white/20 bg-white/10 text-white transition hover:border-[color:var(--vn-cyan)] hover:text-[color:var(--vn-cyan)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+              >
+                <MessageCircle className="h-3.5 w-3.5" aria-hidden />
+              </Link>
+            )}
+
+            {user?.uid !== seller.id && (
+              <button
+                type="button"
+                onClick={toggleFollow}
+                aria-pressed={following}
+                className={cn(
+                  'h-7 shrink-0 rounded-full px-3.5 text-[11px] font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white',
+                  following
+                    ? 'border border-white/35 bg-white/10 text-white/85'
+                    : 'bg-[color:var(--vn-discovery-accent)] text-[#0A0A0A] hover:bg-[color:var(--vn-discovery-accent-hover)]',
+                )}
+              >
+                {following ? 'Following' : 'Follow'}
+              </button>
+            )}
+          </span>
         </div>
 
         {/* Caption */}
@@ -637,7 +691,59 @@ export function DiscoveryVideoPost({
           </div>
         )}
 
-        <div className="mt-3 rounded-2xl border border-white/10 bg-black/55 p-3 backdrop-blur-md">
+        {/*
+          Thumbnail strip for listings with more than one media item. The
+          window slides around the current index so the SELECTED thumb is
+          always visible, the active one wears a red border, and a trailing
+          "+N" says how many items are outside the window. Hidden entirely
+          when there is only one item — no decorative row of one.
+        */}
+        {playable.length > 1 && (
+          <div className="mt-3 flex items-center gap-2 overflow-x-auto pb-1" aria-label="Product media">
+            {visibleThumbs.map((m, i) => {
+              const idx = thumbStart + i;
+              const isActive = idx === safeIndex;
+              const thumb = m.type === 'video' ? (m.poster ?? '') : m.url;
+              return (
+                <button
+                  key={m.url}
+                  type="button"
+                  onClick={() => {
+                    setManual(true);
+                    setIndex(idx);
+                  }}
+                  aria-label={`Show media ${idx + 1} of ${playable.length}`}
+                  aria-current={isActive}
+                  className={cn(
+                    'relative h-12 w-12 shrink-0 overflow-hidden rounded-lg border-2 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white',
+                    isActive
+                      ? 'border-[#FF0033] shadow-[0_0_10px_rgba(255,0,51,0.7)]'
+                      : 'border-white/20 opacity-70 hover:opacity-100',
+                  )}
+                >
+                  {thumb ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img src={thumb} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    <span className="flex h-full w-full items-center justify-center bg-black/60 text-white/70">
+                      <Play className="h-4 w-4" aria-hidden />
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+            {hiddenThumbCount > 0 && (
+              <span
+                className="shrink-0 rounded-lg border border-white/20 bg-white/10 px-2 py-2.5 text-[10px] font-black tabular-nums text-white"
+                title={`${hiddenThumbCount} more media item${hiddenThumbCount === 1 ? '' : 's'}`}
+              >
+                +{hiddenThumbCount}
+              </span>
+            )}
+          </div>
+        )}
+
+        <div className="vn-discovery-product-card mt-3 rounded-2xl p-3 backdrop-blur-md">
           <div className="flex items-center gap-3">
             <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-white/10">
               <Image
@@ -650,12 +756,43 @@ export function DiscoveryVideoPost({
               />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-[13px] font-bold text-white">{listing.name}</p>
-              <p className="truncate font-grotesk text-[17px] font-black leading-tight text-[color:var(--vn-discovery-accent)]">
-                {priceText(listing)}
+              <p className="flex min-w-0 items-center gap-1.5 text-[13px] font-bold text-white">
+                <span className="truncate">{listing.name}</span>
+                {seller.isVerified && (
+                  <span
+                    title="Verified seller"
+                    className="inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full border border-[color:var(--vn-cyan)] text-[8px] font-black text-[color:var(--vn-cyan)]"
+                  >
+                    ✓
+                  </span>
+                )}
+              </p>
+              <p className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                <span className="font-grotesk text-[17px] font-black leading-tight text-[color:var(--vn-discovery-accent)]">
+                  {priceText(listing)}
+                </span>
+                {discountPct > 0 && (
+                  <span className="rounded-full bg-[color:var(--vn-discovery-accent)] px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-[#0A0A0A]">
+                    -{discountPct}%
+                  </span>
+                )}
               </p>
               <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[11px] text-white/55">
-                {availabilityLabel(listing) && <span>{availabilityLabel(listing)}</span>}
+                {availability && (
+                  <span className={cn(availability === 'out of stock' && 'text-red-400')}>
+                    {availability}
+                  </span>
+                )}
+                {listing.deliveryOptions && (
+                  <span className="flex min-w-0 items-center gap-1 text-white/60">
+                    <Truck className="h-3 w-3 shrink-0" aria-hidden />
+                    <span className="truncate">
+                      {listing.deliveryOptions.length > 24
+                        ? `${listing.deliveryOptions.slice(0, 24)}…`
+                        : listing.deliveryOptions}
+                    </span>
+                  </span>
+                )}
                 {place && (
                   <span className="flex items-center gap-1">
                     <MapPin className="h-3 w-3" aria-hidden />
@@ -664,44 +801,47 @@ export function DiscoveryVideoPost({
                 )}
               </p>
             </div>
-          </div>
-
-          <div className="mt-3 flex items-center gap-2">
-            {/* min-w-0 lets the button shrink on a phone (flex items default
-                to min-width:auto and clip otherwise); overflow-hidden backs it up. */}
-            <button
-              type="button"
-              onClick={onOpenDetails}
-              disabled={!actionable}
-              aria-label={`${cta} — ${listing.name}`}
-              className={cn(
-                'flex h-11 min-w-0 flex-1 items-center justify-center gap-2 overflow-hidden rounded-xl px-3 text-[13px] font-bold transition',
-                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white',
-                actionable
-                  ? sellerSurface
-                    ? 'bg-orange-500 text-white shadow-md shadow-black/30 hover:bg-orange-400'
-                    : 'bg-blue-500 text-white shadow-md shadow-black/30 hover:bg-blue-400'
-                  : 'cursor-not-allowed bg-white/12 text-white/40',
-              )}
-            >
-              <ShoppingBag className="h-4 w-4 shrink-0" aria-hidden />
-              <span className="flex min-w-0 items-center gap-1.5 overflow-hidden">
-                <span className="shrink-0 opacity-70">{cta} ·</span>
-                <span className="min-w-0 truncate font-extrabold">{listing.name}</span>
-              </span>
-            </button>
-
-            {user?.uid !== seller.id && (
+          </div>          <div className="mt-3 flex items-center gap-2">
+            {/* Primary action: the same crimson everywhere. Products open the
+                listing; services open the real quote conversation. min-w-0
+                keeps the label from clipping on a phone. */}
+            {service && user?.uid !== seller.id ? (
               <Link
                 href={messagesHref}
-                aria-label={`Chat with ${seller.name}`}
-                title="Chat with the seller"
-                className="flex h-11 shrink-0 items-center justify-center gap-1.5 rounded-xl border border-white/15 bg-white/8 px-3.5 text-[12px] font-bold text-white transition hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                aria-label={`Request a quote from ${seller.name}`}
+                className="flex h-11 min-w-0 flex-1 items-center justify-center gap-2 overflow-hidden rounded-xl bg-[color:var(--vn-discovery-accent)] px-3 text-[13px] font-bold text-[#0A0A0A] shadow-[0_0_18px_-4px_rgba(255,0,51,0.75)] transition hover:bg-[color:var(--vn-discovery-accent-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
               >
-                <MessageCircle className="h-4 w-4" aria-hidden />
-                Chat
+                <MessageCircle className="h-4 w-4 shrink-0" aria-hidden />
+                <span className="truncate">Request a quote</span>
               </Link>
+            ) : (
+              <button
+                type="button"
+                onClick={onOpenDetails}
+                disabled={!actionable}
+                aria-label={`${cta} — ${listing.name}`}
+                className={cn(
+                  'flex h-11 min-w-0 flex-1 items-center justify-center gap-2 overflow-hidden rounded-xl px-3 text-[13px] font-bold transition',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white',
+                  actionable
+                    ? 'bg-[color:var(--vn-discovery-accent)] text-[#0A0A0A] shadow-[0_0_18px_-4px_rgba(255,0,51,0.75)] hover:bg-[color:var(--vn-discovery-accent-hover)]'
+                    : 'cursor-not-allowed bg-white/12 text-white/40',
+                )}
+              >
+                <ShoppingBag className="h-4 w-4 shrink-0" aria-hidden />
+                <span className="truncate">{cta}</span>
+              </button>
             )}
+
+            {/* The real seller shop route, unchanged. */}
+            <Link
+              href={`/sellers/${seller.id}`}
+              aria-label={`Visit ${seller.name}'s shop`}
+              className="flex h-11 shrink-0 items-center justify-center gap-1.5 rounded-xl border border-white/20 bg-white/8 px-3 text-[12px] font-bold text-white transition hover:border-[color:var(--vn-cyan)] hover:text-[color:var(--vn-cyan)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+            >
+              <Store className="h-4 w-4" aria-hidden />
+              Visit Shop
+            </Link>
           </div>
         </div>
       </div>

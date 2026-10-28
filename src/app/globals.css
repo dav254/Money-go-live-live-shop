@@ -459,33 +459,39 @@ html[data-vidnov-surface='app']:has(.vn-buyer-scope) body {
    ========================================================================== */
 
 .vn-discovery-scope {
-  --vn-lime: #c8ff00;
-  --vn-lime-deep: #a8d800;
   --vn-ink: #0a0a0a;
   --vn-paper: #0a0a0a;
   --vn-mute: #8a8a8a;
   --vn-line: rgba(255, 255, 255, 0.12);
 
   /*
-   * The accent, referenced BY NAME in every discovery component — the primary
-   * "View product" button, the price, active chips, the follow button, the
-   * feed's spinner, the rail's focus rings (50+ usages across
-   * `components/discovery/*`). It was never declared anywhere, so every one of
-   * those resolved to an unset variable: transparent backgrounds under
-   * `text-[#0A0A0A]`, i.e. invisible buttons.
+   * CINEMATIC THEME (red / cyan on midnight navy).
    *
-   * Lime, because this section's identity is black / white / lime (see the
-   * note above) — and lime is the one value here that works both ways: as a
-   * fill under ink (#0A0A0A text on it) and as text on the black surface.
+   * The accent, referenced BY NAME in every discovery component — the primary
+   * "View product" / "Buy now" button, the price, active chips, the follow
+   * button, the rail's active states, the feed's spinner, focus rings (50+
+   * usages across `components/discovery/*`). Components must read it by name:
+   * an undeclared accent renders as transparent under `text-[#0A0A0A]`, i.e.
+   * invisible buttons.
+   *
+   * Vidnov red (#FF0033) is the action colour — always a fill under white ink
+   * or a rule, never body text. Electric cyan is the structural accent: card
+   * outlines, seller badges, glows — never a solid button fill, so "primary"
+   * is never ambiguous. --vn-lime is kept as an alias so legacy `.vn-lime-ink`
+   * rules stay readable; nothing should add new lime usages.
    */
-  --vn-discovery-accent: #c8ff00;
-  --vn-discovery-accent-hover: var(--vn-lime-deep);
+  --vn-lime: #ff0033;
+  --vn-discovery-accent: #ff0033;
+  --vn-discovery-accent-hover: #e0002c;
+  --vn-cyan: #00e5ff;
+  --vn-cyan-soft: rgba(0, 229, 255, 0.45);
+  --vn-midnight: #050a16;
 
   font-family: 'Inter', system-ui, sans-serif;
-  /* Black, always. The section's identity is the dark immersive surface a
-     vertical feed lives on; a light theme would flip the one screen whose
-     whole job is to be media-first. */
-  background: #0a0a0a;
+  /* Midnight navy, always. The section's identity is the dark immersive
+     surface a vertical feed lives on; a light theme would flip the one screen
+     whose whole job is to be media-first. */
+  background: var(--vn-midnight, #050a16);
   color: #ffffff;
   letter-spacing: -0.005em;
   color-scheme: dark;
@@ -520,9 +526,9 @@ html[data-vidnov-surface='app']:has(.vn-buyer-scope) body {
   border-color: rgba(255, 255, 255, 0.3);
 }
 .vn-discovery-chip[data-active='true'] {
-  background: var(--vn-lime, #c8ff00);
-  border-color: var(--vn-lime, #c8ff00);
-  color: #0a0a0a;
+  background: var(--vn-discovery-accent, #ff0033);
+  border-color: var(--vn-discovery-accent, #ff0033);
+  color: #ffffff;
 }
 
 .vn-discovery-card {
@@ -533,8 +539,26 @@ html[data-vidnov-surface='app']:has(.vn-buyer-scope) body {
   transition: box-shadow 200ms ease, transform 200ms ease, border-color 200ms ease;
 }
 .vn-discovery-card:hover {
-  border-color: rgba(200, 255, 0, 0.4);
+  border-color: var(--vn-cyan-soft, rgba(0, 229, 255, 0.45));
   box-shadow: 0 14px 34px -22px rgba(0, 0, 0, 0.9);
+}
+
+/* The product card in the feed: layered dark surface, cyan hairline and a
+   soft cyan glow — the premium outline from the reference, scoped to the card
+   class so no other page inherits it. */
+.vn-discovery-product-card {
+  background: linear-gradient(180deg, rgba(5, 10, 22, 0.88), rgba(5, 10, 22, 0.72));
+  border: 1px solid rgba(0, 229, 255, 0.4);
+  box-shadow: 0 0 22px -6px rgba(0, 229, 255, 0.35), 0 18px 40px -28px rgba(0, 0, 0, 0.95);
+}
+
+/* Raised centre tab (Create / Shop): a circular red glow, active or not. */
+.vn-discovery-raised {
+  box-shadow: 0 0 18px 0 rgba(255, 0, 51, 0.55);
+}
+.vn-discovery-raised-active {
+  background: var(--vn-discovery-accent, #ff0033);
+  box-shadow: 0 0 22px 2px rgba(255, 0, 51, 0.7);
 }
 
 /* Immersive posts snap on a phone so one product is one screen; on a desktop

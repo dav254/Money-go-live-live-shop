@@ -37,7 +37,7 @@ export function DiscoveryBottomNav({ items }: { items: DiscoveryNavItem[] }) {
   return (
     <nav
       aria-label="App navigation"
-      className="relative z-40 shrink-0 border-t border-white/8 bg-[#0A0A0A]/95 backdrop-blur-xl"
+      className="relative z-40 shrink-0 border-t border-[rgba(0,229,255,0.18)] bg-[#050a16]/95 backdrop-blur-xl"
     >
       <div className="mx-auto flex max-w-md items-end justify-around px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2">
         {items.map((item) => {
@@ -54,16 +54,21 @@ export function DiscoveryBottomNav({ items }: { items: DiscoveryNavItem[] }) {
               aria-current={isActive ? 'page' : undefined}
               className={cn(
                 'flex flex-1 flex-col items-center gap-1 px-1 py-1 transition',
-                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E53935]',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--vn-discovery-accent)]',
               )}
             >
               <span
                 className={cn(
                   'flex h-9 w-9 items-center justify-center rounded-full transition',
                   isActive
-                    ? 'bg-[#E53935] text-white'
+                    ? 'bg-[color:var(--vn-discovery-accent)] text-white'
                     : 'text-white/60 group-hover:text-white',
-                  item.raised && !isActive && 'border border-white/15',
+                  /* The raised centre action (Create / Shop) keeps its circular
+                     red glow whether it is active or not — the reference's one
+                     permanent splash of colour in the bar. */
+                  item.raised && 'vn-discovery-raised',
+                  item.raised && isActive && 'vn-discovery-raised-active',
+                  item.raised && !isActive && 'border border-white/25',
                 )}
               >
                 <Icon className="h-5 w-5" aria-hidden />
@@ -71,7 +76,7 @@ export function DiscoveryBottomNav({ items }: { items: DiscoveryNavItem[] }) {
               <span
                 className={cn(
                   'vn-micro text-[9px] font-semibold uppercase tracking-[0.12em]',
-                  isActive ? 'text-[#E53935]' : 'text-white/55',
+                  isActive ? 'text-[color:var(--vn-discovery-accent)]' : 'text-white/55',
                 )}
               >
                 {item.label}

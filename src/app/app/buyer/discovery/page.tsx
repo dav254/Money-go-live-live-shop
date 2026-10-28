@@ -7,11 +7,11 @@
  * the buyer shell. Immersive (see `IMMERSIVE_ROUTES` in the buyer shell): the
  * shell's own tab bar is hidden so the feed can own the viewport.
  *
- * `noBottomNav` mirrors the seller route exactly: the section used to render
- * its own HOME/DISCOVER/SHOP/MESSAGES/PROFILE bar on top of the app's normal
- * navigation, which put two footers on the screen — one on every other buyer
- * screen and a second, different one here. The shell header's menu and back
- * buttons are the way out of this screen, the same way they are for sellers.
+ * `nav` supplies the premium bottom bar (Home · Discover · Shop · Messages ·
+ * Profile). It is safe to render here BECAUSE the shell hides its own tab bar
+ * on this route (`IMMERSIVE_ROUTES`) — so the screen ends up with exactly one
+ * footer, never two. Destinations, auth checks and the shell's own menu/back
+ * buttons are untouched.
  */
 
 import { Compass, Home, MessageSquare, ShoppingBag, UserRound } from 'lucide-react';
@@ -32,7 +32,7 @@ export default function BuyerAppDiscoveryPage() {
     <div className="vn-discovery-in-app">
       {/* `fill`: the shell's header sits above this — a 100dvh section would
           push its bottom card below the fold. */}
-      <DiscoverySection nav={NAV} noBottomNav fill />
+      <DiscoverySection nav={NAV} fill />
     </div>
   );
 }
