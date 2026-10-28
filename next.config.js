@@ -54,7 +54,7 @@ const nextConfig = {
           },
           {
             key: 'Content-Security-Policy',
-            value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com; connect-src 'self' *; img-src 'self' * data: blob:; media-src 'self' * data: blob:; font-src 'self' data: fonts.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; frame-src 'self' https://*.paypal.com https://*.paystack.com; frame-ancestors 'self' https://freebuff.com https://*.freebuff.com https://*.e2b.app http://localhost:* https://localhost:*;",
+            value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com https://www.googletagmanager.com; connect-src 'self' *; img-src 'self' * data: blob:; media-src 'self' * data: blob:; font-src 'self' data: fonts.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; frame-src 'self' https://*.paypal.com https://*.paystack.com https://www.googletagmanager.com; frame-ancestors 'self' https://freebuff.com https://*.freebuff.com https://*.e2b.app http://localhost:* https://localhost:*;",
           },
           {
             key: 'Strict-Transport-Security',
