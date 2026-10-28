@@ -4,6 +4,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { pbPatchOrder } from '@/lib/pocketbase/orders';
 import { pbMirrorWalletTransaction } from '@/lib/pocketbase/wallet';
 import { pbGetProfile } from '@/lib/pocketbase/profiles';
+import { pbIsAdmin } from '@/lib/pocketbase/admins';
 import type { Order } from '@/lib/types';
 
 async function verifyAdmin(request: NextRequest) {
@@ -14,11 +15,13 @@ async function verifyAdmin(request: NextRequest) {
     const token = authHeader.split('Bearer ')[1];
     try {
         const decodedToken = await auth.verifyIdToken(token);
-        // Role: VPS profile first (survives a Firestore outage), Firestore second.
-        let isAdmin = (await pbGetProfile(decodedToken.uid))?.userRole === 'admin';
+        // Role: local admin grant, then VPS profile, then Firestore — so the
+        // refund button keeps working when the Firestore project is blocked.
+        let isAdmin = (await pbIsAdmin(decodedToken.uid)) === true ||
+            (await pbGetProfile(decodedToken.uid))?.userRole === 'admin';
         if (!isAdmin) {
-            const userProfileSnap = await db.doc(`userProfiles/${decodedToken.uid}`).get();
-            isAdmin = userProfileSnap.data()?.userRole === 'admin';
+            const userProfileSnap = await db.doc(`userProfiles/${decodedToken.uid}`).get().catch(() => null);
+            isAdmin = userProfileSnap?.data()?.userRole === 'admin';
         }
         if (!isAdmin) {
             return { error: 'Forbidden: User is not an admin.' };

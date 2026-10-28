@@ -23,6 +23,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/firebase/server';
 import { verifyAdminUid } from '@/lib/notifications/server-utils';
+import {
+  pbCountDistributionJobs,
+  pbRecentFailedJobs,
+  type DistributionJobFilter,
+} from '@/lib/pocketbase/distribution-jobs';
 import { CHANNELS, getJobDestinations } from '@/lib/vidnov-core/distribution/channels';
 import { connectionStatuses, readGa4Traffic } from '@/lib/vidnov-core/distribution/adapters';
 import { readDistributionConfig } from '@/lib/vidnov-core/distribution/config';
@@ -32,7 +37,35 @@ import { distributionStatusCounts, recentFailedJobs } from '@/lib/vidnov-core/di
 import { MAX_JOB_ATTEMPTS, RETRYABLE_ERROR_CLASSES, CONFIRMATION_STATES } from '@/lib/vidnov-core/types';
 import type { ErrorClass } from '@/lib/vidnov-core/types';
 
-/** Equality-only aggregate count; `null` means unknown, never a fake 0. */
+/**
+ * Maps a Firestore (field, value, extra) equality filter onto the flattened
+ * PocketBase filter shape (`confirmation.state` → `confirmationState`, etc.).
+ * Unknown fields are dropped rather than guessed.
+ */
+function toPbFilter(
+  field: string,
+  value: string | number | boolean,
+  extra: Array<[string, string | number | boolean]> = [],
+): DistributionJobFilter {
+  const map = (f: string, v: string | number | boolean): DistributionJobFilter => {
+    if (f === 'status') return { status: String(v) };
+    if (f === 'channel') return { channel: String(v) };
+    if (f === 'confirmation.state') return { confirmationState: String(v) };
+    if (f === 'lastError.class') return { lastErrorClass: String(v) };
+    if (f === 'attempts') return { attempts: Number(v) };
+    return {};
+  };
+  return [map(field, value), ...extra.map(([f, v]) => map(f, v))].reduce(
+    (acc, cur) => ({ ...acc, ...cur }),
+    {} as DistributionJobFilter,
+  );
+}
+
+/**
+ * Equality-only aggregate count; `null` means unknown, never a fake 0.
+ * Firestore first (source of truth); when it cannot answer (blocked project,
+ * quota), the VPS mirror answers instead so the counters stay live.
+ */
 async function countWhere(
   field: string,
   value: string | number | boolean,
@@ -44,7 +77,8 @@ async function countWhere(
     const snap = await query.count().get();
     return snap.data().count;
   } catch {
-    return null;
+    // Firestore unavailable → the same equality filter over the VPS mirror.
+    return pbCountDistributionJobs(toPbFilter(field, value, extra));
   }
 }
 
@@ -55,9 +89,23 @@ export async function GET(request: NextRequest) {
   try {
     const [config, byStatus, recentFailed, audit, analytics, ga] = await Promise.all([
       readDistributionConfig(db),
-      distributionStatusCounts(db),
-      recentFailedJobs(db, 10).catch(() => []),
-      listAudit(db, 15),
+      // When Firestore cannot answer a single status counter, the whole
+      // by-status map is recomputed from the VPS mirror — the queue panel
+      // keeps its numbers through a blocked Firestore project.
+      distributionStatusCounts(db).then(async (counts) => {
+        if (Object.values(counts).some((v) => v !== null)) return counts;
+        const out: Record<string, number | null> = {};
+        await Promise.all(
+          Object.keys(counts).map(async (s) => {
+            out[s] = await pbCountDistributionJobs({ status: s });
+          }),
+        );
+        return out;
+      }),
+      recentFailedJobs(db, 10).catch(
+        async () => (await pbRecentFailedJobs(10)) ?? [],
+      ),
+      listAudit(db, 15).catch(() => []),
       destinationAnalytics(db),
       readGa4Traffic((url, init) => globalThis.fetch(url, init as RequestInit)),
     ]);

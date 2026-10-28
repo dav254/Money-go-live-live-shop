@@ -27,10 +27,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/firebase/server';
 import { logSecurityEvent, verifyAdminUid } from '@/lib/notifications/server-utils';
 import {
+  APPLICATIONS_COLLECTION,
   listApplications,
   reviewApplication,
   OpportunityError,
 } from '@/lib/vidnov-core/opportunities/service';
+import {
+  pbListOpportunityApplications,
+  pbMirrorOpportunityApplication,
+} from '@/lib/pocketbase/opportunities';
 import { APPLICATION_STATES } from '@/lib/vidnov-core/opportunities/types';
 import { listApplicationsSchema, reviewApplicationRequestSchema } from '@/lib/vidnov-core/validation';
 
@@ -58,8 +63,20 @@ export async function GET(request: NextRequest) {
     // Default view is the review queue; a caller may narrow to one state but
     // can never name an arbitrary field/value pair.
     const states = parsed.data.state ? [parsed.data.state] : APPLICATION_STATES;
-    const items = await listApplications({ db, states, limit: parsed.data.limit });
-    return NextResponse.json({ items, count: items.length });
+    try {
+      const items = await listApplications({ db, states, limit: parsed.data.limit });
+      return NextResponse.json({ items, count: items.length, source: 'firestore' });
+    } catch {
+      // Firestore blocked/unreachable → the VPS mirror answers instead of an
+      // error page. Reviews still require Firestore (transactional state
+      // machine), but the queue stays visible.
+      console.error('[core/opportunities] Firestore list failed — trying the VPS mirror');
+      const mirrored = await pbListOpportunityApplications(states, parsed.data.limit);
+      if (mirrored) {
+        return NextResponse.json({ items: mirrored, count: mirrored.length, source: 'vps' });
+      }
+      throw new Error('unavailable');
+    }
   } catch {
     console.error('[core/opportunities] admin list failed');
     return NextResponse.json({ error: 'Applications are temporarily unavailable.' }, { status: 500 });
@@ -92,6 +109,22 @@ export async function PUT(request: NextRequest) {
       reviewerUid: adminUid,
       reason,
     });
+
+    // Keep the VPS mirror in step with the decision — best-effort read-back
+    // of the reviewed document, never fails the review itself.
+    void db
+      .collection(APPLICATIONS_COLLECTION)
+      .doc(applicationId)
+      .get()
+      .then(async (snap) => {
+        if (snap.exists) {
+          await pbMirrorOpportunityApplication(
+            applicationId,
+            (snap.data() ?? {}) as Record<string, unknown>,
+          );
+        }
+      })
+      .catch(() => {});
 
     // Audit trail: who reviewed what, and whether anything actually changed.
     await logSecurityEvent({

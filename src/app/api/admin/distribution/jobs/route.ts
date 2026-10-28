@@ -15,6 +15,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import type { Query } from 'firebase-admin/firestore';
 import { db } from '@/firebase/server';
 import { verifyAdminUid } from '@/lib/notifications/server-utils';
+import { pbListDistributionJobs } from '@/lib/pocketbase/distribution-jobs';
 import { canRetry } from '@/lib/vidnov-core/distribution/job-utils';
 import { listAdminDistributionJobsSchema } from '@/lib/vidnov-core/validation';
 import type {
@@ -107,9 +108,14 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid queue filters.' }, { status: 400 });
   }
 
-  try {
-    const { status, destination, confirmation, limit } = parsed.data;
+  const { status, destination, confirmation, limit } = parsed.data;
 
+  /*
+   * Firestore first (the source of truth), the VPS mirror second: a blocked
+   * Firestore project degrades to the mirrored copy instead of an error
+   * page — the admin always sees the queues the VPS knows about.
+   */
+  try {
     // Equality-only filters (incl. the nested `confirmation.state` path) —
     // served by Firestore's merge of single-field indexes, no composite.
     let q: Query = db.collection('distributionJobs');
@@ -121,10 +127,24 @@ export async function GET(request: NextRequest) {
     const items = snap.docs.map((d) =>
       toAdminJob(d.id, (d.data() ?? {}) as Record<string, unknown>),
     );
-    return NextResponse.json({ items, count: items.length, limit });
+    return NextResponse.json({ items, count: items.length, limit, source: 'firestore' });
   } catch {
     // No error objects in logs — internal details stay server-side only.
-    console.error('[core/distribution] job list failed');
-    return NextResponse.json({ error: 'Queues are temporarily unavailable.' }, { status: 500 });
+    console.error('[core/distribution] Firestore job list failed — trying the VPS mirror');
   }
+
+  const mirrored = await pbListDistributionJobs(
+    {
+      ...(status ? { status } : {}),
+      ...(destination ? { channel: destination } : {}),
+      ...(confirmation ? { confirmationState: confirmation } : {}),
+    },
+    limit,
+  );
+  if (mirrored) {
+    const items = mirrored.map((j) => toAdminJob(j.id, j.data));
+    return NextResponse.json({ items, count: items.length, limit, source: 'vps' });
+  }
+
+  return NextResponse.json({ error: 'Queues are temporarily unavailable.' }, { status: 500 });
 }

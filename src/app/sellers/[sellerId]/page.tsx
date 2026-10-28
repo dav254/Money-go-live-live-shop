@@ -83,7 +83,9 @@ export default function SellerShopPage(props: { params: Promise<{ sellerId: stri
     }
 
     if (productData) {
-      setProducts(productData);
+      // Admin-unpublished listings stay in the seller's own inventory but are
+      // hidden from this public storefront.
+      setProducts(productData.filter((p) => !p.unpublished));
     }
   }, [shopData, profileData, productData, sellerId, liveSession]);
 

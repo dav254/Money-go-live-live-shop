@@ -31,6 +31,10 @@ import {
 import { buildTrackedUrl } from '../attribution/tracking';
 import { recordAudit } from './audit';
 import { recordCoreEvent } from '../events/recorder';
+// VPS mirror of the job store (no-op unless PocketBase is configured; never
+// throws into the caller). Keeps the admin queues answerable from this
+// machine — see src/lib/pocketbase/distribution-jobs.ts.
+import { syncDistributionJob } from '@/lib/pocketbase/distribution-jobs';
 import type { ChannelId, IntegrationStatus, JobStatus, SafeJobError } from '../types';
 import { MAX_ADMIN_REQUEUES, MAX_JOB_ATTEMPTS, RETRYABLE_ERROR_CLASSES } from '../types';
 
@@ -150,6 +154,8 @@ export async function createDistributionJob(params: CreateJobParams): Promise<Cr
 
   try {
     await db.collection(DISTRIBUTION_JOBS_COLLECTION).doc(jobId).create(doc);
+    // Keep the VPS mirror in step — best-effort, never fails the create.
+    void syncDistributionJob(db, jobId);
     return { jobId, status: 'ready', integrationStatus, duplicate: false, supportedActions: doc.supportedActions };
   } catch (err) {
     const code = (err as { code?: number | string })?.code;
@@ -185,7 +191,7 @@ export async function transitionDistributionJob(params: TransitionParams): Promi
   const { db, jobId, to, error } = params;
   const ref = db.collection(DISTRIBUTION_JOBS_COLLECTION).doc(jobId);
 
-  return db.runTransaction(async (tx) => {
+  const result = await db.runTransaction(async (tx) => {
     const snap = await tx.get(ref);
     if (!snap.exists) throw new DistributionError('not_found', 'Job not found.');
     const job = (snap.data() ?? {}) as { status?: JobStatus; attempts?: number; lastError?: SafeJobError | null };
@@ -210,6 +216,9 @@ export async function transitionDistributionJob(params: TransitionParams): Promi
     });
     return valid;
   });
+  // Keep the VPS mirror in step — best-effort, never fails the transition.
+  void syncDistributionJob(db, jobId);
+  return result;
 }
 
 /** Retry decision re-exported for routes — single source of retry truth. */
@@ -499,6 +508,9 @@ export async function adminRequeueDistributionJob(
       updatedAt: FieldValue.serverTimestamp(),
     });
   });
+
+  // Keep the VPS mirror in step — best-effort, never fails the re-queue.
+  void syncDistributionJob(db, jobId);
 
   await recordAudit(db, {
     actorUid: actor.uid,

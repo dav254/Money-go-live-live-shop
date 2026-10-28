@@ -29,6 +29,10 @@
  */
 
 import { FieldValue, type Firestore } from 'firebase-admin/firestore';
+// VPS mirror of the job store (no-op when PocketBase is not configured) —
+// keeps the admin consoles answering from this machine during a Firestore
+// outage. See src/lib/pocketbase/distribution-jobs.ts.
+import { syncDistributionJob } from '@/lib/pocketbase/distribution-jobs';
 import type { ChannelId, ConfirmationState, JobStatus, SafeJobError } from '../types';
 import {
   MAX_JOB_ATTEMPTS,
@@ -455,6 +459,8 @@ async function transition(db: Firestore, jobId: string, to: JobStatus): Promise<
         : {}),
     });
   });
+  // Keep the VPS mirror in step — best-effort, never fails the transition.
+  void syncDistributionJob(db, jobId);
 }
 
 export interface ApplyOutcomeParams {
@@ -636,6 +642,9 @@ export async function applySubmissionOutcome(
     tx.update(ref, updates);
     return next;
   });
+
+  // Keep the VPS mirror in step — best-effort, never fails the attempt.
+  void syncDistributionJob(db, jobId);
 
   // Outcome event — idempotent key (same scheme as the service), best-effort.
   if (finalState === 'failed' || finalState === 'submitted' || finalState === 'live') {

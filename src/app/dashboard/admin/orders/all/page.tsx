@@ -63,8 +63,8 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { AdminLayout } from '@/components/layout/admin-layout';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { useCollection, useFirestore, useMemoFirebase, useUser, useDoc, useUserProfile } from '@/firebase';
-import { collection, query, doc } from 'firebase/firestore';
+import { useFirestore, useMemoFirebase, useUser, useDoc } from '@/firebase';
+import { doc } from 'firebase/firestore';
 import type { Order, UserProfile, Product, SellerShop } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
@@ -93,6 +93,29 @@ const DataTableSkeleton = () => (
         </Table>
     </div>
 );
+
+/**
+ * Firestore Timestamp | ISO string | epoch | {seconds} → Date.
+ * The admin list route normalises to ISO, but orders loaded straight from a
+ * Firestore read still carry Timestamps — accept both, never throw.
+ */
+const toDate = (raw: unknown): Date | null => {
+  if (!raw) return null;
+  if (raw instanceof Date) return isNaN(raw.getTime()) ? null : raw;
+  if (typeof raw === 'string' || typeof raw === 'number') {
+    const d = new Date(raw);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  const v = raw as { toDate?: () => Date; toMillis?: () => number; seconds?: number };
+  try {
+    if (typeof v.toDate === 'function') return v.toDate();
+    if (typeof v.toMillis === 'function') return new Date(v.toMillis());
+    if (typeof v.seconds === 'number') return new Date(v.seconds * 1000);
+  } catch {
+    // fall through
+  }
+  return null;
+};
 
 const getStatusBadge = (status: Order['orderStatus']) => {
     const config = {
@@ -129,9 +152,9 @@ const OrderDetailsDialog = ({ order, isOpen, onOpenChange }: { order: Order | nu
             <DialogContent className="max-w-2xl">
                 <DialogHeader>
                     <DialogTitle>Order Details: #{order.id.substring(0, 8)}...</DialogTitle>
-                    <DialogDescription>
-                        {format(order.orderDate.toDate(), 'PPP p')}
-                    </DialogDescription>
+                <DialogDescription>
+                    {(() => { const d = toDate(order.orderDate); return d ? format(d, 'PPP p') : 'Date unknown'; })()}
+                </DialogDescription>
                 </DialogHeader>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4 max-h-[70vh] overflow-y-auto">
                     <div className="space-y-4">
@@ -273,15 +296,39 @@ function AdminAllOrdersInner() {
   
   const firestore = useFirestore();
   const { user } = useUser();
-  const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
-  const isAdmin = userProfile?.userRole === 'admin';
 
-  const ordersQuery = useMemoFirebase(() => {
-    if (!firestore || !isAdmin) return null;
-    return query(collection(firestore, 'orders'));
-  }, [firestore, isAdmin]);
+  /*
+   * Data comes from the VPS-backed admin route (PocketBase mirror + Firestore
+   * best-effort), NOT a client Firestore subscription: the orders console has
+   * to keep working when the Firestore project is blocked — the status and
+   * refund buttons already write through VPS-first routes.
+   */
+  const [ordersData, setOrdersData] = React.useState<Order[]>([]);
+  const [areOrdersLoading, setAreOrdersLoading] = React.useState(true);
+  const [loadError, setLoadError] = React.useState<string | null>(null);
 
-  const { data: ordersData, isLoading: areOrdersLoading } = useCollection<Order>(ordersQuery);
+  const loadOrders = React.useCallback(async () => {
+    if (!user) return;
+    setAreOrdersLoading(true);
+    setLoadError(null);
+    try {
+      const token = await user.getIdToken();
+      const res = await fetch('/api/admin/orders/list', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error || `List failed (${res.status})`);
+      setOrdersData(Array.isArray(data?.orders) ? data.orders : []);
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : 'Could not load orders.');
+    } finally {
+      setAreOrdersLoading(false);
+    }
+  }, [user]);
+
+  React.useEffect(() => {
+    void loadOrders();
+  }, [loadOrders]);
 
   // The buyer the banner should name — one doc read, admin-readable.
   const filteredBuyerRef = useMemoFirebase(
@@ -300,7 +347,7 @@ function AdminAllOrdersInner() {
     [ordersData, buyerFilterId],
   );
 
-  const isLoading = isProfileLoading || areOrdersLoading;
+  const isLoading = areOrdersLoading;
 
   const handleStatusUpdate = async (orderId: string, status: Order['orderStatus']) => {
     if (!user) return;
@@ -313,6 +360,8 @@ function AdminAllOrdersInner() {
         });
         const result = await response.json();
         if (!response.ok) throw new Error(result.message);
+        // No live Firestore subscription anymore — keep the row in step.
+        setOrdersData((prev) => prev.map((o) => (o.id === orderId ? { ...o, orderStatus: status } : o)));
         toast({ title: 'Success', description: 'Order status has been updated.' });
     } catch (error: any) {
         toast({ variant: 'destructive', title: 'Error', description: error.message });
@@ -331,7 +380,9 @@ function AdminAllOrdersInner() {
         });
         const result = await response.json();
         if (!response.ok) throw new Error(result.message || 'Failed to issue refund.');
-        
+        // Refund touches wallet + payment ledgers server-side — re-read the
+        // list so every derived column reflects the settled order.
+        void loadOrders();
         toast({ title: 'Refund Successful', description: result.message });
     } catch (error: any) {
         toast({ variant: 'destructive', title: 'Refund Failed', description: error.message });
@@ -382,7 +433,10 @@ function AdminAllOrdersInner() {
     {
         accessorKey: 'orderDate',
         header: 'Date',
-        cell: ({ row }) => row.original.orderDate ? new Date(row.original.orderDate.toDate()).toLocaleDateString() : 'N/A',
+        cell: ({ row }) => {
+            const d = toDate(row.original.orderDate);
+            return d ? d.toLocaleDateString() : 'N/A';
+        },
     },
     {
         id: 'actions',
@@ -436,6 +490,12 @@ function AdminAllOrdersInner() {
         <h1 className="font-headline text-3xl font-bold tracking-tight">
           Orders & Transactions: All Orders
         </h1>
+        {loadError && (
+          <div className="flex items-center justify-between rounded-md border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            <span>Could not load orders: {loadError}</span>
+            <Button variant="outline" size="sm" onClick={() => void loadOrders()}>Retry</Button>
+          </div>
+        )}
         {buyerFilterId && (
           <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-cyan-400/40 bg-cyan-500/10 px-3 py-2.5 text-sm">
             <span>
@@ -505,6 +565,14 @@ function AdminAllOrdersInner() {
              <div className="flex-1 text-sm text-muted-foreground">
                 {table.getFilteredSelectedRowModel().rows.length} of {table.getFilteredRowModel().rows.length} row(s) selected.
             </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => void loadOrders()}
+              disabled={isLoading}
+            >
+              Refresh
+            </Button>
             <Button
               variant="outline"
               size="sm"

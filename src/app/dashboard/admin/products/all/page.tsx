@@ -24,6 +24,16 @@ import {
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -43,10 +53,12 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { AdminLayout } from '@/components/layout/admin-layout';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
-import { collection, query } from 'firebase/firestore';
+import { useUser } from '@/firebase';
 import type { Product } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { useToast } from '@/hooks/use-toast';
 
 type ProductRow = Product;
 
@@ -103,7 +115,19 @@ export const columns: ColumnDef<ProductRow>[] = [
                     className="object-cover"
                 />
             </div>
-            <span className="font-medium capitalize">{row.getValue('name')}</span>
+            <div className="flex flex-col">
+                <span className="font-medium capitalize">{row.getValue('name')}</span>
+                {(row.original.featured || row.original.unpublished) && (
+                    <span className="flex gap-1">
+                        {row.original.featured && (
+                            <span className="text-[10px] font-semibold uppercase tracking-wide text-amber-500">Featured</span>
+                        )}
+                        {row.original.unpublished && (
+                            <span className="text-[10px] font-semibold uppercase tracking-wide text-yellow-600">Unpublished</span>
+                        )}
+                    </span>
+                )}
+            </div>
         </div>
     ),
   },
@@ -114,12 +138,12 @@ export const columns: ColumnDef<ProductRow>[] = [
   {
     accessorKey: 'price',
     header: () => <div className="text-right">Price (USD)</div>,
-    cell: ({ row }) => <div className="text-right font-medium">{row.original.price.toLocaleString()}</div>,
+    cell: ({ row }) => <div className="text-right font-medium">{(row.original.price ?? 0).toLocaleString()}</div>,
   },
   {
     accessorKey: 'stock',
     header: () => <div className="text-center">Stock</div>,
-    cell: ({ row }) => <div className="text-center">{row.original.stock}</div>,
+    cell: ({ row }) => <div className="text-center">{row.original.stock ?? 0}</div>,
   },
   {
     accessorKey: 'category',
@@ -129,29 +153,19 @@ export const columns: ColumnDef<ProductRow>[] = [
    {
     accessorKey: 'uploadDate',
     header: 'Date Added',
-     cell: ({ row }) => row.original.uploadDate ? new Date(row.original.uploadDate.toDate()).toLocaleDateString() : 'N/A',
+    cell: ({ row }) => {
+      const raw = row.original.uploadDate as unknown;
+      if (!raw) return 'N/A';
+      const d = new Date(raw as string | number | Date);
+      return isNaN(d.getTime()) ? 'N/A' : d.toLocaleDateString();
+    },
   },
   {
     id: 'actions',
-    cell: ({ row }) => (
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" className="h-8 w-8 p-0">
-            <span className="sr-only">Open menu</span>
-            <DotsHorizontalIcon className="h-4 w-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuLabel>Actions</DropdownMenuLabel>
-          <DropdownMenuItem>View Product</DropdownMenuItem>
-          <DropdownMenuItem>View Seller</DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem>Feature Product</DropdownMenuItem>
-          <DropdownMenuItem className="text-yellow-600">Unpublish</DropdownMenuItem>
-          <DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    ),
+    // The real menu lives in the page component (it needs the router, toasts
+    // and the PATCH/DELETE handlers); this placeholder keeps the exported
+    // column set in sync for any consumer of `columns`.
+    cell: () => null,
   },
 ];
 
@@ -159,50 +173,167 @@ export default function AdminAllProductsPage() {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
   const [rowSelection, setRowSelection] = React.useState({});
-  
-  const firestore = useFirestore();
 
-  const productsQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return query(collection(firestore, 'products'));
-  }, [firestore]);
-
-  const { data: productsData, isLoading } = useCollection<Product>(productsQuery);
-
-  // Products that exist only in the LOCAL VPS store (their Firestore write
-  // failed) still have to show up in the admin console — the server returns
-  // them and we merge them in, deduped by id.
-  const [vpsProducts, setVpsProducts] = React.useState<Product[]>([]);
+  const router = useRouter();
+  const { toast } = useToast();
   const { user: adminUser } = useUser();
-  React.useEffect(() => {
+
+  /*
+   * Data comes from the VPS-backed admin route (PocketBase mirror first,
+   * Firestore best-effort), NOT from a client Firestore subscription: the
+   * admin console must keep working when the Firestore project is blocked or
+   * out of quota — the whole reason the mirror exists.
+   */
+  const [products, setProducts] = React.useState<Product[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
+  const [loadError, setLoadError] = React.useState<string | null>(null);
+  const [busyId, setBusyId] = React.useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = React.useState<Product | null>(null);
+  const [deleteBusy, setDeleteBusy] = React.useState(false);
+
+  const loadProducts = React.useCallback(async () => {
     if (!adminUser) return;
-    let alive = true;
-    adminUser
-      .getIdToken()
-      .then((token) =>
-        fetch('/api/admin/products/list', {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
-      )
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (alive && Array.isArray(data?.extraProducts)) setVpsProducts(data.extraProducts);
-      })
-      .catch(() => {});
-    return () => {
-      alive = false;
-    };
+    setIsLoading(true);
+    setLoadError(null);
+    try {
+      const token = await adminUser.getIdToken();
+      const res = await fetch('/api/admin/products/list', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error || `List failed (${res.status})`);
+      setProducts(Array.isArray(data?.products) ? data.products : []);
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : 'Could not load products.');
+    } finally {
+      setIsLoading(false);
+    }
   }, [adminUser]);
 
-  const allProducts = React.useMemo(() => {
-    const fsRows = productsData ?? [];
-    const seen = new Set(fsRows.map((p) => p.id));
-    return [...fsRows, ...vpsProducts.filter((p) => !seen.has(p.id))];
-  }, [productsData, vpsProducts]);
+  React.useEffect(() => {
+    void loadProducts();
+  }, [loadProducts]);
+
+  /* ── Action handlers — every menu item is wired to a real operation ─── */
+
+  const patchProduct = async (
+    product: Product,
+    patch: { featured?: boolean; unpublished?: boolean },
+  ) => {
+    if (!adminUser || busyId) return;
+    setBusyId(product.id);
+    try {
+      const token = await adminUser.getIdToken();
+      const res = await fetch(`/api/admin/products/${encodeURIComponent(product.id)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(patch),
+      });
+      const result = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(result?.error || `Update failed (${res.status})`);
+      setProducts((prev) => prev.map((p) => (p.id === product.id ? { ...p, ...patch } : p)));
+      toast({
+        title: 'Updated',
+        description:
+          patch.featured !== undefined
+            ? patch.featured
+              ? '“' + (product.name ?? 'Listing') + '” is now featured.'
+              : 'Feature removed from “' + (product.name ?? 'Listing') + '”.'
+            : patch.unpublished
+              ? '“' + (product.name ?? 'Listing') + '” is hidden from buyers.'
+              : '“' + (product.name ?? 'Listing') + '” is published again.',
+      });
+    } catch (error) {
+      toast({ variant: 'destructive', title: 'Error', description: error instanceof Error ? error.message : 'Update failed.' });
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (!pendingDelete || !adminUser || deleteBusy) return;
+    setDeleteBusy(true);
+    try {
+      const token = await adminUser.getIdToken();
+      const res = await fetch(`/api/admin/products/${encodeURIComponent(pendingDelete.id)}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        const result = await res.json().catch(() => ({}));
+        throw new Error(result?.error || `Delete failed (${res.status})`);
+      }
+      setProducts((prev) => prev.filter((p) => p.id !== pendingDelete.id));
+      toast({ title: 'Listing removed', description: '“' + (pendingDelete.name ?? 'Listing') + '” was deleted from the catalog.' });
+      setPendingDelete(null);
+    } catch (error) {
+      toast({ variant: 'destructive', title: 'Error', description: error instanceof Error ? error.message : 'Delete failed.' });
+    } finally {
+      setDeleteBusy(false);
+    }
+  };
+
+  const actionsMenu = (product: Product) => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" className="h-8 w-8 p-0">
+          <span className="sr-only">Open menu</span>
+          <DotsHorizontalIcon className="h-4 w-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+        <DropdownMenuItem asChild>
+          <Link href={`/products/${product.id}`} target="_blank">View Product</Link>
+        </DropdownMenuItem>
+        {product.sellerId ? (
+          <DropdownMenuItem asChild>
+            <Link href={`/sellers/${product.sellerId}`} target="_blank">View Seller</Link>
+          </DropdownMenuItem>
+        ) : (
+          <DropdownMenuItem disabled>View Seller</DropdownMenuItem>
+        )}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          disabled={busyId === product.id}
+          onSelect={() => void patchProduct(product, { featured: !product.featured })}
+        >
+          {product.featured ? 'Remove Feature' : 'Feature Product'}
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          className="text-yellow-600"
+          disabled={busyId === product.id}
+          onSelect={() => void patchProduct(product, { unpublished: !product.unpublished })}
+        >
+          {product.unpublished ? 'Publish' : 'Unpublish'}
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          className="text-destructive"
+          disabled={busyId === product.id}
+          onSelect={() => setPendingDelete(product)}
+        >
+          Delete
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+
+  const tableColumns = React.useMemo<ColumnDef<ProductRow>[]>(
+    () =>
+      columns.map((col) =>
+        col.id === 'actions'
+          ? { ...col, cell: ({ row }: { row: { original: ProductRow } }) => actionsMenu(row.original) }
+          : col,
+      ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [busyId, products],
+  );
+
+  const allProducts = products;
 
   const table = useReactTable({
     data: allProducts,
-    columns,
+    columns: tableColumns,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     getCoreRowModel: getCoreRowModel(),
@@ -220,6 +351,12 @@ export default function AdminAllProductsPage() {
           Product Management: All Products
         </h1>
         <div className="w-full">
+          {loadError && (
+            <div className="mb-4 flex items-center justify-between rounded-md border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+              <span>Could not load the product catalog: {loadError}</span>
+              <Button variant="outline" size="sm" onClick={() => void loadProducts()}>Retry</Button>
+            </div>
+          )}
           <div className="flex items-center py-4">
             <Input
               placeholder="Filter by product name..."
@@ -273,6 +410,14 @@ export default function AdminAllProductsPage() {
             <Button
               variant="outline"
               size="sm"
+              onClick={() => void loadProducts()}
+              disabled={isLoading}
+            >
+              Refresh
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => table.previousPage()}
               disabled={!table.getCanPreviousPage()}
             >
@@ -289,6 +434,28 @@ export default function AdminAllProductsPage() {
           </div>
         </div>
       </div>
+
+      <AlertDialog open={!!pendingDelete} onOpenChange={(open) => !open && setPendingDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this listing?</AlertDialogTitle>
+            <AlertDialogDescription>
+              “{pendingDelete?.name ?? 'This listing'}” will be removed from the catalog and
+              hidden from buyers. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteBusy}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-white hover:bg-destructive/90"
+              disabled={deleteBusy}
+              onClick={() => void confirmDelete()}
+            >
+              {deleteBusy ? 'Deleting…' : 'Delete Listing'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AdminLayout>
   );
 }

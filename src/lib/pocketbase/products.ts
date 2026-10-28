@@ -33,6 +33,9 @@ export const PRODUCTS_COLLECTION = 'products';
 
 const PRODUCT_FIELDS: PbField[] = [
   { name: 'fsId', type: 'text', required: true }, // Firestore doc id — makes the mirror re-runnable
+  // Admin console toggles (feature / unpublish) — also kept inside `data`.
+  { name: 'featured', type: 'bool' },
+  { name: 'unpublished', type: 'bool' },
   { name: 'sellerId', type: 'text' },
   { name: 'name', type: 'text' },
   { name: 'category', type: 'text' },
@@ -140,6 +143,37 @@ export async function pbMirrorProduct(
     return true;
   } catch (error) {
     console.error('[pocketbase] product mirror failed:', error);
+    return false;
+  }
+}
+
+/**
+ * Merge a few fields into a mirrored product (admin feature/unpublish flags).
+ * The patch lands BOTH on the indexed columns and inside the full `data`
+ * document, so every reader sees the same value. Never throws; false = PB off
+ * or no mirrored row / write failed (callers fall back to Firestore).
+ */
+export async function pbPatchProduct(
+  fsId: string,
+  patch: Record<string, unknown>,
+): Promise<boolean> {
+  if (!pocketBaseEnabled()) return false;
+  try {
+    await ensureCollection(PRODUCTS_COLLECTION, PRODUCT_FIELDS);
+    const existing = await findByFsId(fsId);
+    if (!existing) return false; // Not mirrored — Firestore must take it.
+    const current = ((existing.data ?? {}) as Record<string, unknown>);
+    const nextData = { ...current, ...patch };
+    const body: Record<string, unknown> = { data: nextData };
+    if ('featured' in patch) body.featured = patch.featured === true;
+    if ('unpublished' in patch) body.unpublished = patch.unpublished === true;
+    const res = await pbRequest(
+      `/api/collections/${PRODUCTS_COLLECTION}/records/${existing.id}`,
+      { method: 'PATCH', body: JSON.stringify(body) },
+    );
+    return res.ok;
+  } catch (error) {
+    console.error('[pocketbase] product patch failed:', error);
     return false;
   }
 }

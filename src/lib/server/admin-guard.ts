@@ -1,6 +1,8 @@
 import { getAuth } from 'firebase-admin/auth';
 import { db } from '@/firebase/server';
 import { resolveRole } from '@/lib/auth/roles';
+import { pbIsAdmin } from '@/lib/pocketbase/admins';
+import { pbGetProfile } from '@/lib/pocketbase/profiles';
 
 /**
  * WHO COUNTS AS AN ADMIN, ON THE SERVER.
@@ -23,6 +25,19 @@ import { resolveRole } from '@/lib/auth/roles';
  */
 export async function isAdminUid(uid: string | null | undefined): Promise<boolean> {
   if (!uid) return false;
+
+  /*
+   * VPS stores first — the local admin grant and the mirrored profile both
+   * live on this machine, so an admin keeps access even when Firestore is
+   * blocked or out of quota (the reason this migration exists).
+   */
+  if ((await pbIsAdmin(uid)) === true) return true;
+  try {
+    if ((await pbGetProfile(uid))?.userRole === 'admin') return true;
+  } catch {
+    // Local store unreachable — keep going down the chain.
+  }
+
   try {
     const caller = await getAuth().getUser(uid);
     const claims = caller.customClaims ?? {};

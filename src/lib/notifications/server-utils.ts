@@ -8,6 +8,7 @@ import { db as firestoreDb, auth as adminAuth } from '@/firebase/server';
 import { FieldValue } from 'firebase-admin/firestore';
 import { createHash, randomBytes } from 'crypto';
 import { pbIsAdmin } from '@/lib/pocketbase/admins';
+import { pbGetProfile } from '@/lib/pocketbase/profiles';
 
 /** The shared, initialized admin Firestore instance. */
 export const db = firestoreDb;
@@ -63,11 +64,20 @@ export async function verifyAdminUid(request: NextRequest): Promise<string | nul
   if (!token) return null;
   try {
     const decoded = await adminAuth.verifyIdToken(token);
-    // Local (VPS) role store first — instant and independent of Firestore.
+    // 1. Local (VPS) admin grant — instant and independent of Firestore.
     if ((await pbIsAdmin(decoded.uid)) === true) return decoded.uid;
-    const profile = await firestoreDb.collection('userProfiles').doc(decoded.uid).get();
-    if (!profile.exists || profile.data()?.userRole !== 'admin') return null;
-    return decoded.uid;
+    // 2. Local (VPS) profile role — the mirrored copy survives a blocked
+    //    Firestore, so an admin is never locked out of their own dashboard.
+    if ((await pbGetProfile(decoded.uid))?.userRole === 'admin') return decoded.uid;
+    // 3. Firestore profile — the legacy source, last because it is the one
+    //    that fails when the project is blocked/out of quota.
+    try {
+      const profile = await firestoreDb.collection('userProfiles').doc(decoded.uid).get();
+      if (profile.exists && profile.data()?.userRole === 'admin') return decoded.uid;
+    } catch {
+      // Blocked Firestore — the two VPS checks above already had their say.
+    }
+    return null;
   } catch {
     return null;
   }

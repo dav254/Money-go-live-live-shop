@@ -186,6 +186,10 @@ export default function BuyerProductPage(props: { params: Promise<{ productId: s
     const isLoading = !isMounted || isProductLoading || isSellerShopLoading || isSellerProfileLoading || isUserLoading || isProfileLoading;
     if (isLoading) return <MainLayout><div className="flex h-screen items-center justify-center bg-black"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div></MainLayout>;
     if (!product) return <MainLayout><div className="flex h-96 items-center justify-center text-white font-bold">Product not found</div></MainLayout>;
+    // Admin "Unpublish" — the listing still exists (the seller can still see
+    // and edit it in their dashboard) but buyers arriving here get a clear
+    // unavailable state instead of a buyable page.
+    if (product.unpublished) return <MainLayout><div className="flex h-96 flex-col items-center justify-center gap-2 text-white text-center px-6"><span className="font-bold">This listing is no longer available</span><span className="text-sm text-neutral-400">The seller or the marketplace has unpublished it.</span></div></MainLayout>;
     
     return (
         <MainLayout>

@@ -286,6 +286,20 @@ export interface Product {
     promotedUntil?: any;
     /** Count of genuine customer reviews, mirrored from `reviews`. */
     reviewsCount?: number;
+    /**
+     * Admin "Feature Product" flag, toggled from the admin console's product
+     * actions. ADDITIVE and optional: absent means not featured. Nothing about
+     * organic ordering changes unless an admin sets it — see the admin
+     * products list, which renders a Featured badge from this field.
+     */
+    featured?: boolean;
+    /**
+     * Admin "Unpublish" flag, toggled from the admin console's product
+     * actions. ADDITIVE and optional: absent means published. Buyer-facing
+     * pages (product detail, public shop) treat an unpublished listing as
+     * unavailable; the seller's own inventory screens keep showing it.
+     */
+    unpublished?: boolean;
 }
 
 export interface SellerShop {
