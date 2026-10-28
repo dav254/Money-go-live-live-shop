@@ -1,7 +1,7 @@
 'use client';
 
 import { MainLayout } from '@/components/layout/main-layout';
-import { SellerHeader as PublicSellerHeader } from '@/components/seller/shop-header';
+import { SellerHeader as PublicSellerHeader, ShopBottomActions } from '@/components/seller/shop-header';
 import { SellerTabs } from '@/components/seller/seller-tabs';
 import type { Seller, Product, SellerShop, UserProfile, LiveSession } from '@/lib/types';
 import { useUser, useUserProfile, useDoc, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
@@ -128,11 +128,23 @@ export default function SellerShopPage(props: { params: Promise<{ sellerId: stri
     isVerified: trust ? trust.business?.verificationStatus === 'verified' : seller.isVerified,
   } as any;
 
+  // The seller's REAL product categories, in order of how many products carry
+  // them — shown under the shop name and used by the category bar. Derived,
+  // never hardcoded, so it always matches this seller's data.
+  const shopCategories = (() => {
+    const counts = new Map<string, number>();
+    for (const p of products) {
+      const c = (p.category ?? '').trim();
+      if (c) counts.set(c, (counts.get(c) ?? 0) + 1);
+    }
+    return [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([c]) => c);
+  })();
+
   return (
     <MainLayout>
         {isBuyer && <BuyerHeader />}
         <div className="bg-background text-foreground">
-            <PublicSellerHeader seller={sellerWithRealNumbers} />
+            <PublicSellerHeader seller={sellerWithRealNumbers} categories={shopCategories} />
             <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             {/* Verification, the real rating and where this business works —
                 identical to what the app shows, because it is the same
@@ -145,6 +157,9 @@ export default function SellerShopPage(props: { params: Promise<{ sellerId: stri
             />
             <SellerTabs seller={sellerWithRealNumbers} products={products} liveSession={liveSession} trust={trust} />
             </div>
+            {/* Bottom action row — Shop · Chat Seller · Share Shop · Save Shop,
+                reusing the same follow/chat/share handlers as the header. */}
+            <ShopBottomActions seller={sellerWithRealNumbers} />
       </div>
     </MainLayout>
   );

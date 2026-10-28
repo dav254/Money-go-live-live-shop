@@ -15,9 +15,17 @@ import { getPlaceholderImage } from '@/lib/placeholder-images';
 
 interface ProductCardProps {
   product: Product;
+  /**
+   * `shop` applies the seller-shop presentation (dark navy card, red price,
+   * full-width Add to Cart) while keeping EVERY existing behaviour — link,
+   * like, cart, stock check, media fallback. `default` is untouched, so feeds
+   * and search results render exactly as before.
+   */
+  variant?: 'default' | 'shop';
 }
 
-export function ProductCard({ product }: ProductCardProps) {
+export function ProductCard({ product, variant = 'default' }: ProductCardProps) {
+  const isShop = variant === 'shop';
   const isOutOfStock = product.stock !== undefined && product.stock <= 0;
   const discountPercentage = product.wasPrice && product.price ? Math.round(((product.wasPrice - product.price) / product.wasPrice) * 100) : 0;
   
@@ -100,10 +108,13 @@ export function ProductCard({ product }: ProductCardProps) {
   };
 
   return (
-    <div className="bg-neutral-900 border border-neutral-800 rounded-lg overflow-hidden group text-white h-full flex flex-col shadow-lg transition-all hover:border-primary/50">
+    <div className={cn(
+      'bg-neutral-900 border border-neutral-800 rounded-lg overflow-hidden group text-white h-full flex flex-col shadow-lg transition-all hover:border-primary/50',
+      isShop && 'rounded-2xl border-white/10 bg-[#0B1220] shadow-[0_16px_34px_-22px_rgba(0,0,0,0.95)] hover:border-[#FF0033]/70',
+    )}>
       <div className="relative">
         <Link href={`/products/${product.id}`} className="cursor-pointer">
-            <div className="w-full h-48 bg-black relative">
+            <div className={cn('w-full h-48 bg-black relative', isShop && 'h-44 sm:h-56')}>
                 {hasVideo ? (
                 <video
                     src={
@@ -138,7 +149,10 @@ export function ProductCard({ product }: ProductCardProps) {
             )}
         </Link>
         {discountPercentage > 0 && (
-          <div className="absolute top-2 right-2 bg-red-500 text-white text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded shadow-xl">
+          <div className={cn(
+            'absolute top-2 right-2 bg-red-500 text-white text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded shadow-xl',
+            isShop && 'right-auto left-2 rounded-full bg-gradient-to-r from-[#FF0033] to-[#FF2D55] shadow-[0_0_14px_rgba(255,0,51,0.6)]',
+          )}>
             {discountPercentage}% OFF
           </div>
         )}
@@ -152,7 +166,10 @@ export function ProductCard({ product }: ProductCardProps) {
             </div>
         )}
 
-        <Button onClick={handleLike} size="icon" variant="ghost" className="absolute top-2 right-2 bg-black/50 text-white rounded-full h-8 w-8 hover:bg-black/70">
+        <Button onClick={handleLike} size="icon" variant="ghost" aria-label="Like this product" className={cn(
+          'absolute top-2 right-2 bg-black/50 text-white rounded-full h-8 w-8 hover:bg-black/70',
+          isShop && 'border border-white/15 bg-black/60 hover:bg-[#FF0033]',
+        )}>
           <Heart className="h-4 w-4" />
         </Button>
         {isOutOfStock && (
@@ -161,16 +178,24 @@ export function ProductCard({ product }: ProductCardProps) {
             </div>
         )}
       </div>
-      <div className="p-3 flex-1 flex flex-col">
-        <h3 className="text-sm font-semibold truncate group-hover:text-primary">
+      <div className={cn('p-3 flex-1 flex flex-col', isShop && 'p-3.5')}>
+        <h3 className={cn('text-sm font-semibold truncate group-hover:text-primary', isShop && 'text-white group-hover:text-[#FF2D55]')}>
             <Link href={`/products/${product.id}`}>{product.name}</Link>
         </h3>
-        
+
+        {/* Existing product description, used as the card subtitle */}
+        {isShop && product.description && (
+          <p className="mt-0.5 truncate text-[11px] text-neutral-400">{product.description}</p>
+        )}
+
         <div className="mt-1 space-y-1">
           {/* LOCAL SALE PRICE */}
           <div className="flex items-center gap-1">
-             <Tag className="h-3 w-3 text-primary" />
-             <span className="text-lg font-black text-primary tracking-tighter">
+             {!isShop && <Tag className="h-3 w-3 text-primary" />}
+             <span className={cn(
+               'text-lg font-black text-primary tracking-tighter',
+               isShop && 'text-[#FF2D55]',
+             )}>
                 {product.localCurrency || 'USD'} {(product.localPrice || product.price)?.toLocaleString()}
              </span>
           </div>
@@ -186,12 +211,17 @@ export function ProductCard({ product }: ProductCardProps) {
         </div>
 
         <div className="mt-auto pt-3 flex gap-2">
-            <Button onClick={handleAddToCart} disabled={isOutOfStock} size="sm" className="flex-1 bg-primary hover:bg-primary/90 text-white font-black text-[10px] uppercase">
-                <ShoppingCart className="h-3.5 w-3.5 mr-1.5" /> ADD
+            <Button onClick={handleAddToCart} disabled={isOutOfStock} size="sm" className={cn(
+              'flex-1 bg-primary hover:bg-primary/90 text-white font-black text-[10px] uppercase',
+              isShop && 'h-9 rounded-xl bg-[#FF0033] text-xs tracking-wider hover:bg-[#e6002d] shadow-[0_0_16px_-4px_rgba(255,0,51,0.7)]',
+            )}>
+                <ShoppingCart className="h-3.5 w-3.5 mr-1.5" /> {isShop ? 'ADD TO CART' : 'ADD'}
             </Button>
-            <Button asChild size="icon" variant="outline" className="shrink-0 border-neutral-700 hover:bg-neutral-800">
-                <Link href={`/products/${product.id}`}><Eye className="h-4 w-4" /></Link>
-            </Button>
+            {!isShop && (
+              <Button asChild size="icon" variant="outline" className="shrink-0 border-neutral-700 hover:bg-neutral-800">
+                  <Link href={`/products/${product.id}`}><Eye className="h-4 w-4" /></Link>
+              </Button>
+            )}
         </div>
       </div>
     </div>

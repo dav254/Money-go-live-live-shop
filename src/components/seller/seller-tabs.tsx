@@ -3,6 +3,7 @@
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ProductGrid } from "@/components/products/product-grid";
+import { ShopProducts } from "./shop-products";
 import { SellerInfo } from "./seller-info";
 import type { Seller, Product, LiveSession } from "@/lib/types";
 import {
@@ -67,7 +68,10 @@ export function SellerTabs({ seller, products, liveSession, trust }: SellerTabsP
       
       <div className="mt-6">
         <TabsContent value="products">
-          <ProductGrid products={products} />
+          {/* The reference-style shop showcase: real categories, collections,
+              search/sort and the product grid — all fed by the same products
+              this tab has always rendered. */}
+          <ShopProducts products={products} />
         </TabsContent>
 
         <TabsContent value="videos">
