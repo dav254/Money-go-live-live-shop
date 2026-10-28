@@ -6,6 +6,7 @@ import { getAuth } from 'firebase-admin/auth';
 import { uploadVideoToTikTok } from '@/lib/tiktok';
 import { pbIsAdmin } from '@/lib/pocketbase/admins';
 import { pbGetProfile } from '@/lib/pocketbase/profiles';
+import { isAdminByEnv } from '@/lib/server/admin-env';
 
 async function verifyAdmin(request: NextRequest) {
     const authHeader = request.headers.get('Authorization');
@@ -16,8 +17,9 @@ async function verifyAdmin(request: NextRequest) {
     
     try {
         const decodedToken = await getAuth().verifyIdToken(token);
-        // VPS stores first (works when Firestore is blocked), Firestore second.
+        // Env allowlist first (no database), then VPS stores, then Firestore.
         const isAdmin =
+            isAdminByEnv(decodedToken.uid, decodedToken.email) ||
             (await pbIsAdmin(decodedToken.uid)) === true ||
             (await pbGetProfile(decodedToken.uid))?.userRole === 'admin' ||
             (await db

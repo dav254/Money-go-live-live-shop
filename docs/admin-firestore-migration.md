@@ -7,10 +7,21 @@ Last updated: 2026-10-28 (commits `06b9865c` + the auth-hardening batch).
 - ⚠️ **Partial** — VPS-first where marked, but at least one read/write still goes to Firestore directly; degrades honestly.
 - ❌ **Firestore-only (data)** — the page reads Firestore client-side; shows empty/unavailable when blocked.
 
-**Authorization:** as of this batch, EVERY admin API gate resolves the role VPS-first
-(PocketBase `admins` grant → PocketBase `user_profiles` role → Firestore profile as
-last resort). No admin route can 403 purely because Firestore is blocked. One-time
-VPS setup: `npx tsx scripts/promote-admin.ts promote <admin-email>`.
+**Authorization:** EVERY admin API gate resolves the role in this order:
+
+1. `ADMIN_EMAILS` env allowlist — no database at all (set in `/root/app/.env`,
+   comma-separated emails or uids; restart PM2 after editing).
+2. Local PocketBase `admins` grant — written by `scripts/promote-admin.ts
+   promote <email>` (Firestore-independent; the script's Firestore writes are
+   now best-effort so it works while Firestore is blocked).
+3. Local PocketBase `user_profiles` role (mirrored at signup/heal).
+4. Firestore profile — last resort; on success the grant SELF-HEALS into the
+   local store so later requests survive a new block.
+
+Role changes through `users/[uid]/role` mirror to the VPS store on success, so
+demotions revoke the local grant too. `ensureUserProfile` no longer lets a
+client-supplied role (`admin` included) reach either store — that path could
+self-escalate to admin.
 
 ## Section-by-section
 

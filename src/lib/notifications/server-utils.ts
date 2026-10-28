@@ -8,7 +8,9 @@ import { db as firestoreDb, auth as adminAuth } from '@/firebase/server';
 import { FieldValue } from 'firebase-admin/firestore';
 import { createHash, randomBytes } from 'crypto';
 import { pbIsAdmin } from '@/lib/pocketbase/admins';
+import { pbSetAdmin } from '@/lib/pocketbase/admins';
 import { pbGetProfile } from '@/lib/pocketbase/profiles';
+import { isAdminByEnv } from '@/lib/server/admin-env';
 
 /** The shared, initialized admin Firestore instance. */
 export const db = firestoreDb;
@@ -64,6 +66,9 @@ export async function verifyAdminUid(request: NextRequest): Promise<string | nul
   if (!token) return null;
   try {
     const decoded = await adminAuth.verifyIdToken(token);
+    // 0. ADMIN_EMAILS env allowlist — no database at all. The operator's own
+    //    access must not depend on either store being healthy.
+    if (isAdminByEnv(decoded.uid, decoded.email)) return decoded.uid;
     // 1. Local (VPS) admin grant — instant and independent of Firestore.
     if ((await pbIsAdmin(decoded.uid)) === true) return decoded.uid;
     // 2. Local (VPS) profile role — the mirrored copy survives a blocked
@@ -73,7 +78,17 @@ export async function verifyAdminUid(request: NextRequest): Promise<string | nul
     //    that fails when the project is blocked/out of quota.
     try {
       const profile = await firestoreDb.collection('userProfiles').doc(decoded.uid).get();
-      if (profile.exists && profile.data()?.userRole === 'admin') return decoded.uid;
+      if (profile.exists && profile.data()?.userRole === 'admin') {
+        // SELF-HEAL: the first successful read mirrors the grant into the
+        // local store, so every later request passes even if Firestore
+        // blocks again mid-session. Fire-and-forget; mirrors what
+        // scripts/promote-admin.ts writes.
+        void pbSetAdmin(decoded.uid, true, {
+          email: decoded.email ?? undefined,
+          name: (profile.data()?.fullName as string | undefined) ?? undefined,
+        }).catch(() => undefined);
+        return decoded.uid;
+      }
     } catch {
       // Blocked Firestore — the two VPS checks above already had their say.
     }

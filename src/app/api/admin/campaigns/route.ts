@@ -6,6 +6,7 @@ import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
 import { pbIsAdmin } from '@/lib/pocketbase/admins';
 import { pbGetProfile } from '@/lib/pocketbase/profiles';
+import { isAdminByEnv } from '@/lib/server/admin-env';
 
 
 export async function GET(request: Request) {
@@ -17,8 +18,9 @@ export async function GET(request: Request) {
     const token = authHeader.split('Bearer ')[1];
     const decodedToken = await auth.verifyIdToken(token);
 
-    // VPS stores first (works when Firestore is blocked), Firestore second.
+    // Env allowlist first (no database), then VPS stores, then Firestore.
     const isAdmin =
+      isAdminByEnv(decodedToken.uid, decodedToken.email) ||
       (await pbIsAdmin(decodedToken.uid)) === true ||
       (await pbGetProfile(decodedToken.uid))?.userRole === 'admin' ||
       (await db

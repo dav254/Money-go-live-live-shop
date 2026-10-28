@@ -4,6 +4,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { awardDeliveryPoints } from '@/lib/points/delivery';
 import { pocketBaseEnabled } from '@/lib/pocketbase/server';
 import { pbIsAdmin } from '@/lib/pocketbase/admins';
+import { isAdminByEnv } from '@/lib/server/admin-env';
 import { pbGetOrder, pbPatchOrder } from '@/lib/pocketbase/orders';
 import { pbGetProfile } from '@/lib/pocketbase/profiles';
 import type { Order } from '@/lib/types';
@@ -33,9 +34,10 @@ export async function PUT(
   } catch (error) {
     return NextResponse.json({ message: 'Unauthorized: Invalid token' }, { status: 401 });
   }
-  // Role: local admin grant, then VPS profile, then Firestore — so the
-  // buttons keep working when the Firestore project is blocked.
+  // Role: env allowlist, then local admin grant, then VPS profile, then
+  // Firestore — so the buttons keep working when Firestore is blocked.
   const isAdmin =
+    isAdminByEnv(decodedToken.uid, decodedToken.email) ||
     (await pbIsAdmin(decodedToken.uid)) === true ||
     (await pbGetProfile(decodedToken.uid))?.userRole === 'admin' ||
     (await db

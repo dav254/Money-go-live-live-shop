@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db, auth } from '@/firebase/server';
 import { pbIsAdmin } from '@/lib/pocketbase/admins';
 import { pbGetProfile } from '@/lib/pocketbase/profiles';
+import { isAdminByEnv } from '@/lib/server/admin-env';
 
 /**
  * GET /api/admin/support/complaints/counts
@@ -20,14 +21,18 @@ export async function GET(request: NextRequest) {
   }
 
   let uid: string;
+  let email: string | null = null;
   try {
-    uid = (await auth.verifyIdToken(authHeader.split('Bearer ')[1])).uid;
+    const decoded = await auth.verifyIdToken(authHeader.split('Bearer ')[1]);
+    uid = decoded.uid;
+    email = decoded.email ?? null;
   } catch {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  // VPS stores first (works when Firestore is blocked), Firestore second.
+  // Env allowlist first (no database), then VPS stores, then Firestore.
   const isAdmin =
+    isAdminByEnv(uid, email) ||
     (await pbIsAdmin(uid)) === true ||
     (await pbGetProfile(uid))?.userRole === 'admin' ||
     (await db

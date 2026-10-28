@@ -3,6 +3,7 @@ import { db } from '@/firebase/server';
 import { resolveRole } from '@/lib/auth/roles';
 import { pbIsAdmin } from '@/lib/pocketbase/admins';
 import { pbGetProfile } from '@/lib/pocketbase/profiles';
+import { isAdminByEnv } from '@/lib/server/admin-env';
 
 /**
  * WHO COUNTS AS AN ADMIN, ON THE SERVER.
@@ -27,6 +28,12 @@ export async function isAdminUid(uid: string | null | undefined): Promise<boolea
   if (!uid) return false;
 
   /*
+   * Env allowlist first — no database at all, so an operator's access never
+   * depends on either store being healthy.
+   */
+  if (isAdminByEnv(uid)) return true;
+
+  /*
    * VPS stores first — the local admin grant and the mirrored profile both
    * live on this machine, so an admin keeps access even when Firestore is
    * blocked or out of quota (the reason this migration exists).
@@ -40,6 +47,9 @@ export async function isAdminUid(uid: string | null | undefined): Promise<boolea
 
   try {
     const caller = await getAuth().getUser(uid);
+    // The allowlist may be keyed by email — the Auth record has it, no
+    // Firestore read involved.
+    if (isAdminByEnv(uid, caller.email)) return true;
     const claims = caller.customClaims ?? {};
     if (claims.admin === true) return true;
     if (claims.role === 'admin' || claims.role === 'superadmin') return true;

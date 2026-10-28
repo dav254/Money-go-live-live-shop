@@ -3,6 +3,7 @@ import { db, auth } from '@/firebase/server';
 import { FieldValue } from 'firebase-admin/firestore';
 import { pbIsAdmin } from '@/lib/pocketbase/admins';
 import { pbGetProfile } from '@/lib/pocketbase/profiles';
+import { isAdminByEnv } from '@/lib/server/admin-env';
 
 /**
  * PUT  /api/admin/support/complaints/{id} — { status } (open | investigating | resolved | dismissed)
@@ -18,8 +19,10 @@ async function requireAdmin(request: NextRequest): Promise<string | null> {
   const authHeader = request.headers.get('Authorization');
   if (!authHeader || !authHeader.startsWith('Bearer ')) return null;
   try {
-    const { uid } = await auth.verifyIdToken(authHeader.split('Bearer ')[1]);
-    // VPS stores first (works when Firestore is blocked), Firestore second.
+    const decoded = await auth.verifyIdToken(authHeader.split('Bearer ')[1]);
+    const uid = decoded.uid;
+    // Env allowlist first (no database), then VPS stores, then Firestore.
+    if (isAdminByEnv(uid, decoded.email)) return uid;
     if ((await pbIsAdmin(uid)) === true) return uid;
     if ((await pbGetProfile(uid))?.userRole === 'admin') return uid;
     const profile = await db.collection('userProfiles').doc(uid).get().catch(() => null);

@@ -6,6 +6,7 @@ import type { BoostRequest } from '@/lib/types';
 import { FieldValue } from 'firebase-admin/firestore';
 import { pbIsAdmin } from '@/lib/pocketbase/admins';
 import { pbGetProfile } from '@/lib/pocketbase/profiles';
+import { isAdminByEnv } from '@/lib/server/admin-env';
 
 /**
  * Endpoint to refresh the analytics of a specific boost campaign from TikTok.
@@ -39,8 +40,9 @@ export async function POST(
   const boostData = boostSnap.data() as BoostRequest;
 
   const isSellerOwner = boostData.sellerId === decodedToken.uid;
-  // VPS stores first (works when Firestore is blocked), Firestore second.
+  // Env allowlist first (no database), then VPS stores, then Firestore.
   const isAdmin =
+    isAdminByEnv(decodedToken.uid, decodedToken.email) ||
     (await pbIsAdmin(decodedToken.uid)) === true ||
     (await pbGetProfile(decodedToken.uid))?.userRole === 'admin' ||
     (await db

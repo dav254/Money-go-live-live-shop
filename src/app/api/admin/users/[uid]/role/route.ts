@@ -3,6 +3,9 @@ import { db, auth } from '@/firebase/server';
 import type { UserProfile } from '@/lib/types';
 import { pbIsAdmin } from '@/lib/pocketbase/admins';
 import { pbGetProfile } from '@/lib/pocketbase/profiles';
+import { pbSetAdmin } from '@/lib/pocketbase/admins';
+import { pbUpsertProfile } from '@/lib/pocketbase/profiles';
+import { isAdminByEnv } from '@/lib/server/admin-env';
 
 /**
  * PUT /api/admin/users/{uid}/role — change a user's role.
@@ -47,14 +50,18 @@ export async function PUT(
   }
 
   let callerUid: string;
+  let callerEmail: string | null = null;
   try {
-    callerUid = (await auth.verifyIdToken(authHeader.split('Bearer ')[1])).uid;
+    const decoded = await auth.verifyIdToken(authHeader.split('Bearer ')[1]);
+    callerUid = decoded.uid;
+    callerEmail = decoded.email ?? null;
   } catch {
     return NextResponse.json({ error: 'Unauthorized: Invalid token' }, { status: 401 });
   }
 
-  // VPS stores first (works when Firestore is blocked), Firestore second.
+  // Env allowlist first (no database), then VPS stores, then Firestore.
   const isAdmin =
+    isAdminByEnv(callerUid, callerEmail) ||
     (await pbIsAdmin(callerUid)) === true ||
     (await pbGetProfile(callerUid))?.userRole === 'admin' ||
     (await db
@@ -114,6 +121,13 @@ export async function PUT(
       if (target.role) update.role = targetRole;
       tx.update(targetRef, update);
     });
+
+    // Keep the VPS store in step — the admin gates read it FIRST, so a role
+    // change (especially demoting an admin) must land there too or the local
+    // grant would outlive the Firestore one. Fire-and-forget; mirrors what
+    // scripts/promote-admin.ts writes.
+    void pbSetAdmin(uid, targetRole === 'admin').catch(() => undefined);
+    void pbUpsertProfile(uid, { userRole: targetRole }).catch(() => undefined);
 
     return NextResponse.json({ success: true, role: targetRole });
   } catch (error) {

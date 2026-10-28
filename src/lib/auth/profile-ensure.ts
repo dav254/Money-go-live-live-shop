@@ -46,12 +46,29 @@ export interface EnsuredProfile {
 const ROLES = new Set(['buyer', 'seller', 'reseller', 'admin']);
 
 /**
+ * Roles a CLIENT may ever request for its own account. `admin` is deliberately
+ * absent: the welcome/profile heals run for any signed-in caller, and a
+ * client-supplied `admin` would land in the VPS role store — which the admin
+ * gates trust — and escalate the caller to a full admin. Admin is granted
+ * only by trusted server processes (promote-admin script, the verified admin
+ * role route), never by a signup payload.
+ */
+const CLIENT_REQUESTABLE_ROLES = new Set(['buyer', 'seller', 'reseller']);
+
+/**
  * Ensures a profile exists for `uid` in BOTH stores and returns what the
  * account looks like now. Safe to call on every signup/welcome/repair hit.
  */
 export async function ensureUserProfile(input: EnsureProfileInput): Promise<EnsuredProfile | null> {
   const { uid } = input;
-  const role = ROLES.has(input.role ?? '') ? input.role! : undefined;
+  // Clamp twice: only buyer/seller/reseller may come from a client, and an
+  // EXISTING role always wins over the requested one (the client can change
+  // its own role on every heal — it must never overwrite what the server set).
+  const role =
+    CLIENT_REQUESTABLE_ROLES.has(input.role ?? '') &&
+    String(input.role) !== 'admin'
+      ? input.role!
+      : undefined;
   const now = new Date().toISOString();
 
   // ---- Firestore: read first so we never clobber existing data. ----------
@@ -63,6 +80,24 @@ export async function ensureUserProfile(input: EnsureProfileInput): Promise<Ensu
     console.error('[profile-ensure] Firestore read failed:', error);
   }
 
+  /*
+   * A BLOCKED or missing Firestore must never let a client heal overwrite the
+   * LOCAL role: the VPS copy becomes the role authority whenever Firestore
+   * has no answer (otherwise a heal during an outage would silently demote an
+   * admin's mirrored role — locking them out of the VPS-first gates).
+   */
+  if (existing === null || (existing.userRole === undefined && existing.role === undefined)) {
+    const pb = await pbGetProfile(uid);
+    if (pb?.userRole) {
+      existing = {
+        ...(existing ?? {}),
+        userRole: pb.userRole,
+        role: pb.userRole,
+        email: (existing?.email as string | undefined) ?? pb.email ?? '',
+      } as Record<string, unknown>;
+    }
+  }
+
   const base: Record<string, unknown> = {
     id: uid,
     uid,
@@ -70,8 +105,8 @@ export async function ensureUserProfile(input: EnsureProfileInput): Promise<Ensu
     username: input.username ?? (input.email ? input.email.split('@')[0] : `user_${uid.slice(0, 5)}`),
     email: input.email ?? existing?.email ?? '',
     joinDate: now,
-    userRole: role ?? existing?.userRole ?? 'buyer',
-    role: role ?? existing?.role ?? existing?.userRole ?? 'buyer',
+    userRole: existing?.userRole ?? existing?.role ?? role ?? 'buyer',
+    role: existing?.role ?? existing?.userRole ?? role ?? 'buyer',
     status: 'active',
     profilePictureUrl: input.profilePictureUrl ?? '',
   };
