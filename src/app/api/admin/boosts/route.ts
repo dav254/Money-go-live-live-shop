@@ -4,6 +4,8 @@ import { FieldValue } from 'firebase-admin/firestore';
 import type { BoostRequest } from '@/lib/types';
 import { getAuth } from 'firebase-admin/auth';
 import { uploadVideoToTikTok } from '@/lib/tiktok';
+import { pbIsAdmin } from '@/lib/pocketbase/admins';
+import { pbGetProfile } from '@/lib/pocketbase/profiles';
 
 async function verifyAdmin(request: NextRequest) {
     const authHeader = request.headers.get('Authorization');
@@ -14,9 +16,18 @@ async function verifyAdmin(request: NextRequest) {
     
     try {
         const decodedToken = await getAuth().verifyIdToken(token);
-        const userProfileSnap = await db.collection('userProfiles').doc(decodedToken.uid).get();
+        // VPS stores first (works when Firestore is blocked), Firestore second.
+        const isAdmin =
+            (await pbIsAdmin(decodedToken.uid)) === true ||
+            (await pbGetProfile(decodedToken.uid))?.userRole === 'admin' ||
+            (await db
+                .collection('userProfiles')
+                .doc(decodedToken.uid)
+                .get()
+                .then((p) => p.exists && p.data()?.userRole === 'admin')
+                .catch(() => false));
 
-        if (!userProfileSnap.exists || userProfileSnap.data()?.userRole !== 'admin') {
+        if (!isAdmin) {
             return { error: 'Forbidden: User is not an admin.', status: 403 };
         }
         return { success: true, uid: decodedToken.uid };

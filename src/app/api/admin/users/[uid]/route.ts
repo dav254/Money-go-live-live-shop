@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db, auth } from '@/firebase/server';
+import { pbIsAdmin } from '@/lib/pocketbase/admins';
+import { pbGetProfile } from '@/lib/pocketbase/profiles';
 
 /**
  * PUT /api/admin/users/{uid} — { status: 'active' | 'suspended' }
@@ -22,9 +24,12 @@ async function requireAdmin(request: NextRequest): Promise<string | null> {
   if (!authHeader || !authHeader.startsWith('Bearer ')) return null;
   try {
     const { uid } = await auth.verifyIdToken(authHeader.split('Bearer ')[1]);
-    const profile = await db.collection('userProfiles').doc(uid).get();
-    if (profile.data()?.userRole !== 'admin') return null;
-    return uid;
+    // VPS stores first (works when Firestore is blocked), Firestore second.
+    if ((await pbIsAdmin(uid)) === true) return uid;
+    if ((await pbGetProfile(uid))?.userRole === 'admin') return uid;
+    const profile = await db.collection('userProfiles').doc(uid).get().catch(() => null);
+    if (profile?.data()?.userRole === 'admin') return uid;
+    return null;
   } catch {
     return null;
   }

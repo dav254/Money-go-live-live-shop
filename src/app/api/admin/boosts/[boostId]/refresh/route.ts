@@ -4,6 +4,8 @@ import { getTikTokVideoAnalytics } from '@/lib/tiktok';
 import { getFreshTikTokAccessToken } from '@/lib/tiktok/store';
 import type { BoostRequest } from '@/lib/types';
 import { FieldValue } from 'firebase-admin/firestore';
+import { pbIsAdmin } from '@/lib/pocketbase/admins';
+import { pbGetProfile } from '@/lib/pocketbase/profiles';
 
 /**
  * Endpoint to refresh the analytics of a specific boost campaign from TikTok.
@@ -36,9 +38,17 @@ export async function POST(
 
   const boostData = boostSnap.data() as BoostRequest;
 
-  const userProfileSnap = await db.collection('userProfiles').doc(decodedToken.uid).get();
   const isSellerOwner = boostData.sellerId === decodedToken.uid;
-  const isAdmin = userProfileSnap.data()?.userRole === 'admin';
+  // VPS stores first (works when Firestore is blocked), Firestore second.
+  const isAdmin =
+    (await pbIsAdmin(decodedToken.uid)) === true ||
+    (await pbGetProfile(decodedToken.uid))?.userRole === 'admin' ||
+    (await db
+      .collection('userProfiles')
+      .doc(decodedToken.uid)
+      .get()
+      .then((p) => p.data()?.userRole === 'admin')
+      .catch(() => false));
 
   if (!isSellerOwner && !isAdmin) {
     return NextResponse.json({ message: 'Forbidden: You do not have permission to refresh this campaign.' }, { status: 403 });

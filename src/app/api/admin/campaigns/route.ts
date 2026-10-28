@@ -4,6 +4,8 @@ import { db, auth } from '@/firebase/server';
 import type { BoostRequest } from '@/lib/types';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
+import { pbIsAdmin } from '@/lib/pocketbase/admins';
+import { pbGetProfile } from '@/lib/pocketbase/profiles';
 
 
 export async function GET(request: Request) {
@@ -15,9 +17,17 @@ export async function GET(request: Request) {
     const token = authHeader.split('Bearer ')[1];
     const decodedToken = await auth.verifyIdToken(token);
 
-    const userProfileSnap = await db.collection('userProfiles').doc(decodedToken.uid).get();
-
-    if (!userProfileSnap.exists || userProfileSnap.data()?.userRole !== 'admin') {
+    // VPS stores first (works when Firestore is blocked), Firestore second.
+    const isAdmin =
+      (await pbIsAdmin(decodedToken.uid)) === true ||
+      (await pbGetProfile(decodedToken.uid))?.userRole === 'admin' ||
+      (await db
+        .collection('userProfiles')
+        .doc(decodedToken.uid)
+        .get()
+        .then((p) => p.exists && p.data()?.userRole === 'admin')
+        .catch(() => false));
+    if (!isAdmin) {
       return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
     }
 

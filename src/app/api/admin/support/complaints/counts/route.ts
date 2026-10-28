@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db, auth } from '@/firebase/server';
+import { pbIsAdmin } from '@/lib/pocketbase/admins';
+import { pbGetProfile } from '@/lib/pocketbase/profiles';
 
 /**
  * GET /api/admin/support/complaints/counts
@@ -24,8 +26,17 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const profile = await db.collection('userProfiles').doc(uid).get();
-  if (profile.data()?.userRole !== 'admin') {
+  // VPS stores first (works when Firestore is blocked), Firestore second.
+  const isAdmin =
+    (await pbIsAdmin(uid)) === true ||
+    (await pbGetProfile(uid))?.userRole === 'admin' ||
+    (await db
+      .collection('userProfiles')
+      .doc(uid)
+      .get()
+      .then((p) => p.data()?.userRole === 'admin')
+      .catch(() => false));
+  if (!isAdmin) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 

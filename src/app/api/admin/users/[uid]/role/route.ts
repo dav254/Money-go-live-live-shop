@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db, auth } from '@/firebase/server';
 import type { UserProfile } from '@/lib/types';
+import { pbIsAdmin } from '@/lib/pocketbase/admins';
+import { pbGetProfile } from '@/lib/pocketbase/profiles';
 
 /**
  * PUT /api/admin/users/{uid}/role — change a user's role.
@@ -51,8 +53,17 @@ export async function PUT(
     return NextResponse.json({ error: 'Unauthorized: Invalid token' }, { status: 401 });
   }
 
-  const callerProfile = await db.collection('userProfiles').doc(callerUid).get();
-  if (callerProfile.data()?.userRole !== 'admin') {
+  // VPS stores first (works when Firestore is blocked), Firestore second.
+  const isAdmin =
+    (await pbIsAdmin(callerUid)) === true ||
+    (await pbGetProfile(callerUid))?.userRole === 'admin' ||
+    (await db
+      .collection('userProfiles')
+      .doc(callerUid)
+      .get()
+      .then((p) => p.data()?.userRole === 'admin')
+      .catch(() => false));
+  if (!isAdmin) {
     return NextResponse.json({ error: 'Forbidden: User is not an admin' }, { status: 403 });
   }
 
