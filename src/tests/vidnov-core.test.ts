@@ -256,7 +256,7 @@ describe('distribution job helpers', () => {
 
 /* ── Distribution: channels honesty ──────────────────────────────────────── */
 
-describe('distribution channels (prepare-only honesty)', () => {
+describe('distribution channels (credential gating honesty)', () => {
   it('without credentials a channel cannot leave ready/reach live', () => {
     const saved: Record<string, string | undefined> = {};
     for (const names of Object.values(CHANNEL_ENV_REQUIREMENTS)) {

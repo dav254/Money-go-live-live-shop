@@ -49,7 +49,7 @@ src/lib/vidnov-core/
   types.ts            canonical entity refs, enums, shared types
   validation.ts       zod schemas for engine inputs (bounded, strict)
   distribution/
-    channels.ts       channel registry, adapters (prepare-only), status model
+    channels.ts       channel registry, capability/credential metadata, status model
     job-utils.ts      pure: idempotent job ids, error sanitisation/classification, retry limits
     service.ts        job lifecycle: create (idempotent), transitions, retries, safe errors
   events/
@@ -74,7 +74,7 @@ src/tests/vidnov-core.test.ts                    tests
 ## 6. Distribution Hub design
 
 - **States**: `not_configured → ready → queued → processing → submitted → live`, plus `failed` (retryable within limits) and `needs_attention` (human review). Adapter capability flags declare which states a channel can actually reach.
-- **Honesty rule**: Google/Meta/TikTok adapters are **prepare-only**. They build a validated payload and stop at `submitted` *only when a real credential+approval exists* (`integrationStatus: 'not_configured'` today ⇒ jobs stop at `ready`). No code path claims `live`/`approved`/`indexed`.
+- **Honesty rule**: Google/Meta/TikTok adapters submit through each platform's **official API** (Merchant API `productInputs:insert`, Meta Catalog `items_batch`, TikTok Shop Create Product) and verify against a **real status source** (processed-product status, batch status, audit status). Without credentials `integrationStatus: 'not_configured'` ⇒ jobs stop at `ready` and no network call is made. A submit may only ever record `accepted`; `published` is claimed exclusively by a verify step reading the platform's status, and no code path claims `approved`/`indexed`.
 - **Idempotency**: job doc id = deterministic hash of `(productId, channel, payloadVersion)` for "prepare once" jobs; caller-supplied `idempotencyKey` (validated) for explicit retries. Duplicate creates resolve to the same document — double-clicks cannot create two jobs.
 - **Errors**: classified into `auth | validation | rate_limited | transient | not_configured | unknown`; stored as a short safe message + code, never raw upstream responses, tokens or URLs with credentials. Retry eligibility derives from the class, with `attempts < MAX_ATTEMPTS`.
 - **Ownership**: job creation verifies the caller owns the product (`products/{id}.sellerId == uid`) or is admin.

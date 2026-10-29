@@ -77,7 +77,7 @@ const DataTableSkeleton = () => (
     </div>
 );
 
-export const columns: ColumnDef<Reseller>[] = [
+const columns: ColumnDef<Reseller>[] = [
   {
     id: 'select',
     header: ({ table }) => (

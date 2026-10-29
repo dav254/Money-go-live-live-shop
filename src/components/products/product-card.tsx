@@ -109,12 +109,18 @@ export function ProductCard({ product, variant = 'default' }: ProductCardProps) 
 
   return (
     <div className={cn(
-      'bg-neutral-900 border border-neutral-800 rounded-lg overflow-hidden group text-white h-full flex flex-col shadow-lg transition-all hover:border-primary/50',
+      'min-w-0 bg-neutral-900 border border-neutral-800 rounded-lg overflow-hidden group text-white h-full flex flex-col shadow-lg transition-all hover:border-primary/50',
       isShop && 'rounded-2xl border-white/10 bg-[#0B1220] shadow-[0_16px_34px_-22px_rgba(0,0,0,0.95)] hover:border-[#FF0033]/70',
     )}>
       <div className="relative">
         <Link href={`/products/${product.id}`} className="cursor-pointer">
-            <div className={cn('w-full h-48 bg-black relative', isShop && 'h-44 sm:h-56')}>
+            {/* min-w-0 + overflow-hidden: a grid/flex ITEM defaults to
+                min-width:auto, so an unusually wide upload used to set the
+                COLUMN width and push the whole page sideways. The frame is
+                now the hard boundary — the media keeps its ratio inside it
+                (`object-cover`, never stretched) and the card's rounded
+                corners stay clean. */}
+            <div className={cn('w-full h-48 bg-black relative overflow-hidden', isShop && 'h-44 sm:h-56')}>
                 {hasVideo ? (
                 <video
                     src={
@@ -124,7 +130,7 @@ export function ProductCard({ product, variant = 'default' }: ProductCardProps) 
                           ? product.videoUrls[0]
                           : getPlaceholderImage()
                     }
-                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                    className="block w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                     poster={mainImage}
                     onError={handleImageError}
                     muted
@@ -138,7 +144,7 @@ export function ProductCard({ product, variant = 'default' }: ProductCardProps) 
                         src={mainImage}
                         alt={product.name || 'Product image'}
                         onError={handleImageError}
-                        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        className="block w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                     />
                 )}
             </div>
@@ -178,7 +184,7 @@ export function ProductCard({ product, variant = 'default' }: ProductCardProps) 
             </div>
         )}
       </div>
-      <div className={cn('p-3 flex-1 flex flex-col', isShop && 'p-3.5')}>
+      <div className={cn('p-3 flex-1 flex flex-col min-w-0', isShop && 'p-3.5')}>
         <h3 className={cn('text-sm font-semibold truncate group-hover:text-primary', isShop && 'text-white group-hover:text-[#FF2D55]')}>
             <Link href={`/products/${product.id}`}>{product.name}</Link>
         </h3>
@@ -190,10 +196,10 @@ export function ProductCard({ product, variant = 'default' }: ProductCardProps) 
 
         <div className="mt-1 space-y-1">
           {/* LOCAL SALE PRICE */}
-          <div className="flex items-center gap-1">
-             {!isShop && <Tag className="h-3 w-3 text-primary" />}
+          <div className="flex min-w-0 items-center gap-1">
+             {!isShop && <Tag className="h-3 w-3 shrink-0 text-primary" />}
              <span className={cn(
-               'text-lg font-black text-primary tracking-tighter',
+               'truncate text-lg font-black text-primary tracking-tighter',
                isShop && 'text-[#FF2D55]',
              )}>
                 {product.localCurrency || 'USD'} {(product.localPrice || product.price)?.toLocaleString()}

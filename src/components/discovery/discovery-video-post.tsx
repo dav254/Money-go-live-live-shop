@@ -467,6 +467,29 @@ export function DiscoveryVideoPost({
     <section className="absolute inset-0 flex overflow-hidden bg-[#050a16]">
       {/* Media */}
       <div className="absolute inset-0">
+        {/*
+          FIT, NOT FILL — two different jobs for two different media.
+
+          A product PHOTO has to stay whole: scaled with `object-cover` into a
+          9:19 frame a 3:4 photo loses ~40% of its width to the crop, i.e. the
+          two edges of the product itself. So images are `object-contain` on
+          the section's midnight backdrop — every uploaded ratio (portrait,
+          square, landscape, screenshot) lands inside the frame, undistorted.
+
+          A clip is the one place cropping IS the design: a vertical feed
+          plays full-bleed like every other vertical video surface, and
+          letterboxing a video would break the immersive scroll. `cover` there
+          is intentional and still keeps the aspect ratio (no stretching).
+          Both sit in `absolute inset-0` inside `<section class="overflow-hidden">`,
+          so neither can leave the cell.
+
+          `object-top` is the overlay guard: the seller row, caption, thumbnail
+          strip and purchase card float over the LOWER part of this cell, so a
+          centred `contain` would tuck the bottom third of the photo behind
+          them. Anchoring to the top keeps the product in the clear area above
+          the card on every viewport — the letterbox lands where the gradient
+          already darkens the frame.
+        */}
         {current?.type === 'video' ? (
           <>
             {current.poster && !failedPosters.has(current.poster) && (
@@ -515,6 +538,7 @@ export function DiscoveryVideoPost({
             }
             alt={listing.name}
             track={livingTrack}
+            fit="contain"
             className="absolute inset-0"
           />
         ) : (
@@ -529,7 +553,7 @@ export function DiscoveryVideoPost({
             sizes="100vw"
             priority={active}
             quality={90}
-            className="h-full w-full object-cover object-center"
+            className="h-full w-full object-contain object-top"
             onError={() => {
               if (current) markFailed(current.url);
               else setCoverFailed(true);
@@ -612,8 +636,16 @@ export function DiscoveryVideoPost({
         indicator (safe-area-inset-bottom) — without both, the View product
         button read as cut off the screen on a notched phone. pr-[76px] keeps
         the whole block clear of the right-hand action rail.
+
+        `max-h-full overflow-y-auto` is the short-screen guard: seller + caption
+        + thumbnails + purchase card can together exceed a 640px-tall Android
+        viewport, and an overflowing flex item in this cell is CLIPPED at the
+        bottom edge — taking the View product button with it. Capping the block
+        at the cell height makes it scroll inside itself instead, so every
+        control stays reachable on any phone while tall screens render exactly
+        as before (no scroll appears until content actually overflows).
       */}
-      <div className="relative z-20 mt-auto w-full px-4 pb-[calc(2.75rem+env(safe-area-inset-bottom))] pr-[76px]">
+      <div className="relative z-20 mt-auto max-h-full w-full overflow-y-auto overscroll-contain px-4 pb-[calc(2.75rem+env(safe-area-inset-bottom))] pr-[76px]">
         {/* Seller */}
         <div className="flex items-center gap-2">
           <Link

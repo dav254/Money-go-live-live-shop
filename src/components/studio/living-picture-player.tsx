@@ -43,6 +43,14 @@ export function LivingPicturePlayer({
   alt,
   track,
   className,
+  /**
+   * How the still is fitted into its frame. `cover` (default) fills the box —
+   * right for a framed preview. `contain` keeps the WHOLE photo inside it,
+   * which is what the Discovery feed needs: a product shot must never have
+   * its edges cropped away by a tall phone viewport. Never stretches: both
+   * preserve the source aspect ratio.
+   */
+  fit = 'cover',
   /** Called when the audio fails, so the host can surface a message. */
   onError,
 }: {
@@ -51,8 +59,10 @@ export function LivingPicturePlayer({
   /** null/undefined = an ordinary photo; no control is rendered. */
   track?: LivingPictureTrack | null;
   className?: string;
+  fit?: 'cover' | 'contain';
   onError?: (message: string) => void;
 }) {
+  const fitClass = fit === 'contain' ? 'object-contain' : 'object-cover';
   const audioRef = React.useRef<HTMLAudioElement | null>(null);
   const [isPlaying, setIsPlaying] = React.useState(false);
   const [muted, setMuted] = React.useState(false);
@@ -102,12 +112,12 @@ export function LivingPicturePlayer({
 
   // No track → this is an ordinary photo. Render nothing extra.
   if (!track) {
-    return <img src={imageUrl} alt={alt} className={cn('h-full w-full object-cover', className)} />;
+    return <img src={imageUrl} alt={alt} className={cn('h-full w-full', fitClass, className)} />;
   }
 
   return (
     <div className={cn('relative h-full w-full', className)}>
-      <img src={imageUrl} alt={alt} className="h-full w-full object-cover" />
+      <img src={imageUrl} alt={alt} className={cn('h-full w-full', fitClass)} />
 
       {/* The audio element itself — never autoplayed. */}
       <audio

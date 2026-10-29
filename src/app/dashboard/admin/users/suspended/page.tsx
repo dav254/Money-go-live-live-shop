@@ -41,7 +41,7 @@ type SuspendedUser = UserProfile & {
   admin?: string;
 };
 
-export const columns: ColumnDef<SuspendedUser>[] = [
+const columns: ColumnDef<SuspendedUser>[] = [
   {
     accessorKey: 'fullName',
     header: 'Profile',

@@ -3,16 +3,17 @@
  *
  * ## Honesty contract
  * These adapters VALIDATE and PREPARE product payloads for external
- * destinations, and declare — as pure metadata — what a real integration
- * could do once credentials exist. None of them submits anything on its own:
- * without official credentials there is no code path that may report
- * `submitted` or `live`. The `integrationStatus()` answer is derived from
- * environment-variable PRESENCE only (never values) and a destination with
- * no credentials produces jobs that stop at `ready` with a clear, safe
- * message.
+ * destinations. The three commerce feeds (Google Merchant Center, Meta
+ * Commerce, TikTok Shop) have real submit/verify adapters in `adapters.ts`,
+ * but credentials still gate everything: without official credentials there
+ * is no code path that may leave `ready`, and `integrationStatus()` is
+ * derived from environment-variable PRESENCE only (never values). A
+ * destination with no credentials produces jobs that stop at `ready` with
+ * a clear, safe message; only a verify step reading a platform status
+ * source may ever report `published`.
  *
  * ## Destination kinds
- *   • `feed`      — commerce product feeds (prepare-only today);
+ *   • `feed`      — commerce product feeds (submit + status-verified);
  *   • `local`     — OUR OWN public surfaces (sitemap): no credentials, the
  *                   engine can verify them against our own source of truth;
  *   • `indexing`  — URL-indexing APIs (IndexNow);
@@ -22,9 +23,9 @@
  *
  * ## What we deliberately do NOT do
  * No scraping, no unofficial publishing, no fake engagement, no bypassing
- * platform restrictions. When credentials arrive, `adapters.ts` gains the
- * real submit/inspect calls — until then `capabilities.submit` is false and
- * the service refuses to queue.
+ * platform restrictions. Every submission goes through the platform's
+ * official API with its documented auth scheme; without credentials the
+ * service refuses to queue and the engine refuses to call out.
  *
  * Pure module: no Firestore, no network. Safe for tests.
  */
@@ -62,14 +63,29 @@ export interface DestinationQuotas {
 /**
  * Environment variable NAMES the engine expects for a real integration.
  * Presence checks only — values are never read into responses or logs.
- * The commerce channels' names were declared by the original engine; today
- * they are unset, which is exactly why every one of them reports
- * `not_configured`.
+ * The commerce feeds list the credentials their official APIs require;
+ * until an admin sets them the destination reports `not_configured`.
  */
 export const CHANNEL_ENV_REQUIREMENTS: Record<ChannelId, readonly string[]> = {
-  google: ['GOOGLE_MERCHANT_CENTER_ID', 'GOOGLE_CONTENT_API_KEY'],
+  google: [
+    // Merchant API (the Content API sunset in Aug 2026): service account
+    // added as a Merchant Center user, an API data source for product
+    // inputs, and the feed label the offer is written under.
+    'GOOGLE_MERCHANT_CENTER_ID',
+    'GOOGLE_MERCHANT_SERVICE_ACCOUNT_JSON',
+    'GOOGLE_MERCHANT_DATA_SOURCE_ID',
+    'GOOGLE_MERCHANT_FEED_LABEL',
+  ],
   meta: ['META_COMMERCE_ACCESS_TOKEN', 'META_CATALOG_ID'],
-  tiktok: ['TIKTOK_SHOP_CLIENT_KEY', 'TIKTOK_SHOP_CLIENT_SECRET'],
+  tiktok: [
+    'TIKTOK_SHOP_CLIENT_KEY',
+    'TIKTOK_SHOP_CLIENT_SECRET',
+    'TIKTOK_SHOP_ACCESS_TOKEN',
+    'TIKTOK_SHOP_SHOP_CIPHER',
+    // Create Product needs a leaf category and a warehouse for SKU inventory.
+    'TIKTOK_SHOP_CATEGORY_ID',
+    'TIKTOK_SHOP_WAREHOUSE_ID',
+  ],
   // Local surface: the sitemap route already serves every public listing, so
   // this destination is configured out of the box — no secret involved.
   sitemap: [],
@@ -86,9 +102,10 @@ export const CHANNEL_ENV_REQUIREMENTS: Record<ChannelId, readonly string[]> = {
 
 /** OPTIONAL env vars — surfaced to admins as hints, never required. */
 export const CHANNEL_OPTIONAL_ENV: Record<ChannelId, readonly string[]> = {
-  google: [],
+  // Non-secret feed configuration — optional, with safe defaults.
+  google: ['GOOGLE_MERCHANT_CONTENT_LANGUAGE'],
   meta: [],
-  tiktok: [],
+  tiktok: ['TIKTOK_SHOP_PACKAGE_WEIGHT_KG'],
   sitemap: [],
   // IndexNow key file URL when it is NOT hosted at host root (protocol
   // default: https://vidnov.com/<key>.txt — the admin hosts the file).
@@ -117,6 +134,8 @@ export interface PreparedChannelPayload {
     category?: string;
     location?: string;
     imageUrls: string[];
+    /** Real stock count when the source document carries one (inventory mirrors). */
+    stock?: number;
   };
   /** Tracked destination link using the existing `ref=` attribution format. */
   destinationUrl: string;
@@ -188,6 +207,9 @@ function buildPayload(channel: ChannelId, p: ChannelSourceProduct, destinationUr
       ...(p.category ? { category: p.category.slice(0, 80) } : {}),
       ...(p.location ? { location: p.location.slice(0, 120) } : {}),
       imageUrls: images.slice(0, 10),
+      ...(typeof p.stock === 'number' && Number.isFinite(p.stock) && p.stock >= 0
+        ? { stock: Math.floor(p.stock) }
+        : {}),
     },
     destinationUrl,
   };
@@ -205,7 +227,7 @@ function reachable(configured: boolean): readonly JobStatus[] {
     : ['not_configured', 'ready', 'failed', 'needs_attention', 'stopped'];
 }
 
-/** Static, safe capabilities of the prepare-only commerce feeds. */
+/** Static, safe capabilities for a destination that prepares only (default). */
 const PREPARE_ONLY: DestinationCapabilities = {
   submit: false,
   verify: false,
@@ -228,8 +250,8 @@ function definition(
     kind: meta.kind,
     jobEligible: meta.jobEligible ?? true,
     capabilities: meta.capabilities ?? PREPARE_ONLY,
-    // Feeds have no live API here, so their quota is inert; the destinations
-    // that DO submit get small, bounded defaults (see RECONCILE/engine caps).
+    // Bounded defaults; destinations with a real submit path declare their
+    // own quotas (see CHANNELS below and the engine's reservation clamp).
     quotas: meta.quotas ?? { perRun: 10, perDay: 100 },
     integrationStatus: () => (allEnvPresent(CHANNEL_ENV_REQUIREMENTS[id]) ? 'configured' : 'not_configured'),
     // Getter, not a captured value: evaluated per call so tests and runtime
@@ -242,10 +264,34 @@ function definition(
   };
 }
 
+/**
+ * Capabilities of the three commerce feeds: they submit offers through the
+ * platform's official API and verify against a real status source
+ * (`published` only ever comes from that read — see `adapters.ts`).
+ */
+const FEED_CAPABILITIES: DestinationCapabilities = {
+  submit: true,
+  verify: true,
+  confirmable: ['accepted', 'published', 'failed', 'unknown'],
+};
+
 export const CHANNELS: Record<ChannelId, ChannelDefinition> = {
-  google: definition('google', 'Google Merchant Center', { kind: 'feed' }),
-  meta: definition('meta', 'Meta Commerce', { kind: 'feed' }),
-  tiktok: definition('tiktok', 'TikTok Shop', { kind: 'feed' }),
+  google: definition('google', 'Google Merchant Center', {
+    kind: 'feed',
+    capabilities: FEED_CAPABILITIES,
+    // Content API quota guidance: a few updates per product per day, max.
+    quotas: { perRun: 5, perDay: 100 },
+  }),
+  meta: definition('meta', 'Meta Commerce', {
+    kind: 'feed',
+    capabilities: FEED_CAPABILITIES,
+    quotas: { perRun: 10, perDay: 200 },
+  }),
+  tiktok: definition('tiktok', 'TikTok Shop', {
+    kind: 'feed',
+    capabilities: FEED_CAPABILITIES,
+    quotas: { perRun: 5, perDay: 100 },
+  }),
   // Free-first destinations — local sitemap publication first, then the
   // official indexing/webmaster APIs (each with its own credentials).
   sitemap: definition('sitemap', 'Public sitemap', {

@@ -44,6 +44,7 @@ import {
 } from '../types';
 import { getJobDestinations } from './channels';
 import { readGa4Traffic, runDestinationAction, submitSitemapToSearchConsole, type FetchLike } from './adapters';
+import type { PreparedChannelPayload } from './channels';
 import {
   markEngineRun,
   markSitemapSubmitted,
@@ -126,9 +127,35 @@ type EngineJob = {
   verifyAttempts?: number;
   confirmation?: JobConfirmation;
   submissions?: SubmissionRecord[];
-  payload?: { destinationUrl?: unknown };
+  payload?: { destinationUrl?: unknown; product?: PreparedChannelPayload['product'] };
   payloadVersion?: unknown;
 };
+
+/**
+ * The prepared listing payload stored on the job — commerce-feed adapters
+ * submit these fields. Returns undefined for URL-only jobs or legacy rows
+ * that predate the payload, so the adapter fails honestly ("missing payload")
+ * instead of inventing listing data.
+ */
+function feedPayloadOf(job: EngineJob): PreparedChannelPayload | undefined {
+  const product = job.payload?.product;
+  if (product && typeof product.id === 'string' && typeof product.title === 'string') {
+    return job.payload as PreparedChannelPayload;
+  }
+  return undefined;
+}
+
+/** Remote id recorded by an earlier attempt (newest first) — feeds verify it. */
+function storedRemoteIdOf(job: EngineJob): string | undefined {
+  const candidates = [
+    job.confirmation?.remoteId,
+    ...(job.submissions ?? []).map((s) => s.remoteId),
+  ];
+  for (const candidate of candidates) {
+    if (typeof candidate === 'string' && candidate.trim()) return candidate;
+  }
+  return undefined;
+}
 
 export async function runDistributionEngine(
   params: EngineRunParams,
@@ -184,7 +211,7 @@ export async function runDistributionEngine(
       // inspecting them — their inspect result is a VERIFIED status read.
       await phaseOverQueued(db, dest.id, 'inspect', config, fetchImpl, actorUid, report, stats, actedOnThisRun);
     } else {
-      stats.skippedNotConfigured += 1; // prepare-only feed: nothing to push
+      stats.skippedNotConfigured += 1; // nothing to push for this destination
     }
   }
 
@@ -326,6 +353,8 @@ async function phaseOverQueued(
       absoluteUrl: remoteUrl,
       publicPath,
       fetchImpl,
+      payload: feedPayloadOf(job.data),
+      remoteId: storedRemoteIdOf(job.data),
     });
 
     const recorded = await applySubmissionOutcome(db, job.id, {
@@ -394,6 +423,8 @@ async function phaseOverSubmitted(
       absoluteUrl: remoteUrl,
       publicPath,
       fetchImpl,
+      payload: feedPayloadOf(job.data),
+      remoteId: storedRemoteIdOf(job.data),
     });
 
     const recorded = await applySubmissionOutcome(db, job.id, {

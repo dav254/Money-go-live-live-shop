@@ -75,6 +75,7 @@ function send(input: TrackInput): void {
         dwellMs: input.dwellMs,
         ref: readStoredShareRef() || undefined,
         ch: pageChannel() || undefined,
+        camp: pageCampaign() || undefined,
       }),
     })
       .then((res) => {
@@ -137,6 +138,23 @@ function pageChannel(): string | null {
     if (typeof window === 'undefined') return null;
     const raw = (new URLSearchParams(window.location.search).get('ch') ?? '').trim().toLowerCase();
     return (DISTRIBUTION_CHANNELS as readonly string[]).includes(raw) ? raw : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The campaign label (`?camp=…`) of the CURRENT page, validated against the
+ * same regex the server enforces (the server re-validates anyway — this only
+ * keeps the wire format clean). Read at send time like `ch`: the tracked
+ * link's parameters are still in the URL while the view or click is recorded.
+ * Never throws.
+ */
+function pageCampaign(): string | null {
+  try {
+    if (typeof window === 'undefined') return null;
+    const raw = (new URLSearchParams(window.location.search).get('camp') ?? '').trim();
+    return /^[A-Za-z0-9_-]{1,64}$/.test(raw) ? raw : null;
   } catch {
     return null;
   }

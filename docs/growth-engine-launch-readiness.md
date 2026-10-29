@@ -22,13 +22,15 @@ which was not touched._
 | PocketBase-first public sitemap + robots (OAI-SearchBot allowed) | `sitemap.ts`, `sitemap-catalogue.ts`, `robots.ts` | `sitemap*.test.ts`, live 200s |
 | Payment webhook hardening (PayPal API verification; Paystack constant-time HMAC + fail-closed secret) | `api/webhooks/*` | `payment-hardening.test.ts` |
 | Seller opportunities (create / apply / review) — the acquisition surface | `src/lib/vidnov-core/opportunities/*`, `api/opportunities`, `api/admin/opportunities` | `vidnov-core.test.ts` |
+| **Growth Posts: AI draft → admin approval → copy / email / social publish, with per-channel remote ids** | `src/lib/vidnov-core/growth-posts/*`, `api/admin/growth-posts`, `api/growth-posts/cron` | `growth-posts.test.ts` |
+| **Phase 2A social adapters — Bluesky, Mastodon, Telegram, Discord (free, no platform approval)** | `growth-posts/social.ts` (routes/cron only) | `growth-posts.test.ts` (gates, budgets, success-branch source checks) |
 
 ## 2. Not completed (honest status)
 
 | Item | Status | Why |
 |---|---|---|
 | Automated seller **outreach** (personalised invitations, follow-ups, suppression lists, bulk-approval gate) | **Not implemented** | Requires an approved messaging channel + your approval policy; no outbound sender exists today. Opportunities CRUD is the tracking surface that such a workflow would sit on. |
-| AI promotional content pipeline (captions/variants → approval → publish) | **Not implemented** | Gemini provider wiring exists (`src/lib/ai/gemini-adapter.ts`) but no content-draft/approve state machine. Publishing must go through the distribution engine's approval rules. |
+| AI promotional content pipeline (captions/variants → approval → publish) | **Implemented as Growth Posts (Phases 1 + 2A)** | Nightly bounded draft run (Gemini), admin approval queue, then copy/email plus the four free social channels. `published` is written only in the same patch as the platform's own message id. X / WhatsApp / Meta networks remain unwired by design (Phase 2B: reviewed Meta app; X is paid). |
 | Meta catalog, Google Merchant, TikTok Shop adapters | **Declared, `not_configured`** | Need credentials AND platform app review; adapters deliberately have no runtime implementation yet (`dispatch` returns `not_configured`). |
 | Hermes Agent (or any external agent runtime) | **Not installed, not integrated** | Zero references in `src/`, `docs/`, `scripts/`. To activate: install the runtime, expose a task interface matching `distributionJobs` states, and gate spend/publish actions behind the existing admin approval surfaces. Nothing here claims it is active. |
 | Mobile polish of every Control Center failure state | **Partially verified** | Layout is responsive; no device-level test was run. |
@@ -53,6 +55,16 @@ Firestore write; PB adds a VPS copy only.
 
 - **Cron (disabled by default):** `VIDNOV_CRON_ENABLED` (must be exactly `true`), `CRON_SECRET` (set by you, presented as `Authorization: Bearer …` or `?secret=`). Without both, `/api/distribution/cron` answers 204/403 and runs nothing.
 - **Distribution channels:** `INDEXNOW_KEY`; `BING_WEBMASTER_API_KEY`, `BING_WEBMASTER_SITE_URL`; `GOOGLE_SEARCH_CONSOLE_CLIENT_ID`, `GOOGLE_SEARCH_CONSOLE_CLIENT_SECRET`, `GOOGLE_SEARCH_CONSOLE_REFRESH_TOKEN`, `GOOGLE_SEARCH_CONSOLE_SITE_URL`; `GA4_PROPERTY_ID`, `GA4_SERVICE_ACCOUNT_JSON`.
+- **Commerce feeds (free listings — all three `not_configured` until set):**
+  - Google Merchant Center: `GOOGLE_MERCHANT_CENTER_ID`, `GOOGLE_MERCHANT_SERVICE_ACCOUNT_JSON`, `GOOGLE_MERCHANT_DATA_SOURCE_ID`, `GOOGLE_MERCHANT_FEED_LABEL` (optional `GOOGLE_MERCHANT_CONTENT_LANGUAGE`).
+  - Meta Catalog: `META_COMMERCE_ACCESS_TOKEN`, `META_CATALOG_ID`.
+  - TikTok Shop: `TIKTOK_SHOP_CLIENT_KEY`, `TIKTOK_SHOP_CLIENT_SECRET`, `TIKTOK_SHOP_ACCESS_TOKEN`, `TIKTOK_SHOP_SHOP_CIPHER`, `TIKTOK_SHOP_CATEGORY_ID`, `TIKTOK_SHOP_WAREHOUSE_ID` (optional `TIKTOK_SHOP_PACKAGE_WEIGHT_KG`). Note these are distinct from the existing (unrelated) `TIKTOK_CLIENT_KEY`/`TIKTOK_CLIENT_SECRET` pair.
+- **Growth social channels (Phase 2A — all `not_configured` until set, names only):**
+  - Bluesky: `BLUESKY_HANDLE`, `BLUESKY_APP_PASSWORD` (optional `BLUESKY_SERVICE_URL`).
+  - Mastodon: `MASTODON_API_URL`, `MASTODON_ACCESS_TOKEN`.
+  - Telegram: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHANNEL_ID`.
+  - Discord: `DISCORD_WEBHOOK_URL`.
+  Each channel flips to `configured` only when its own names are all present; a publish without them fails honestly at the gate.
 - **Blank today (blocks payments/AI-web):** `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `NEXT_PUBLIC_GEMINI_API_KEY`.
 - **Security:** `NODE_TLS_REJECT_UNAUTHORIZED` is present in the project `.env` with a certificate-verification-disabling value (proven by the Node warning on every dev/build run; the value was never printed). It is **not set anywhere in code** — verified by grep across `src/`, `scripts/`, `next.config.js`. Safe removal is a Settings → Environment change on the platform side (delete the key), not a code edit. Recommended before release.
 

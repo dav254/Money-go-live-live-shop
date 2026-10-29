@@ -160,7 +160,7 @@ export function DiscoveryLiveLane() {
           <Link
             key={stream.id}
             href={`/live/${stream.id}`}
-            className="vn-discovery-card group block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--vn-discovery-accent)]"
+            className="vn-discovery-card group block min-w-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--vn-discovery-accent)]"
           >
             <div className="relative aspect-video w-full overflow-hidden bg-white/10">
               {stream.thumbnailUrl ? (

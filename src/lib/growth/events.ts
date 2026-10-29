@@ -102,6 +102,14 @@ export interface ParsedEvent {
    * break measurement.
    */
   channel?: string;
+  /**
+   * Campaign label (`?camp=…` on tracked links built by the engine, e.g.
+   * shop-opportunity outreach). Attribution LABEL only: validated against
+   * `^[A-Za-z0-9_-]{1,64}$`, stored alongside `ref`/`ch`, and it can never
+   * by itself trigger a reward or a counter. An unrecognised value is
+   * DROPPED — attribution may not break measurement.
+   */
+  campaign?: string;
 }
 
 export type ParseResult =
@@ -181,6 +189,13 @@ export function parseEventInput(body: unknown): ParseResult {
     }
     // Unknown label ⇒ dropped silently: a forged `ch` must never reject the
     // event (measurement) nor survive as free-form text (no junk storage).
+  }
+
+  if (typeof body.camp === 'string' && body.camp.length <= 64) {
+    if (/^[A-Za-z0-9_-]{1,64}$/.test(body.camp)) {
+      value.campaign = body.camp;
+    }
+    // Invalid ⇒ dropped silently — same policy as `ch`.
   }
 
   return { ok: true, value };

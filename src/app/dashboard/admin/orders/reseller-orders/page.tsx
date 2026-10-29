@@ -56,7 +56,7 @@ const getStatusBadge = (status: Order['orderStatus']) => {
     }
 }
 
-export const columns: ColumnDef<Order>[] = [
+const columns: ColumnDef<Order>[] = [
   {
     accessorKey: 'productName',
     header: 'Product',

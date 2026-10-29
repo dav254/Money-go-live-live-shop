@@ -144,6 +144,10 @@ export async function POST(request: NextRequest) {
         // channel set inside parseEventInput (an unknown value is dropped
         // before it ever reaches here).
         channel: event.channel ?? null,
+        // Campaign label from `?camp=` tracked links — same closed-set
+        // validation as `ch` inside parseEventInput (invalid values are
+        // dropped before they ever reach here).
+        campaign: event.campaign ?? null,
         createdAt: FieldValue.serverTimestamp(),
         expiresAt: eventExpiresAt(new Date()),
       });

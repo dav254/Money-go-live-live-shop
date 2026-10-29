@@ -505,6 +505,23 @@ html[data-vidnov-surface='app']:has(.vn-buyer-scope) body {
   letter-spacing: -0.03em;
 }
 
+/* ── Media containment ────────────────────────────────────────────────────
+ * The root cause of sideways page movement and images escaping their card:
+ * a replaced element (img/video) defaults to `display: inline`, so it paints
+ * an inline baseline gap and — when a wrapper has no definite width — keeps
+ * its INTRINSIC width instead of the frame's. Inside the feed every frame
+ * (`absolute inset-0`, `aspect-[4/5]`, `h-48`) is definite, so forcing
+ * `display: block` and capping at the frame width is enough: nothing can
+ * render wider than the box that owns it, and `overflow-hidden` on the cards
+ * keeps rounded corners clean. Deliberately scoped to Discovery so no other
+ * page's layout is touched.
+ */
+.vn-discovery-scope img,
+.vn-discovery-scope video {
+  display: block;
+  max-width: 100%;
+}
+
 /* Lime is a highlight colour, never a text colour: at that saturation it fails
    contrast on white. It is only ever used as a fill under ink, or as a rule. */
 /* Lime is a highlight colour, never a text colour on white: at that

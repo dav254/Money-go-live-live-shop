@@ -21,9 +21,15 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import { generateKeyPairSync } from 'crypto';
 import type { Firestore } from 'firebase-admin/firestore';
 
-import { CHANNELS, getJobDestinations, PAYLOAD_VERSION } from '../lib/vidnov-core/distribution/channels';
+import {
+  CHANNELS,
+  CHANNEL_ENV_REQUIREMENTS,
+  getJobDestinations,
+  PAYLOAD_VERSION,
+} from '../lib/vidnov-core/distribution/channels';
 import {
   evaluateProductEligibility,
   isVisiblyHidden,
@@ -198,11 +204,14 @@ interface FakeRoute {
 
 /** Fake fetch: first matching route answers, otherwise the network "fails". */
 function fakeFetch(routes: FakeRoute[]) {
-  const calls: Array<{ url: string; init?: { method?: string; body?: string } }> = [];
+  const calls: Array<{
+    url: string;
+    init?: { method?: string; headers?: Record<string, string>; body?: unknown };
+  }> = [];
   const impl = async (
     url: string,
-    init?: { method?: string; body?: string },
-  ): Promise<{ status: number; ok: boolean; text(): Promise<string> }> => {
+    init?: { method?: string; headers?: Record<string, string>; body?: unknown },
+  ): Promise<{ status: number; ok: boolean; text(): Promise<string>; arrayBuffer(): Promise<ArrayBuffer> }> => {
     calls.push({ url, init });
     for (const r of routes) {
       const hit = typeof r.match === 'string' ? url.includes(r.match) : r.match.test(url);
@@ -217,6 +226,7 @@ function fakeFetch(routes: FakeRoute[]) {
           status: r.status,
           ok: r.status >= 200 && r.status < 300,
           text: async () => text,
+          arrayBuffer: async () => new Uint8Array([137, 80, 78, 71]).buffer,
         };
       }
     }
@@ -578,7 +588,7 @@ describe('engine submission honesty (HTTP success is not publication)', () => {
 
       // Request shape: canonical URL (no tracking params), protocol body.
       assert.equal(spy.calls[0].url, 'https://api.indexnow.org/indexnow');
-      const body = JSON.parse(spy.calls[0].init?.body ?? '{}');
+      const body = JSON.parse(String(spy.calls[0].init?.body ?? '{}'));
       assert.deepEqual(body.urlList, ['https://vidnov.com/products/p1']);
       assert.equal(body.key, 'indexnow-secret-key-123', 'protocol carries the key in the BODY');
       assert.equal(body.host, 'vidnov.com');
@@ -845,13 +855,433 @@ describe('adapter capability guards (the registry is the law)', () => {
     assert.equal(spy.calls.length, 0);
   });
 
-  it('unconfigured commerce feeds stay prepare-only (unchanged behaviour)', () => {
+  it('commerce feeds without credentials never leave ready — and never touch the network', async () => {
+    const saved: Record<string, string | undefined> = {};
     for (const id of ['google', 'meta', 'tiktok'] as const) {
-      assert.equal(CHANNELS[id].capabilities.submit, false);
-      assert.equal(CHANNELS[id].integrationStatus(), 'not_configured');
-      assert.ok(!CHANNELS[id].reachableStates.includes('queued'));
-      assert.ok(CHANNELS[id].reachableStates.includes('stopped'), 'stopping is always possible');
+      for (const n of CHANNEL_ENV_REQUIREMENTS[id]) {
+        saved[n] = process.env[n];
+        delete process.env[n];
+      }
     }
+    try {
+      for (const id of ['google', 'meta', 'tiktok'] as const) {
+        // The adapters now HAVE a real submit/verify path (capabilities) …
+        assert.equal(CHANNELS[id].capabilities.submit, true);
+        assert.equal(CHANNELS[id].capabilities.verify, true);
+        // … but without credentials everything still stops at the gate.
+        assert.equal(CHANNELS[id].integrationStatus(), 'not_configured');
+        assert.equal(CHANNELS[id].canSubmit(), false);
+        assert.ok(!CHANNELS[id].reachableStates.includes('queued'), `${id} must not queue without credentials`);
+        assert.ok(!CHANNELS[id].reachableStates.includes('submitted'), `${id} must not submit without credentials`);
+        assert.ok(!CHANNELS[id].reachableStates.includes('live'), `${id} must never self-report live`);
+        assert.ok(CHANNELS[id].reachableStates.includes('ready'), 'preparation without credentials is the point');
+        assert.ok(CHANNELS[id].reachableStates.includes('stopped'), 'stopping is always possible');
+
+        const spy = fakeFetch([]);
+        const payload = CHANNELS[id].prepare(
+          { productId: 'p1', sellerId: 's1', name: 'Gold Ring', price: 100, imageUrl: 'https://cdn.example.com/a.jpg' },
+          '/products/p1',
+        );
+        for (const action of ['submit', 'verify'] as const) {
+          const result = await runDestinationAction(id, action, {
+            absoluteUrl: 'https://vidnov.com/products/p1',
+            publicPath: '/products/p1',
+            fetchImpl: spy.impl,
+            payload,
+            remoteId: 'remote-1',
+          });
+          assert.equal(result.outcome, 'rejected', `${id}/${action}`);
+          assert.equal(result.errorClass, 'not_configured', `${id}/${action}`);
+          assert.equal(spy.calls.length, 0, `${id}/${action} must not call the network without credentials`);
+        }
+      }
+    } finally {
+      for (const [n, v] of Object.entries(saved)) {
+        if (v === undefined) delete process.env[n];
+        else process.env[n] = v;
+      }
+    }
+  });
+});
+
+/* ── Commerce feed adapters: real endpoints against a fake network ────────── */
+
+describe('commerce feed adapters (Google, Meta, TikTok)', () => {
+  // A real RSA key so the service-account JWT signing path actually runs.
+  const SA_KEY = generateKeyPairSync('rsa', { modulusLength: 2048 })
+    .privateKey.export({ type: 'pkcs8', format: 'pem' }) as string;
+
+  const GOOGLE_ENV = {
+    GOOGLE_MERCHANT_CENTER_ID: '123',
+    GOOGLE_MERCHANT_SERVICE_ACCOUNT_JSON: JSON.stringify({
+      client_email: 'sa@test.iam.gserviceaccount.com',
+      private_key: SA_KEY,
+    }),
+    GOOGLE_MERCHANT_DATA_SOURCE_ID: 'ds1',
+    GOOGLE_MERCHANT_FEED_LABEL: 'KE',
+    GOOGLE_MERCHANT_CONTENT_LANGUAGE: 'en',
+  };
+  const META_ENV = {
+    META_COMMERCE_ACCESS_TOKEN: 'meta-secret-token',
+    META_CATALOG_ID: 'cat1',
+  };
+  const TIKTOK_ENV = {
+    TIKTOK_SHOP_CLIENT_KEY: 'app-key-1',
+    TIKTOK_SHOP_CLIENT_SECRET: 'app-secret-1',
+    TIKTOK_SHOP_ACCESS_TOKEN: 'tts-secret-token',
+    TIKTOK_SHOP_SHOP_CIPHER: 'shop-cipher-1',
+    TIKTOK_SHOP_CATEGORY_ID: 'leaf-cat-1',
+    TIKTOK_SHOP_WAREHOUSE_ID: 'wh-1',
+    TIKTOK_SHOP_PACKAGE_WEIGHT_KG: '1',
+  };
+
+  const product = {
+    productId: 'p1',
+    sellerId: 's1',
+    name: 'Gold Ring',
+    description: 'A lovely ring',
+    price: 25000,
+    stock: 3,
+    imageUrl: 'https://cdn.example.com/ring.jpg',
+    category: 'Jewellery',
+  };
+  const ABS = 'https://vidnov.com/products/p1';
+  const PATH = '/products/p1';
+  const baseParams = (fetchImpl: ReturnType<typeof fakeFetch>['impl']) => ({
+    absoluteUrl: ABS,
+    publicPath: PATH,
+    fetchImpl,
+  });
+
+  it('google submit posts the prepared offer and never confirms it', async () => {
+    const payload = CHANNELS.google.prepare(product, PATH);
+    await withEnv(GOOGLE_ENV, async () => {
+      const spy = fakeFetch([
+        { match: 'oauth2.googleapis.com/token', status: 200, body: { access_token: 'tok' } },
+        {
+          match: 'merchantapi.googleapis.com',
+          status: 200,
+          body: { name: 'accounts/123/productInputs/en~KE~p1' },
+        },
+      ]);
+      const result = await runDestinationAction('google', 'submit', {
+        ...baseParams(spy.impl),
+        payload,
+      });
+      assert.equal(result.outcome, 'accepted');
+      assert.equal(result.confirmed, undefined, 'a submit may never confirm');
+      assert.equal(result.remoteId, 'en~KE~p1');
+
+      const api = spy.calls.find((c) => c.url.includes('merchantapi.googleapis.com'));
+      assert.ok(api, 'product input was posted to the Merchant API');
+      assert.ok(api.url.includes('dataSource='), 'dataSource query param is required');
+      const body = JSON.parse(String(api.init?.body)) as {
+        offerId: string;
+        feedLabel: string;
+        contentLanguage: string;
+        productAttributes: Record<string, unknown>;
+      };
+      assert.equal(body.offerId, 'p1');
+      assert.equal(body.feedLabel, 'KE');
+      assert.equal(body.contentLanguage, 'en');
+      const attrs = body.productAttributes;
+      assert.equal(attrs.title, 'Gold Ring');
+      assert.equal(attrs.link, ABS, 'canonical URL, no tracking params');
+      assert.equal(attrs.availability, 'IN_STOCK');
+      assert.deepEqual(attrs.price, { amountMicros: '25000000000', currencyCode: 'NGN' });
+      assert.ok(String(api.init?.headers?.Authorization).startsWith('Bearer '), 'OAuth bearer sent');
+      assert.ok(!JSON.stringify(result).includes('tok'), 'no token ever leaks into a result');
+    });
+  });
+
+  it('google verify reads the real product status: approved / pending / disapproved', async () => {
+    const payload = CHANNELS.google.prepare(product, PATH);
+    await withEnv(GOOGLE_ENV, async () => {
+      const token = { match: 'oauth2.googleapis.com/token', status: 200, body: { access_token: 'tok' } };
+
+      const approved = fakeFetch([
+        token,
+        {
+          match: 'merchantapi.googleapis.com/products/',
+          status: 200,
+          body: {
+            productStatus: {
+              destinationStatuses: [{ reportingContext: 'SHOPPING_ADS', approvedCountries: ['KE'] }],
+              itemLevelIssues: [],
+            },
+          },
+        },
+      ]);
+      const live = await runDestinationAction('google', 'verify', {
+        ...baseParams(approved.impl),
+        payload,
+        remoteId: 'en~KE~p1',
+      });
+      assert.equal(live.outcome, 'accepted');
+      assert.equal(live.confirmed, 'published', 'only a real approval may confirm');
+
+      const pending = fakeFetch([
+        token,
+        {
+          match: 'merchantapi.googleapis.com/products/',
+          status: 200,
+          body: {
+            productStatus: {
+              destinationStatuses: [{ reportingContext: 'SHOPPING_ADS', pendingCountries: ['KE'] }],
+              itemLevelIssues: [{ severity: 'WARNING', code: 'slow_price_update' }],
+            },
+          },
+        },
+      ]);
+      const review = await runDestinationAction('google', 'verify', {
+        ...baseParams(pending.impl),
+        payload,
+        remoteId: 'en~KE~p1',
+      });
+      assert.equal(review.outcome, 'accepted');
+      assert.equal(review.confirmed, 'unknown', 'pending review claims nothing');
+
+      const disapproved = fakeFetch([
+        token,
+        {
+          match: 'merchantapi.googleapis.com/products/',
+          status: 200,
+          body: {
+            productStatus: {
+              destinationStatuses: [],
+              itemLevelIssues: [{ severity: 'DISAPPROVED', code: 'missing_gtin' }],
+            },
+          },
+        },
+      ]);
+      const rejected = await runDestinationAction('google', 'verify', {
+        ...baseParams(disapproved.impl),
+        payload,
+        remoteId: 'en~KE~p1',
+      });
+      assert.equal(rejected.outcome, 'rejected');
+      assert.equal(rejected.errorClass, 'validation');
+      assert.equal(rejected.confirmed, undefined);
+    });
+  });
+
+  it('meta submit posts an items_batch row and records the batch handle', async () => {
+    const payload = CHANNELS.meta.prepare(product, PATH);
+    await withEnv(META_ENV, async () => {
+      const spy = fakeFetch([
+        { match: 'graph.facebook.com', status: 200, body: { handles: ['h-123'], validation_status: [] } },
+      ]);
+      const result = await runDestinationAction('meta', 'submit', {
+        ...baseParams(spy.impl),
+        payload,
+      });
+      assert.equal(result.outcome, 'accepted');
+      assert.equal(result.confirmed, undefined, 'a submit may never confirm');
+      assert.equal(result.remoteId, 'h-123', 'handle recorded for verify');
+
+      const api = spy.calls[0];
+      assert.ok(api.url.includes('/cat1/items_batch'), 'catalog batch endpoint');
+      const body = JSON.parse(String(api.init?.body)) as {
+        item_type: string;
+        allow_upsert: boolean;
+        requests: Array<{ method: string; data: Record<string, unknown> }>;
+      };
+      assert.equal(body.item_type, 'PRODUCT_ITEM');
+      assert.equal(body.allow_upsert, true);
+      assert.equal(body.requests[0].method, 'UPDATE');
+      const data = body.requests[0].data;
+      assert.equal(data.id, 'p1');
+      assert.equal(data.link, ABS);
+      assert.equal(data.image_link, 'https://cdn.example.com/ring.jpg');
+      assert.equal(data.price, '25000.00 NGN');
+      assert.equal(data.availability, 'in stock');
+      assert.ok(String(api.init?.headers?.Authorization).startsWith('Bearer '), 'OAuth bearer sent');
+    });
+  });
+
+  it('meta submit surfaces auth errors and rejected rows honestly', async () => {
+    const payload = CHANNELS.meta.prepare(product, PATH);
+    await withEnv(META_ENV, async () => {
+      const authFail = fakeFetch([
+        {
+          match: 'graph.facebook.com',
+          status: 400,
+          body: { error: { code: 190, message: 'Invalid OAuth access token' } },
+        },
+      ]);
+      const auth = await runDestinationAction('meta', 'submit', {
+        ...baseParams(authFail.impl),
+        payload,
+      });
+      assert.equal(auth.outcome, 'rejected');
+      assert.equal(auth.errorClass, 'auth');
+
+      const empty = fakeFetch([
+        { match: 'graph.facebook.com', status: 200, body: { handles: [], validation_status: [] } },
+      ]);
+      const nothing = await runDestinationAction('meta', 'submit', {
+        ...baseParams(empty.impl),
+        payload,
+      });
+      assert.equal(nothing.outcome, 'unknown', 'HTTP success with nothing ingested claims nothing');
+      assert.equal(nothing.confirmed, undefined);
+
+      const rowError = fakeFetch([
+        {
+          match: 'graph.facebook.com',
+          status: 200,
+          body: {
+            handles: ['h-9'],
+            validation_status: [{ retailer_id: 'p1', errors: [{ message: 'image too small' }] }],
+          },
+        },
+      ]);
+      const rejected = await runDestinationAction('meta', 'submit', {
+        ...baseParams(rowError.impl),
+        payload,
+      });
+      assert.equal(rejected.outcome, 'rejected');
+      assert.equal(rejected.errorClass, 'validation');
+      assert.equal(rejected.message, 'image too small');
+    });
+  });
+
+  it('meta verify reads the batch status: finished / processing / invalid', async () => {
+    const payload = CHANNELS.meta.prepare(product, PATH);
+    await withEnv(META_ENV, async () => {
+      const route = (body: object) =>
+        fakeFetch([{ match: 'check_batch_request_status', status: 200, body }]);
+
+      const done = route({ handle: 'h-123', status: 'Finished', errors_total_count: 0, ids_of_invalid_requests: [] });
+      const live = await runDestinationAction('meta', 'verify', {
+        ...baseParams(done.impl),
+        payload,
+        remoteId: 'h-123',
+      });
+      assert.equal(live.confirmed, 'published', 'stored in the catalog = real status source');
+
+      const running = route({ handle: 'h-123', status: 'Started' });
+      const processing = await runDestinationAction('meta', 'verify', {
+        ...baseParams(running.impl),
+        payload,
+        remoteId: 'h-123',
+      });
+      assert.equal(processing.outcome, 'accepted');
+      assert.equal(processing.confirmed, 'unknown', 'still processing claims nothing');
+
+      const bad = route({
+        handle: 'h-123',
+        status: 'Finished',
+        errors_total_count: 1,
+        ids_of_invalid_requests: ['p1'],
+      });
+      const rejected = await runDestinationAction('meta', 'verify', {
+        ...baseParams(bad.impl),
+        payload,
+        remoteId: 'h-123',
+      });
+      assert.equal(rejected.outcome, 'rejected');
+      assert.equal(rejected.errorClass, 'validation');
+    });
+  });
+
+  it('tiktok submit uploads an image, creates the product and records its id', async () => {
+    const payload = CHANNELS.tiktok.prepare(product, PATH);
+    await withEnv(TIKTOK_ENV, async () => {
+      const spy = fakeFetch([
+        { match: 'cdn.example.com', status: 200, body: 'IMAGEBYTES' },
+        { match: 'images/upload', status: 200, body: { code: 0, data: { uri: 'tos-x/img1' } } },
+        { match: '/product/202309/products', status: 200, body: { code: 0, data: { product_id: 'tt-99' } } },
+      ]);
+      const result = await runDestinationAction('tiktok', 'submit', {
+        ...baseParams(spy.impl),
+        payload,
+      });
+      assert.equal(result.outcome, 'accepted');
+      assert.equal(result.confirmed, undefined, 'a submit may never confirm');
+      assert.equal(result.remoteId, 'tt-99');
+
+      const upload = spy.calls.find((c) => c.url.includes('images/upload'));
+      assert.ok(upload, 'image uploaded to TikTok first');
+      assert.ok(upload.init?.body instanceof FormData, 'multipart form body');
+      assert.ok(upload.url.includes('sign='), 'request is signed');
+      assert.equal(upload.init?.headers?.['x-tts-access-token'], 'tts-secret-token');
+      assert.ok(!upload.url.includes('tts-secret-token'), 'token never enters the URL');
+
+      const create = spy.calls.find(
+        (c) => c.url.includes('/product/202309/products') && c.init?.method === 'POST',
+      );
+      assert.ok(create, 'create product called');
+      const body = JSON.parse(String(create.init?.body)) as {
+        save_mode: string;
+        category_id: string;
+        main_images: Array<{ uri: string }>;
+        skus: Array<{ price: { amount: string }; inventory: Array<{ quantity: number }> }>;
+      };
+      assert.equal(body.save_mode, 'LISTING', 'submitted for review, not a draft');
+      assert.equal(body.category_id, 'leaf-cat-1');
+      assert.deepEqual(body.main_images, [{ uri: 'tos-x/img1' }]);
+      assert.equal(body.skus[0].price.amount, '25000.00');
+      assert.equal(body.skus[0].inventory[0].quantity, 3, 'real stock, never invented');
+    });
+  });
+
+  it('tiktok refuses a listing with no image before any network call', async () => {
+    const payload = CHANNELS.tiktok.prepare(
+      { productId: 'p1', sellerId: 's1', name: 'No Pic', price: 10 },
+      PATH,
+    );
+    await withEnv(TIKTOK_ENV, async () => {
+      const spy = fakeFetch([]);
+      const result = await runDestinationAction('tiktok', 'submit', {
+        ...baseParams(spy.impl),
+        payload,
+      });
+      assert.equal(result.outcome, 'rejected');
+      assert.equal(result.errorClass, 'validation');
+      assert.equal(spy.calls.length, 0);
+    });
+  });
+
+  it('tiktok verify reads the real audit status: approved / auditing / rejected', async () => {
+    const payload = CHANNELS.tiktok.prepare(product, PATH);
+    await withEnv(TIKTOK_ENV, async () => {
+      const route = (body: object) =>
+        fakeFetch([{ match: 'products/tt-99', status: 200, body }]);
+
+      const live = await runDestinationAction('tiktok', 'verify', {
+        ...baseParams(route({ code: 0, data: { product_status: 'ACTIVATE', audit: { status: 'APPROVED' } } }).impl),
+        payload,
+        remoteId: 'tt-99',
+      });
+      assert.equal(live.confirmed, 'published', 'approved AND active = really listed');
+
+      const review = await runDestinationAction('tiktok', 'verify', {
+        ...baseParams(route({ code: 0, data: { product_status: 'INITIAL', audit: { status: 'AUDITING' } } }).impl),
+        payload,
+        remoteId: 'tt-99',
+      });
+      assert.equal(review.outcome, 'accepted');
+      assert.equal(review.confirmed, 'unknown', 'under review claims nothing');
+
+      const rejected = await runDestinationAction('tiktok', 'verify', {
+        ...baseParams(route({ code: 0, data: { product_status: 'DELETED', audit: { status: 'FAILED' } } }).impl),
+        payload,
+        remoteId: 'tt-99',
+      });
+      assert.equal(rejected.outcome, 'rejected');
+      assert.equal(rejected.errorClass, 'validation');
+    });
+  });
+
+  it('a feed job without its stored payload fails honestly instead of inventing data', async () => {
+    await withEnv(META_ENV, async () => {
+      const spy = fakeFetch([]);
+      const result = await runDestinationAction('meta', 'submit', baseParams(spy.impl));
+      assert.equal(result.outcome, 'rejected');
+      assert.equal(result.errorClass, 'validation');
+      assert.equal(spy.calls.length, 0, 'nothing is sent without listing data');
+    });
   });
 });
 

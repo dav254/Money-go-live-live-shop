@@ -326,6 +326,34 @@ export const EMAIL_TEMPLATES: EmailTemplateDef[] = [
     body:
       'Hi {{user_name}},\n\nYou accepted {{business_name}}’s {{currency}} {{amount}} offer for “{{request_title}}”.\n\nTrack the order from Requests → My Requests:\n{{order_link}}' + SHARED_FOOTER,
   },
+  // ============ SHOP OPPORTUNITY AGENT ============
+  {
+    // The Shop Opportunity Agent supplies the full, pre-reviewed body as
+    // `content` (personalised invitation + sender identity + opt-out link).
+    // The template exists so outreach flows through the SAME email service
+    // as every other transactional message: provider dispatch, per-recipient
+    // rate limits and the emailLogs delivery trail all apply unchanged.
+    key: 'seller-invitation',
+    subject: 'Invitation to sell on Vidnov',
+    category: 'business',
+    vars: ['business_name', 'content'],
+    body: '{{content}}',
+  },
+  // ============ GROWTH POSTS (nightly draft engine) ============
+  {
+    // The Growth Post engine sends an APPROVED, ready-made social caption
+    // to the product's own seller so they can post it as-is. The body is
+    // assembled from the real product record + the drafted caption, and it
+    // travels through the same email service as every other transactional
+    // message: provider dispatch, per-recipient rate limits and the
+    // emailLogs delivery trail all apply unchanged.
+    key: 'growth-post',
+    subject: 'A ready-made post for {{product_name}}',
+    category: 'business',
+    vars: ['seller_name', 'product_name', 'caption', 'share_url', 'support_email'],
+    body:
+      'Hi {{seller_name}},\n\nOur growth engine drafted a social post for {{product_name}} — copy it as-is and share it on your channels:\n\n---\n{{caption}}\n---\n\nYour listing (tracked link):\n{{share_url}}\n\nSharing it keeps your shop in front of buyers already browsing Vidnov. Nothing is ever posted on your behalf.' + SHARED_FOOTER,
+  },
 ];
 
 /** Finds a template by key; callers can rely on a missing key being undefined. */

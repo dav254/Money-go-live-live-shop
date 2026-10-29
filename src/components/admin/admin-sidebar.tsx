@@ -354,9 +354,17 @@ export function AdminSidebar() {
             // job queues, per-destination publication confirmation, errors,
             // analytics, safe limits/global pause and the audit trail.
             { href: 'distribution', label: 'Distribution' },
+            // Growth Post engine: nightly AI drafts of ready-to-post social
+            // copy for the best-performing products, queued for human
+            // approval. Publishing is limited to channels that exist.
+            { href: 'growth', label: 'Growth Posts' },
             // Application review queue (approve/reject against the existing
             // admin review API — decisions record an event, never money).
             { href: 'opportunities', label: 'Opportunity Review' },
+            // Shop Opportunity Agent: local-business scout, invitation
+            // packages, the human-approved outreach queue and the
+            // candidate → registered-seller acquisition funnel.
+            { href: 'shop-agent', label: 'Shop Opportunity Agent' },
             { href: 'media-storage', label: 'Media Storage' },
             { href: 'email', label: 'Email Delivery' },
             { href: 'app', label: 'App Manager' },
