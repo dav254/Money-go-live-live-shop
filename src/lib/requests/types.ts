@@ -39,6 +39,16 @@ export interface MarketplaceRequest {
   currency: string;
   location?: string;
   deadline?: string | null; // ISO date
+  /** ISO — when the brief stops counting as open (30 days, renewable). */
+  expiresAt?: string | null;
+  /** How many times the customer has renewed this brief. */
+  renewCount?: number;
+  /** ISO — set when the nearing-expiry notice went out (notification dedupe). */
+  expiryNoticeAt?: string | null;
+  /** ISO — stamped when the very first offer lands (admin time-to-first-offer). */
+  firstOfferAt?: string | null;
+  /** Delivery / collection preference shown to sellers. */
+  fulfilment?: 'delivery' | 'collection' | 'either';
   /** Media record ids attached to this request (private delivery). */
   mediaIds: string[];
   status: RequestStatus;
@@ -47,6 +57,11 @@ export interface MarketplaceRequest {
   acceptedOfferSellerId?: string | null;
   /** Order created after acceptance, when the flow completes. */
   orderId?: string | null;
+  /** One entry per reporter uid — feeds the admin moderation queue. */
+  reports?: Array<{ by: string; reason: string; at: string }>;
+  /** Sellers the fan-out already alerted (renewals only add to this). */
+  matchedSellers?: string[];
+  matchedAt?: unknown;
   views?: number;
   createdAt?: unknown;
   updatedAt?: unknown;
@@ -63,9 +78,13 @@ export interface MarketplaceOffer {
   currency: string;
   message: string;
   deliveryDays?: number | null;
+  /** Stock position: in stock / made to order / out of stock (free text, ≤80). */
+  availability?: string | null;
   /** Media record ids attached to this offer (private delivery). */
   mediaIds: string[];
   status: OfferStatus;
+  /** One entry per reporter uid — feeds the admin moderation queue. */
+  reports?: Array<{ by: string; reason: string; at: string }>;
   createdAt?: unknown;
   updatedAt?: unknown;
 }
@@ -81,6 +100,7 @@ export interface CreateRequestInput {
   location?: string;
   deadline?: string | null;
   currency?: string;
+  fulfilment?: 'delivery' | 'collection' | 'either';
   mediaIds?: string[];
 }
 
@@ -90,6 +110,7 @@ export interface CreateOfferInput {
   price: number;
   message: string;
   deliveryDays?: number | null;
+  availability?: string | null;
   currency?: string;
   mediaIds?: string[];
 }

@@ -106,6 +106,13 @@ export async function createRequest(
     currency: input.currency ?? 'KES',
     location: input.location?.trim() || undefined,
     deadline: input.deadline || null,
+    // Every brief is open for 30 days from the moment it is posted; the
+    // customer can renew it (see `renewRequest`) and the expiry sweep sends
+    // the 48-hour notice exactly once.
+    expiresAt: expiryFor(new Date()),
+    renewCount: 0,
+    expiryNoticeAt: null,
+    fulfilment: input.fulfilment ?? undefined,
     status: 'active',
     offersCount: 0,
     acceptedOfferId: null,
@@ -146,14 +153,21 @@ export async function createRequest(
   return { ...request, id: ref.id };
 }
 
-async function fanOutToMatches(requestId: string): Promise<void> {
+async function fanOutToMatches(requestId: string, options?: { onlyNew?: boolean }): Promise<void> {
   const snap = await db.collection(REQUESTS_COLLECTION).doc(requestId).get();
   if (!snap.exists) return;
   const request = snap.data() as MarketplaceRequest;
   const matches = await findMatchingSellers(request, 20);
   if (matches.length === 0) return;
 
-  const matchedSellers = matches.map((m) => m.sellerId);
+  const alreadyMatched = new Set(request.matchedSellers ?? []);
+  // Renewals only ever notify the sellers this brief has NOT reached yet —
+  // re-alerting the same shops on every renewal is exactly the duplicate
+  // notification this system must avoid.
+  const fresh = options?.onlyNew ? matches.filter((m) => !alreadyMatched.has(m.sellerId)) : matches;
+  if (fresh.length === 0) return;
+
+  const matchedSellers = [...new Set([...(options?.onlyNew ? [...alreadyMatched] : []), ...matches.map((m) => m.sellerId)])];
   await db
     .collection(REQUESTS_COLLECTION)
     .doc(requestId)
@@ -175,7 +189,7 @@ async function fanOutToMatches(requestId: string): Promise<void> {
   // read per seller — on a 20-seller fan-out that was 20 round-trips before the
   // first notification left the building.
   const profiles = await db
-    .getAll(...matches.map((m) => db.collection('userProfiles').doc(m.sellerId)))
+    .getAll(...fresh.map((m) => db.collection('userProfiles').doc(m.sellerId)))
     .catch(() => null);
   const profileById = new Map<string, { email?: string; fullName?: string }>();
   profiles?.forEach((doc) => {
@@ -183,7 +197,7 @@ async function fanOutToMatches(requestId: string): Promise<void> {
     if (data) profileById.set(doc.id, data);
   });
 
-  for (const match of matches) {
+  for (const match of fresh) {
     const profileData = profileById.get(match.sellerId);
     const categoryMatch = match.reasons.includes('category');
 
@@ -259,4 +273,259 @@ async function softDeleteRequestMedia(requestId: string): Promise<void> {
     batch.update(doc.ref, { status: 'DELETED', deletedAt: FieldValue.serverTimestamp() });
   });
   await batch.commit();
+}
+
+/* ── Lifecycle: edit · renew · report · expiry sweep ─────────────────────── */
+
+/** Every fresh brief is open this long; `renewRequest` resets the clock. */
+export const REQUEST_TTL_DAYS = 30;
+/** The customer is warned this far ahead — exactly once per renewal cycle. */
+export const EXPIRY_NOTICE_WINDOW_MS = 48 * 60 * 60 * 1000;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+export function expiryFor(now: Date): string {
+  return new Date(now.getTime() + REQUEST_TTL_DAYS * DAY_MS).toISOString();
+}
+
+/**
+ * Derived expiry: the stored status stays `active` (no new state to render
+ * in every existing screen) and every consumer filters through this helper.
+ */
+export function isExpired(request: Pick<MarketplaceRequest, 'status' | 'expiresAt'>): boolean {
+  if (request.status !== 'active' || !request.expiresAt) return false;
+  const at = Date.parse(request.expiresAt);
+  return Number.isFinite(at) && at <= Date.now();
+}
+
+function msOf(value: unknown): number {
+  if (!value) return 0;
+  if (typeof value === 'number') return value;
+  if (value instanceof Date) return value.getTime();
+  const ts = value as { toDate?: () => Date; seconds?: number };
+  if (typeof ts.toDate === 'function') return ts.toDate().getTime();
+  if (typeof ts.seconds === 'number') return ts.seconds * 1000;
+  return 0;
+}
+
+function assertFulfilment(value: string | undefined): 'delivery' | 'collection' | 'either' | undefined {
+  if (value === undefined || value === '') return undefined;
+  if (value === 'delivery' || value === 'collection' || value === 'either') return value;
+  throw new Error('Choose delivery, collection or either.');
+}
+
+/**
+ * Owner-only edit of a brief's text fields. Attachments are deliberately NOT
+ * editable here: media ids are claimed once at creation (see
+ * `assertMediaClaimable`) and re-binding them is a re-upload, not a patch.
+ * A brief that already produced an accepted offer can never be edited.
+ */
+export async function editRequest(
+  requestId: string,
+  customerId: string,
+  input: Partial<CreateRequestInput>,
+): Promise<MarketplaceRequest> {
+  const ref = db.collection(REQUESTS_COLLECTION).doc(requestId);
+  const snap = await ref.get();
+  if (!snap.exists) throw new Error('Request not found.');
+  const request = snap.data() as MarketplaceRequest;
+  if (request.customerId !== customerId) throw new Error('Not your request.');
+  if (request.status === 'deleted') throw new Error('Request not found.');
+  if (request.acceptedOfferId) throw new Error('A deal is already agreed — this request can no longer be edited.');
+
+  const patch: Record<string, unknown> = {};
+  if (input.title !== undefined) {
+    const title = input.title.trim();
+    if (title.length < 5) throw new Error('Title must be at least 5 characters.');
+    patch.title = title;
+  }
+  if (input.description !== undefined) {
+    const description = input.description.trim();
+    if (description.length < 20) throw new Error('Description must be at least 20 characters.');
+    patch.description = description;
+  }
+  if (input.category !== undefined) {
+    if (!input.category) throw new Error('Choose a category.');
+    patch.category = input.category;
+  }
+  if (input.location !== undefined) patch.location = input.location.trim() || null;
+  if (input.deadline !== undefined) patch.deadline = input.deadline || null;
+  if (input.fulfilment !== undefined) patch.fulfilment = assertFulfilment(input.fulfilment) ?? null;
+  if (input.quantity !== undefined) {
+    const q = Number(input.quantity);
+    if (!Number.isFinite(q) || q < 1) throw new Error('Enter a valid quantity.');
+    patch.quantity = Math.min(Math.floor(q), 1_000_000);
+  }
+  if (input.budgetMin !== undefined) patch.budgetMin = numberOrNull(input.budgetMin, 'budgetMin');
+  if (input.budgetMax !== undefined) patch.budgetMax = numberOrNull(input.budgetMax, 'budgetMax');
+
+  const nextMin = 'budgetMin' in patch ? (patch.budgetMin as number | null) : request.budgetMin ?? null;
+  const nextMax = 'budgetMax' in patch ? (patch.budgetMax as number | null) : request.budgetMax ?? null;
+  if (nextMin !== null && nextMax !== null && nextMin > nextMax) {
+    throw new Error('Minimum budget cannot exceed the maximum.');
+  }
+
+  if (Object.keys(patch).length === 0) return request;
+  patch.updatedAt = FieldValue.serverTimestamp();
+  await ref.update(patch);
+
+  const mirrored: Record<string, unknown> = { ...patch };
+  delete mirrored.updatedAt;
+  void pbPatchRequest(requestId, { ...mirrored, updatedAt: new Date().toISOString() });
+  return { ...request, ...(patch as Partial<MarketplaceRequest>), updatedAt: Date.now() };
+}
+
+function numberOrNull(value: number | null | undefined, field: string): number | null {
+  if (value === null || value === undefined) return null;
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < 0) throw new Error(`Enter a valid ${field === 'budgetMin' ? 'minimum' : 'maximum'} budget.`);
+  return Math.min(n, 1_000_000_000);
+}
+
+/**
+ * Owner-only renewal: reopens an expired (or customer-closed, unfilled)
+ * brief for another 30 days. It re-fans-out ONLY to sellers the brief has
+ * never reached, so a renewal can never duplicate a notification.
+ */
+export async function renewRequest(requestId: string, customerId: string): Promise<MarketplaceRequest> {
+  const ref = db.collection(REQUESTS_COLLECTION).doc(requestId);
+  const snap = await ref.get();
+  if (!snap.exists) throw new Error('Request not found.');
+  const request = snap.data() as MarketplaceRequest;
+  if (request.customerId !== customerId) throw new Error('Not your request.');
+  if (request.status === 'deleted') throw new Error('Request not found.');
+  if (request.acceptedOfferId) throw new Error('This request was fulfilled — post a new one instead.');
+
+  const current = request.expiresAt ? Date.parse(request.expiresAt) : 0;
+  if (request.status === 'active' && Number.isFinite(current) && current > Date.now()) {
+    throw new Error(`Still open — you can renew it after ${new Date(current).toISOString().slice(0, 10)}.`);
+  }
+
+  const expiresAt = expiryFor(new Date());
+  const patch = {
+    status: 'active' as const,
+    expiresAt,
+    renewCount: (request.renewCount ?? 0) + 1,
+    expiryNoticeAt: null,
+    closedAt: null,
+    updatedAt: FieldValue.serverTimestamp(),
+  };
+  await ref.update(patch);
+  void pbPatchRequest(requestId, {
+    status: 'active',
+    expiresAt,
+    renewCount: patch.renewCount,
+    expiryNoticeAt: null,
+    updatedAt: new Date().toISOString(),
+  });
+
+  // Fresh audience only — see `fanOutToMatches(…, { onlyNew: true })`.
+  void fanOutToMatches(requestId, { onlyNew: true });
+  return { ...request, ...patch, id: requestId };
+}
+
+/**
+ * Report a brief the customer did not post (spam/scam). One report per uid,
+ * bounded reasons, never self-reportable — the admin queue reads `reports`.
+ */
+export async function reportRequest(requestId: string, reporterId: string, reason: string): Promise<void> {
+  const text = (reason ?? '').trim().slice(0, 200);
+  if (text.length < 5) throw new Error('Add a short reason for the report.');
+  const ref = db.collection(REQUESTS_COLLECTION).doc(requestId);
+  const snap = await ref.get();
+  if (!snap.exists) throw new Error('Request not found.');
+  const request = snap.data() as MarketplaceRequest;
+  if (request.status === 'deleted') throw new Error('Request not found.');
+  if (request.customerId === reporterId) throw new Error('You cannot report your own request.');
+
+  const reports = Array.isArray(request.reports) ? request.reports : [];
+  if (reports.some((r) => r.by === reporterId)) return; // idempotent — no duplicates
+  if (reports.length >= 10) return; // bounded — the queue is capped, not a free-form store
+  await ref.update({
+    reports: [...reports, { by: reporterId, reason: text, at: new Date().toISOString() }],
+    updatedAt: FieldValue.serverTimestamp(),
+  });
+}
+
+async function notifyExpiry(request: MarketplaceRequest): Promise<void> {
+  try {
+    const profileSnap = await db.collection('userProfiles').doc(request.customerId).get();
+    const profile = profileSnap.data() as { email?: string; fullName?: string } | undefined;
+    const expiresOn = (request.expiresAt ?? '').slice(0, 10);
+    await notify({
+      db: db as unknown as Firestore,
+      userId: request.customerId,
+      type: 'SYSTEM',
+      title: 'Your request is expiring soon',
+      message: `“${request.title}” stops accepting offers on ${expiresOn}. Renew it to keep receiving offers.`,
+      entityType: 'REQUEST',
+      entityId: request.id,
+      link: `/requests/${request.id}`,
+    }).catch(() => undefined);
+    if (profile?.email) {
+      await sendTemplateEmail({
+        templateKey: 'request-expiring',
+        vars: {
+          user_name: profile.fullName || 'there',
+          request_title: request.title,
+          expires_on: expiresOn,
+          offers_count: String(request.offersCount ?? 0),
+          request_link: appLink(`/requests/${request.id}`),
+        },
+        category: 'business',
+        to: profile.email,
+        userId: request.customerId,
+      }).catch(() => undefined);
+    }
+  } catch {
+    // Non-blocking: a missing profile must never fail the sweep.
+  }
+}
+
+export interface ExpirySweepReport {
+  scanned: number;
+  noticesSent: number;
+  backfilled: number;
+}
+
+/**
+ * Bounded expiry pass (spec §7): backfills missing `expiresAt` values and
+ * sends the 48-hour notice EXACTLY once per cycle (`expiryNoticeAt` guard).
+ * Expired briefs are never rewritten — every consumer derives expiry through
+ * `isExpired()`, so there is one source of truth and no status drift.
+ * Best-effort by contract: a failed sweep returns partial counts, never throws.
+ */
+export async function runExpirySweep(nowMs: number = Date.now()): Promise<ExpirySweepReport> {
+  const report: ExpirySweepReport = { scanned: 0, noticesSent: 0, backfilled: 0 };
+  try {
+    // Single-field query (no composite index required); the age filter runs
+    // in-memory over a bounded window, matching every other scan here.
+    const snap = await db.collection(REQUESTS_COLLECTION).where('status', '==', 'active').limit(200).get();
+    report.scanned = snap.size;
+    for (const doc of snap.docs) {
+      const request = { ...(doc.data() as MarketplaceRequest), id: doc.id };
+      if (request.acceptedOfferId) continue;
+
+      if (!request.expiresAt) {
+        const base = msOf(request.createdAt) || nowMs;
+        const expiresAt = new Date(base + REQUEST_TTL_DAYS * DAY_MS).toISOString();
+        await doc.ref.update({ expiresAt, updatedAt: FieldValue.serverTimestamp() }).catch(() => undefined);
+        void pbPatchRequest(doc.id, { expiresAt });
+        report.backfilled += 1;
+        continue;
+      }
+
+      const at = Date.parse(request.expiresAt);
+      if (!Number.isFinite(at)) continue;
+      const remaining = at - nowMs;
+      if (remaining <= 0) continue; // expired — derived at read time
+      if (remaining <= EXPIRY_NOTICE_WINDOW_MS && !request.expiryNoticeAt) {
+        await doc.ref.update({ expiryNoticeAt: new Date(nowMs).toISOString() }).catch(() => undefined);
+        await notifyExpiry(request);
+        report.noticesSent += 1;
+      }
+    }
+  } catch {
+    // Best-effort: the report already carries whatever was processed.
+  }
+  return report;
 }

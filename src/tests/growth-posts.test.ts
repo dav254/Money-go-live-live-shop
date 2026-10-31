@@ -229,14 +229,16 @@ describe('growth post state machine', () => {
     assert.equal(canTransitionGrowthPost('rejected', 'published'), false);
   });
 
-  it('exposes exactly the seven states and six publish channels of Phase 2A', () => {
+  it('exposes exactly the seven states and eight publish channels (six social)', () => {
     assert.deepEqual([...GROWTH_POST_STATES], [
       'draft', 'approved', 'rejected', 'copied', 'emailed', 'published', 'failed',
     ]);
     assert.deepEqual([...GROWTH_PUBLISH_CHANNELS], [
-      'copy', 'email', 'bluesky', 'mastodon', 'telegram', 'discord',
+      'copy', 'email', 'bluesky', 'mastodon', 'telegram', 'discord', 'pinterest', 'reddit',
     ]);
-    assert.deepEqual([...SOCIAL_CHANNELS], ['bluesky', 'mastodon', 'telegram', 'discord']);
+    assert.deepEqual([...SOCIAL_CHANNELS], [
+      'bluesky', 'mastodon', 'telegram', 'discord', 'pinterest', 'reddit',
+    ]);
     for (const ch of SOCIAL_CHANNELS) assert.equal(isSocialChannel(ch), true);
     assert.equal(isSocialChannel('instagram'), false);
     assert.equal(isSocialChannel('copy'), false);
@@ -275,9 +277,20 @@ describe('provider status and publish gates', () => {
       TELEGRAM_BOT_TOKEN: 'token',
       TELEGRAM_CHANNEL_ID: '@vidnov',
       DISCORD_WEBHOOK_URL: 'https://discord.com/api/webhooks/1/x',
+      PINTEREST_ACCESS_TOKEN: 'pina-token',
+      PINTEREST_BOARD_ID: '1234567890123',
+      REDDIT_CLIENT_ID: 'id',
+      REDDIT_CLIENT_SECRET: 'secret',
+      REDDIT_USERNAME: 'vidnov',
+      REDDIT_PASSWORD: 'pw',
+      REDDIT_SUBREDDIT: 'vidnov',
     });
     assert.equal(on.social.status, 'configured');
     for (const ch of SOCIAL_CHANNELS) assert.equal(on[ch].status, 'configured', ch);
+    assert.deepEqual(on.pinterest.requiredEnvVars, ['PINTEREST_ACCESS_TOKEN', 'PINTEREST_BOARD_ID']);
+    assert.deepEqual(on.reddit.requiredEnvVars, [
+      'REDDIT_CLIENT_ID', 'REDDIT_CLIENT_SECRET', 'REDDIT_USERNAME', 'REDDIT_PASSWORD', 'REDDIT_SUBREDDIT',
+    ]);
 
     // A partial setup is reported truthfully — one channel ready, one not.
     const partial = growthProviderStatuses({ DISCORD_WEBHOOK_URL: 'https://discord.com/api/webhooks/1/x' });
@@ -339,6 +352,40 @@ describe('provider status and publish gates', () => {
       publishGate('discord', { env: { DISCORD_WEBHOOK_URL: 'https://discord.com/api/webhooks/1/x' } }).allowed,
       true,
     );
+
+    // Pinterest: both the access token AND the board id are required.
+    assert.equal(publishGate('pinterest', { env: {} }).allowed, false);
+    assert.equal(publishGate('pinterest', { env: { PINTEREST_ACCESS_TOKEN: 't' } }).allowed, false);
+    const pinterest = publishGate('pinterest', {
+      env: { PINTEREST_ACCESS_TOKEN: 't', PINTEREST_BOARD_ID: '1234567890' },
+    });
+    assert.equal(pinterest.allowed, true);
+    assert.match(pinterest.reason, /platform's own message id/);
+
+    // Reddit: every one of the five names must be present before it can send.
+    assert.equal(publishGate('reddit', { env: {} }).allowed, false);
+    assert.equal(
+      publishGate('reddit', {
+        env: {
+          REDDIT_CLIENT_ID: 'id',
+          REDDIT_CLIENT_SECRET: 'secret',
+          REDDIT_USERNAME: 'u',
+          REDDIT_PASSWORD: 'p',
+        },
+      }).allowed,
+      false,
+      'REDDIT_SUBREDDIT is required — the engine only ever posts to the brand\'s own community',
+    );
+    const reddit = publishGate('reddit', {
+      env: {
+        REDDIT_CLIENT_ID: 'id',
+        REDDIT_CLIENT_SECRET: 'secret',
+        REDDIT_USERNAME: 'u',
+        REDDIT_PASSWORD: 'p',
+        REDDIT_SUBREDDIT: 'vidnov',
+      },
+    });
+    assert.equal(reddit.allowed, true);
   });
 
   it('channel text budgets match the documented platform limits', () => {
@@ -346,6 +393,8 @@ describe('provider status and publish gates', () => {
     assert.equal(CHANNEL_TEXT_LIMITS.mastodon, 500);
     assert.equal(CHANNEL_TEXT_LIMITS.telegram, 1_024);
     assert.equal(CHANNEL_TEXT_LIMITS.discord, 2_000);
+    assert.equal(CHANNEL_TEXT_LIMITS.pinterest, 500, 'pin description budget');
+    assert.equal(CHANNEL_TEXT_LIMITS.reddit, 300, 'link-post title budget');
   });
 
   it('buildPostText keeps the share URL whole inside every budget', () => {
@@ -393,15 +442,32 @@ describe('growth post routes and template (source level)', () => {
     assert.match(tpl.body, /Nothing is ever posted on your behalf/);
   });
 
-  it('the queue page offers exactly the four free social channels', () => {
+  it('the queue page offers exactly the six free social channels', () => {
     const source = read('src/app/dashboard/admin/system/growth/page.tsx');
     assert.ok(source.includes("channel: 'copy'"));
     assert.ok(source.includes("channel: 'email'"));
     assert.ok(source.includes('publishTo'), 'social publish handler must be wired');
-    for (const name of ['bluesky', 'mastodon', 'telegram', 'discord']) {
+    for (const name of ['bluesky', 'mastodon', 'telegram', 'discord', 'pinterest', 'reddit']) {
       assert.ok(source.includes(`id: '${name}'`), `missing ${name} button`);
     }
     assert.ok(!/channel:\s*'(instagram|facebook|tiktok|x)'/i.test(source));
+  });
+
+  it('Pinterest and Reddit publish through official endpoints only (source level)', () => {
+    const source = read('src/lib/vidnov-core/growth-posts/social.ts');
+    // Pinterest: the v5 create-pin endpoint with a board and image media.
+    assert.ok(source.includes('https://api.pinterest.com/v5/pins'));
+    assert.ok(source.includes('board_id: boardId'));
+    assert.ok(source.includes("source_type: 'image_url'"));
+    assert.ok(source.includes("input.env.PINTEREST_BOARD_ID"));
+    // Reddit: script-app OAuth, then the official submit endpoint, link post.
+    assert.ok(source.includes('https://www.reddit.com/api/v1/access_token'));
+    assert.ok(source.includes('https://oauth.reddit.com/api/submit'));
+    assert.ok(source.includes("kind: 'link'"));
+    assert.ok(source.includes("input.env.REDDIT_SUBREDDIT"), 'posts target the configured subreddit');
+    assert.ok(source.includes("'User-Agent': userAgent"), 'Reddit requires a unique User-Agent');
+    // Neither publisher may ever surface an upstream error body.
+    assert.ok(!source.includes('errors?.[0]'), 'error reasons stay upstream');
   });
 
   it('service.ts writes status published only in the confirmed-success branch', () => {

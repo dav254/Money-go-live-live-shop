@@ -4,6 +4,7 @@ import { db } from '@/firebase/server';
 import { verifyUserContext } from '@/lib/notifications/server-utils';
 import { readStatus } from '@/lib/media/engine';
 import { pbMirrorProduct } from '@/lib/pocketbase/products';
+import { pingIndexNow } from '@/lib/seo/indexnow';
 import {
   validatePublishDetails,
   sanitizePublishDetails,
@@ -245,6 +246,9 @@ async function reopen(
  * Firestore document crosses into the mirror.
  */
 async function mirror(productId: string, patch: Record<string, unknown> | null): Promise<void> {
+  // A studio publish is a listing going live — ping the search index now
+  // (own opt-in flag inside `pingIndexNow`; fire-and-forget, never throws).
+  void pingIndexNow([`/products/${productId}`]);
   try {
     let data: Record<string, unknown> | null = patch;
     if (!data) {

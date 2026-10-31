@@ -63,7 +63,24 @@ function ContactSupportForm() {
 
         try {
             const ticketsCollectionRef = collection(firestore, 'supportTickets');
-            await addDoc(ticketsCollectionRef, ticketData);
+            const ticket = await addDoc(ticketsCollectionRef, ticketData);
+            // Best-effort: acknowledgement to the user + alert to the admin
+            // mailbox through the central email service (server resolves the
+            // address from the verified token — never from this form).
+            void user
+                .getIdToken()
+                .then(token =>
+                    fetch('/api/support/notify', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                        body: JSON.stringify({
+                            issueType: values.issueType,
+                            description: values.description,
+                            ticketRef: ticket.id.slice(0, 40),
+                        }),
+                    }),
+                )
+                .catch(() => undefined);
             toast({ title: 'Ticket Submitted', description: 'Our support team will get back to you shortly.' });
             form.reset();
         } catch (error) {

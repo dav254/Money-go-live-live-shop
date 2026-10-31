@@ -24,12 +24,17 @@
  *
  * ## `www`
  *
- * The canonical host is `www.vidnov.com`. `vidnov.com` is kept working by the
- * DNS record and the TLS certificate on the VPS; share it with `www` so the
- * link a user pastes matches what search engines index.
+ * The canonical host is the bare `https://vidnov.com`. This was verified
+ * against the live server: `https://www.vidnov.com/*` answers `301` to the
+ * apex host, the sitemap (`SITEMAP_ORIGIN`) emits apex URLs, and the Search
+ * Console property is registered against the apex domain. Emitting `www`
+ * URLs would hand crawlers canonical tags that redirect — so every default
+ * here points at the host that answers `200` after redirects. An environment
+ * can still override with `NEXT_PUBLIC_SITE_URL` if the hosting setup ever
+ * flips the redirect direction.
  */
 
-export const DEFAULT_PUBLIC_ORIGIN = 'https://www.vidnov.com';
+export const DEFAULT_PUBLIC_ORIGIN = 'https://vidnov.com';
 
 /** Trailing slashes stripped, so joining a path never yields `//`. */
 function clean(value: string | undefined | null): string {

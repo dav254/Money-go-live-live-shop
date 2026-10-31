@@ -3,12 +3,16 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   AtSign,
+  CalendarClock,
   CheckCircle2,
   ClipboardCopy,
   Clock,
   Hash,
   Mail,
   MessageCircle,
+  Newspaper,
+  PenLine,
+  Pin,
   RefreshCw,
   Send,
   Sparkles,
@@ -70,6 +74,9 @@ interface GrowthPost {
   publishChannel?: string;
   publishedAt?: string;
   results?: Record<string, GrowthResult>;
+  /** Pending scheduler action — present only while a schedule is armed. */
+  scheduledAt?: string;
+  scheduledChannels?: string[];
 }
 
 interface ProviderStatus {
@@ -111,9 +118,14 @@ const STATUS_STYLES: Record<PostStatus, string> = {
   failed: 'border-red-500/40 bg-red-500/10 text-red-400',
 };
 
-/** The four free, approval-free social networks wired in Phase 2A. */
+/**
+ * The free social networks wired into the queue: the four Phase 2A channels
+ * plus Pinterest and Reddit (Phase 2C). Each flips to `configured` only when
+ * its own credential names are present in the environment — the selector
+ * never claims a channel it cannot reach.
+ */
 const SOCIAL_CHANNELS: Array<{
-  id: 'bluesky' | 'mastodon' | 'telegram' | 'discord';
+  id: 'bluesky' | 'mastodon' | 'telegram' | 'discord' | 'pinterest' | 'reddit';
   label: string;
   icon: typeof Send;
 }> = [
@@ -121,7 +133,16 @@ const SOCIAL_CHANNELS: Array<{
   { id: 'mastodon', label: 'Mastodon', icon: Hash },
   { id: 'telegram', label: 'Telegram', icon: Send },
   { id: 'discord', label: 'Discord', icon: MessageCircle },
+  { id: 'pinterest', label: 'Pinterest', icon: Pin },
+  { id: 'reddit', label: 'Reddit', icon: Newspaper },
 ];
+
+/** Local `datetime-local` value (YYYY-MM-DDTHH:mm), one hour from now. */
+function defaultAtLocal(): string {
+  const d = new Date(Date.now() + 3_600_000);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
 
 const FILTERS: Array<{ id: 'all' | PostStatus; label: string }> = [
   { id: 'all', label: 'All' },
@@ -308,6 +329,102 @@ export default function AdminGrowthPostsPage() {
     [posts, filter],
   );
 
+  /* ── Composer: write your own post about a real listing ─────────────── */
+  const [composing, setComposing] = useState(false);
+  const [products, setProducts] = useState<Array<{ id: string; name: string }>>([]);
+  const [productFilter, setProductFilter] = useState('');
+  const [composeProductId, setComposeProductId] = useState('');
+  const [composeCaption, setComposeCaption] = useState('');
+  const [composeTags, setComposeTags] = useState('');
+
+  const openComposer = useCallback(async () => {
+    setComposing(true);
+    if (products.length > 0) return;
+    try {
+      const res = await fetch('/api/admin/products/list', { headers: await authHeaders() });
+      const data = (await res.json().catch(() => ({}))) as { products?: Array<{ id: string; name?: string }> };
+      setProducts(
+        (data.products ?? [])
+          .filter((p) => p && typeof p.id === 'string' && p.id)
+          .map((p) => ({ id: p.id, name: p.name || p.id })),
+      );
+    } catch {
+      // Keep the form open — the admin can retry by re-opening it.
+    }
+  }, [authHeaders, products.length]);
+
+  const submitCompose = useCallback(async () => {
+    if (!composeProductId || !composeCaption.trim()) {
+      toast({ variant: 'destructive', title: 'Pick a product and write the post copy.' });
+      return;
+    }
+    const hashtags = composeTags.split(/[,\s]+/).map((t) => t.replace(/^#/, '').trim()).filter(Boolean);
+    const res = await post(
+      { action: 'compose', productId: composeProductId, caption: composeCaption, hashtags },
+      'compose',
+    );
+    if (res.ok) {
+      toast({ title: 'Post composed', description: 'It is approved — publish it now or schedule it.' });
+      setComposing(false);
+      setComposeProductId('');
+      setComposeCaption('');
+      setComposeTags('');
+      setProductFilter('');
+      await load();
+    }
+  }, [composeProductId, composeCaption, composeTags, post, load, toast]);
+
+  /* ── Scheduling: arm / cancel the pending action the tick spends ────── */
+  const [schedDraft, setSchedDraft] = useState<Record<string, { at: string; channels: string[] }>>({});
+
+  const toggleSchedChannel = useCallback((id: string, channel: string) => {
+    setSchedDraft((prev) => {
+      const cur = prev[id] ?? { at: defaultAtLocal(), channels: [] as string[] };
+      const channels = cur.channels.includes(channel)
+        ? cur.channels.filter((c) => c !== channel)
+        : [...cur.channels, channel];
+      return { ...prev, [id]: { ...cur, channels } };
+    });
+  }, []);
+
+  const submitSchedule = useCallback(
+    async (p: GrowthPost) => {
+      const draft = schedDraft[p.id];
+      if (!draft?.at || draft.channels.length === 0) {
+        toast({ variant: 'destructive', title: 'Pick a time and at least one channel.' });
+        return;
+      }
+      const res = await post(
+        { action: 'schedule', id: p.id, channels: draft.channels, at: new Date(draft.at).toISOString() },
+        p.id,
+      );
+      if (res.ok) {
+        toast({
+          title: 'Scheduled',
+          description: `Publishes ${new Date(draft.at).toLocaleString()} — the scheduler tick handles it, and nothing runs before then.`,
+        });
+        setSchedDraft((prev) => {
+          const next = { ...prev };
+          delete next[p.id];
+          return next;
+        });
+        await load();
+      }
+    },
+    [schedDraft, post, load, toast],
+  );
+
+  const cancelSchedule = useCallback(
+    async (p: GrowthPost) => {
+      const res = await post({ action: 'unschedule', id: p.id }, p.id);
+      if (res.ok) {
+        toast({ title: 'Schedule cancelled', description: 'Nothing will publish automatically.' });
+        await load();
+      }
+    },
+    [post, load, toast],
+  );
+
   return (
     <AdminLayout>
       <div className="container mx-auto max-w-5xl space-y-6 py-6">
@@ -320,9 +437,10 @@ export default function AdminGrowthPostsPage() {
             </h1>
             <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
               The nightly engine drafts ready-to-post copy for your best-performing products from real
-              metrics. Every draft waits here for approval; approved posts can be copied, emailed to
-              the seller, or published to the four free social channels — each publish is confirmed by
-              the platform’s own message id or reported as an honest failure.
+              metrics — or compose your own. Every draft waits here for approval; approved posts can be
+              copied, emailed to the seller, published to the four free social channels right away, or
+              scheduled for later. Every publish is confirmed by the platform’s own message id or
+              reported as an honest failure.
             </p>
           </div>
           <div className="flex shrink-0 gap-2">
@@ -364,6 +482,69 @@ export default function AdminGrowthPostsPage() {
             </Card>
           ))}
         </div>
+
+        {/* ── Composer: an admin-written post about a real listing ── */}
+        {!composing ? (
+          <Button variant="outline" size="sm" onClick={() => void openComposer()}>
+            <PenLine className="mr-2 h-4 w-4" /> Compose a post
+          </Button>
+        ) : (
+          <Card className="rounded-2xl border-primary/40">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Compose a post about a real listing</CardTitle>
+              <CardDescription>
+                Written by you and saved straight to approved — it passes the same listing gate as the
+                drafter (visible, priced, pictured), and can be published or scheduled like any other post.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <input
+                value={productFilter}
+                onChange={(e) => setProductFilter(e.target.value)}
+                placeholder="Filter products…"
+                className="w-full rounded-md border bg-transparent px-3 py-2 text-sm"
+              />
+              <select
+                value={composeProductId}
+                onChange={(e) => setComposeProductId(e.target.value)}
+                className="w-full rounded-md border bg-transparent px-3 py-2 text-sm"
+              >
+                <option value="">Select a product…</option>
+                {products
+                  .filter((p) =>
+                    p.name.toLowerCase().includes(productFilter.trim().toLowerCase()),
+                  )
+                  .slice(0, 200)
+                  .map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+              </select>
+              <textarea
+                value={composeCaption}
+                onChange={(e) => setComposeCaption(e.target.value)}
+                rows={4}
+                placeholder="Write the post copy…"
+                className="w-full rounded-md border bg-transparent px-3 py-2 text-sm"
+              />
+              <input
+                value={composeTags}
+                onChange={(e) => setComposeTags(e.target.value)}
+                placeholder="hashtags, separated by commas (without #)"
+                className="w-full rounded-md border bg-transparent px-3 py-2 text-sm"
+              />
+              <div className="flex flex-wrap gap-2">
+                <Button size="sm" onClick={() => void submitCompose()} disabled={busyId === 'compose'}>
+                  <CheckCircle2 className="mr-2 h-4 w-4" /> Save as approved
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setComposing(false)}>
+                  Cancel
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* ── Counts + filters ───────────────────────────────────── */}
         <div className="flex flex-wrap items-center gap-2">
@@ -609,6 +790,92 @@ export default function AdminGrowthPostsPage() {
                       </span>
                     )}
                   </div>
+
+                  {/* Scheduling — a pending action on the side, never a status. */}
+                  {p.status !== 'draft' && p.status !== 'rejected' && (
+                    <div className="rounded-xl border border-dashed p-3">
+                      {p.scheduledAt ? (
+                        <div className="flex flex-wrap items-center gap-2 text-xs">
+                          <CalendarClock className="h-3.5 w-3.5 text-cyan-300" aria-hidden />
+                          <span className="font-semibold text-cyan-200">
+                            Scheduled for {new Date(p.scheduledAt).toLocaleString()}
+                          </span>
+                          <span className="text-muted-foreground">
+                            → {(p.scheduledChannels ?? []).join(', ') || 'no channels' }
+                          </span>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => void cancelSchedule(p)}
+                            disabled={busyId === p.id}
+                          >
+                            Cancel schedule
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                            Schedule
+                          </span>
+                          <input
+                            type="datetime-local"
+                            value={schedDraft[p.id]?.at ?? ''}
+                            onFocus={() => {
+                              setSchedDraft((prev) =>
+                                prev[p.id]
+                                  ? prev
+                                  : { ...prev, [p.id]: { at: defaultAtLocal(), channels: ['bluesky'] } },
+                              );
+                            }}
+                            onChange={(e) =>
+                              setSchedDraft((prev) => ({
+                                ...prev,
+                                [p.id]: {
+                                  at: e.target.value,
+                                  channels: prev[p.id]?.channels ?? ['bluesky'],
+                                },
+                              }))
+                            }
+                            className="rounded-md border bg-transparent px-2 py-1.5 text-xs"
+                          />
+                          {SOCIAL_CHANNELS.map((ch) => {
+                            const configured =
+                              providers.find((prov) => prov.id === ch.id)?.status === 'configured';
+                            const selected = (schedDraft[p.id]?.channels ?? []).includes(ch.id);
+                            return (
+                              <button
+                                key={ch.id}
+                                type="button"
+                                onClick={() => toggleSchedChannel(p.id, ch.id)}
+                                title={
+                                  configured
+                                    ? `Publishes via ${ch.label}’s API at the scheduled time.`
+                                    : `Not configured — requires ${ch.id.toUpperCase()} credentials in the environment.`
+                                }
+                                className={cn(
+                                  'rounded-full border px-2.5 py-1 text-[11px] font-bold transition',
+                                  selected
+                                    ? 'border-primary bg-primary text-white'
+                                    : 'border-white/10 bg-white/5 text-muted-foreground hover:text-foreground',
+                                  !configured && 'opacity-60',
+                                )}
+                              >
+                                {ch.label}
+                              </button>
+                            );
+                          })}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => void submitSchedule(p)}
+                            disabled={busyId === p.id}
+                          >
+                            <CalendarClock className="mr-2 h-4 w-4" /> Set schedule
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             ))}
@@ -621,8 +888,11 @@ export default function AdminGrowthPostsPage() {
           Nightly runs are opt-in: set <code className="font-mono">VIDNOV_CRON_ENABLED</code>,{' '}
           <code className="font-mono">GROWTH_POSTS_CRON_ENABLED</code> and{' '}
           <code className="font-mono">CRON_SECRET</code>, then hit{' '}
-          <code className="font-mono">/api/growth-posts/cron</code> from your scheduler. Until then,
-          “Run draft job” above does the same bounded run on demand.
+          <code className="font-mono">/api/growth-posts/cron</code> from your scheduler. Scheduled posts
+          are spent by the same three gates plus{' '}
+          <code className="font-mono">GROWTH_POSTS_SCHEDULER_ENABLED</code> on{' '}
+          <code className="font-mono">/api/growth-posts/scheduler</code> — until both are enabled,
+          “Run draft job” and the publish buttons above do the same work on demand.
         </p>
       </div>
     </AdminLayout>

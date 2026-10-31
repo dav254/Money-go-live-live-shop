@@ -18,6 +18,7 @@ import {
   pbCreateRecord,
   pbListRecords,
   pocketBaseEnabled,
+  pbRequest,
   type PbField,
 } from './server';
 
@@ -37,6 +38,7 @@ const EMAIL_LOG_FIELDS: PbField[] = [
   { name: 'providerId', type: 'text' },
   { name: 'userId', type: 'text' },
   { name: 'failureReason', type: 'text' },
+  { name: 'errorClass', type: 'text' },
   { name: 'devMode', type: 'bool' },
   { name: 'createdAt', type: 'date' },
 ];
@@ -74,6 +76,8 @@ export interface EmailLogInput {
   providerId?: string;
   userId?: string;
   failureReason?: string;
+  /** Safe error category (rate_limited | timeout | server | config | …). */
+  errorClass?: string;
   devMode: boolean;
 }
 
@@ -87,6 +91,7 @@ export async function pbWriteEmailLog(entry: EmailLogInput): Promise<string | nu
       providerId: entry.providerId ?? null,
       userId: entry.userId ?? null,
       failureReason: entry.failureReason ?? null,
+      errorClass: entry.errorClass ?? null,
       createdAt: new Date().toISOString(),
     });
     return rec.id;
@@ -151,6 +156,7 @@ export interface EmailLogRow {
   provider: string;
   providerId: string | null;
   failureReason: string | null;
+  errorClass: string | null;
   createdAt: string | null;
   devMode: boolean;
 }
@@ -175,11 +181,42 @@ export async function pbListEmailLogs(limit: number, status?: string | null): Pr
       provider: String(r.provider ?? ''),
       providerId: r.providerId != null ? String(r.providerId) : null,
       failureReason: r.failureReason != null ? String(r.failureReason) : null,
+      errorClass: r.errorClass != null ? String(r.errorClass) : null,
       createdAt: isoOrNull(r.createdAt),
       devMode: Boolean(r.devMode),
     }));
   } catch (error) {
     console.error('[pocketbase] email log read failed:', error);
+    return null;
+  }
+}
+
+/**
+ * Patches delivery-log rows by provider message id (webhook status updates).
+ * Returns the number of rows updated, or null when PB is off/failed — the
+ * caller then falls back to Firestore.
+ */
+export async function pbUpdateEmailLogStatus(
+  providerId: string,
+  patch: Record<string, unknown>,
+): Promise<number | null> {
+  if (!pocketBaseEnabled() || !providerId) return null;
+  try {
+    const rows = await pbListRecords(EMAIL_LOGS_COLLECTION, {
+      filter: `providerId = '${providerId.replace(/'/g, "\\'")}'`,
+      perPage: 5,
+    });
+    let updated = 0;
+    for (const row of rows) {
+      const res = await pbRequest(`/api/collections/${EMAIL_LOGS_COLLECTION}/records/${row.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(patch),
+      });
+      if (res.ok) updated += 1;
+    }
+    return updated;
+  } catch (error) {
+    console.error('[pocketbase] email log status update failed:', error);
     return null;
   }
 }

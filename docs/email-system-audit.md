@@ -152,4 +152,85 @@ Proposed changes — **documented only, not applied**:
   live DNS (DoH queries), template registry, auth flows, admin surfaces.
 - **Not verifiable from this workspace:** VPS `.env.production` values, PM2
   logs, Resend dashboard delivery records, and real send/receive tests — the
-  exact commands and manual steps for each are in the final delivery report.
+  exact commands and manual steps for each are in §8.
+
+---
+
+# Stage 2 — Implemented (this change)
+
+Git checkpoint before the work: `dc7a6438` ("Checkpoint: pre-email-system
+state"). Everything below was verified by the commands in §9.
+
+## 8. What was built + the exact remaining manual steps
+
+### Built in code
+
+| Area | Files | What it does |
+|---|---|---|
+| Honest provider fallback | `email-provider.ts` | Production without valid credentials now returns `accepted: false` (`unconfigured`) instead of silently logging `SENT` via the console provider. Every provider returns its HTTP status for classification. |
+| Central service hardening | `email-service.ts` | Hard-bounce suppression check before every production send; 60s duplicate cooldown for `verify-email`/`welcome`/`password-reset` (status `SKIPPED`, never a fake send); safe `errorClass` on every failure; bounded retry scheduling via `maybeScheduleRetry`. Still the single entry point — nothing calls a provider directly. |
+| Pure reliability core | `email-reliability.ts` | Error classification, retry policy (`shouldRetry`: transient-only, ≤3 attempts, never one-time-link templates, never suppressed, never dev), bounded backoff (5→15→45 min, ≤60), svix HMAC verification (timing-safe, ±5 min, fail-closed), event→status mapping, bounce permanence, cooldown helpers. |
+| Durable store | `email-store.ts` | `emailSuppressions` (doc id = address ⇒ idempotent), `emailJobs` (pending/done/dead queue), `emailWebhookEvents` (idempotency records), log patches by provider message id. All best-effort, never throws. |
+| Delivery webhooks | `POST /api/webhooks/email` | `svix-*` signature verified against `EMAIL_WEBHOOK_SECRET` (503 without it, 401 on mismatch, nothing parsed first). Idempotent by sanitized event id; effects run before the dedupe record; store failure ⇒ 500 so the provider redelivers. Maps `delivered→DELIVERED`, `delivery_delayed→DELAYED`, `bounced/complained→BOUNCED` (+ suppression), `failed→FAILED`. Updates PocketBase and Firestore `emailLogs` by `providerId`. |
+| Retry cron | `GET/POST /api/email/cron` | Triple-gated (`VIDNOV_CRON_ENABLED` + `EMAIL_RETRY_CRON_ENABLED` + `CRON_SECRET`, timing-safe), 409 on overlap, ≤10 jobs/pass, attempt-cap safety net, jobs end `done` or `dead` with a reason. |
+| Verification flow | `lib/auth/email-verification.ts`, `POST /api/auth/verify-email`, `/verify-email` page, `api/auth/welcome` | Signup now issues a **hashed, 24h, single-use** token (previous unused tokens invalidated) and sends the `verify-email` template with a REAL link (the old flow rendered an empty link). Consuming the link validates hash/expiry/attempts (≤5), sets `firebase.auth.updateUser(emailVerified)`, logs the security event, then sends the `welcome` email. Non-blocking: login/sessions unchanged; a token-store failure falls back to the plain welcome email. Re-click after success reads as success. |
+| Branded templates | `renderer.ts` | Subject line moved out of the body (it used to be duplicated into every message), responsive near-black/charcoal/coral shell (560px card, viewport meta, table layout for Outlook), link vars become coral pill CTAs, image-free (no tracking pixels). Escaping semantics unchanged — injection tests still pass. Text output byte-identical for legacy callers. |
+| Support emails | `templates.ts` (`support-ticket-received`, `support-ticket-alert`), `POST /api/support/notify`, contact-form hook | Acknowledgement to the user + alert to the configured admin mailbox, fired fire-and-forget after a ticket is created. Recipient resolved server-side from the verified token — never from the request body. |
+| Admin dashboard | `email/page.tsx`, `api/admin/communication`, `api/admin/email-status`, `api/admin/email-test` | Delivery log with status filter + Prev/Next pagination, provider message ids, safe error class + reason; suppression list with “Allow again”; webhook-events panel with a setup warning while `EMAIL_WEBHOOK_SECRET` is missing; two new presence-only keys in the checklist; the test-email route now reports capture-vs-send-vs-cooldown honestly and bypasses the cooldown for explicit tests. |
+| Security rules | `firestore.rules` + `src/firestore.rules` (kept byte-identical) | Documented admin-SDK-only posture for `emailVerificationTokens`, `emailJobs`, `emailSuppressions`, `emailWebhookEvents` (enforced by the default-deny catch-all). |
+| Tests | `src/tests/email-system.test.ts` (38 tests) | Classification, retry policy, backoff bounds, signature verification (valid/missing/stale/tampered), event mapping, cooldown, subject stripping + branding, provider honesty, and source-level route guarantees. |
+
+### Remaining MANUAL steps (in order)
+
+1. **Confirm the VPS mode** (non-secret keys only):
+   `grep -E '^(EMAIL_MODE|EMAIL_PROVIDER|EMAIL_FROM)=' /root/app/.env.production /root/app/.env 2>/dev/null`
+   → `EMAIL_MODE` must be exactly `production`, `EMAIL_PROVIDER=resend`,
+   `EMAIL_FROM` must be an `@vidnov.com` sender. If EMAIL_MODE was not
+   `production`, that is almost certainly why the earlier email never left
+   the server.
+2. **Deploy**: pull `main` on the VPS, `pm2 restart <app>`, then check
+   `pm2 logs <app> --lines 50` for `[email]` errors.
+3. **Webhook** (required for any message to ever show `Delivered`): in the
+   Resend dashboard → Webhooks → add endpoint
+   `https://vidnov.com/api/webhooks/email` with events
+   `sent · delivered · delivery_delayed · bounced · failed · complained`,
+   copy the signing secret into the environment as
+   `EMAIL_WEBHOOK_SECRET`, and restart PM2. The admin Email page shows this
+   key as missing until it is set.
+4. **Retry cron**: set `EMAIL_RETRY_CRON_ENABLED=true` (and
+   `VIDNOV_CRON_ENABLED=true`, `CRON_SECRET=…` if not already), then schedule
+   e.g. `*/15 * * * * curl -fsS -H "Authorization: Bearer $CRON_SECRET" https://vidnov.com/api/email/cron -o /dev/null`.
+5. **Real send test**: admin → System → Email → send a test to an inbox you
+   control, then confirm the delivery log moves `SENT → DELIVERED` once the
+   webhook fires. Check spam on the receiving side.
+6. **Real receive test** (Step 4 inbox): choose a provider from §4 (my
+   recommendation: Zoho Mail Free), create the four addresses, then apply
+   the DNS changes from §5 **in this order** — combined SPF (single TXT,
+   keep the existing eForward include until cutover, add Resend's include),
+   add the inbox provider's DKIM (different selector from `resend`), add
+   `_dmarc.vidnov.com` with `p=none; rua=mailto:…`, and only then swap MX.
+   Rollback = restore the five `eforward*.registrar-servers.com` records
+   (TTL 1800). Send a test to `support@vidnov.com` from an external inbox
+   and reply to it to prove real send-and-receive.
+7. **Delete dead code when convenient**: `src/app/actions/email-actions.ts`
+   (`sendMarketingEmail` is a commented-out placeholder with the wrong key
+   name; it has no callers and must never be wired up).
+
+## 9. Checks actually run (this session)
+
+- `bun tsc -b --noEmit` → exit 0 (twice: after the core, after the UI).
+- `npx tsx --test src/tests/*.test.ts` → **836/836 pass** (38 of them new).
+- `npx tsx --test src/tests/security-rules.test.ts` → 38/38 (renderer + rules).
+- Production build `NODE_ENV=production next build` → **exit 0**
+  (BUILD_ID `MOh5UxfsVCIk0jkiVWxyA`, 123 app outputs; the first attempt died
+  on the default Node heap — an environment limit, rerun with
+  `--max-old-space-size=3072` and warm cache).
+- Live preview smoke tests: `/`, `/login`, `/signup`, `/forgot-password`,
+  `/reset-password`, `/verify-email` → 200; webhook without secret → 503;
+  cron with gates off → 204; garbage verification code → 400; admin
+  communication without a token → 403; support notify without a token →
+  401; GET on POST-only endpoints → 405.
+- Lint: **not run** — this repo has no ESLint config (`next lint` prompts
+  for first-time setup), so there is nothing configured to run.
+- Real send/receive against Resend: **not possible from this workspace**
+  (no controlled recipient inbox, no VPS logs) — that is §8 steps 1/5/6.

@@ -4,6 +4,7 @@ import { verifyRequestUser } from '@/lib/media/api-auth';
 import { pbMirrorShop } from '@/lib/pocketbase/shops';
 import { scrubForPocketBase } from '@/lib/pocketbase/server';
 import { pbGetProfile } from '@/lib/pocketbase/profiles';
+import { pingIndexNow } from '@/lib/seo/indexnow';
 
 export const runtime = 'nodejs';
 
@@ -40,6 +41,11 @@ export async function POST(request: NextRequest) {
 
   const data = (snap.data() ?? {}) as Record<string, unknown>;
   const mirrored = await pbMirrorShop(shopId, scrubForPocketBase(data) as Record<string, unknown>);
+  // Shop create/edit: the public storefront URL changed — tell the search
+  // index right now (own opt-in flag inside `pingIndexNow`; fire-and-forget,
+  // never blocks the mirror, never throws). The URL is the PUBLIC shop page;
+  // no seller data is sent anywhere but the index receiver.
+  void pingIndexNow([`/sellers/${shopId}`]);
   return NextResponse.json({ ok: true, mirrored });
 }
 

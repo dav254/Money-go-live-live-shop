@@ -77,7 +77,7 @@ export async function createRequest(
 
 export async function requestAction(
   user: User,
-  action: 'close' | 'delete' | 'accept' | 'my-offer',
+  action: 'close' | 'delete' | 'accept' | 'my-offer' | 'edit' | 'renew' | 'decline' | 'report',
   requestId: string,
   payload?: Record<string, unknown>,
 ): Promise<{ ok?: boolean; offer?: MarketplaceOffer | null; orderId?: string }> {

@@ -104,11 +104,29 @@ VIDNOV_STORAGE_EMERGENCY_PERCENT=95
 VIDNOV_MEDIA_ROOT=/var/lib/vidnov/media
 VIDNOV_TMP_ROOT=/var/lib/vidnov/tmp
 VIDNOV_TEMP_RETENTION_HOURS=6
+
+# ── Search engines & AI discovery (IndexNow) ────────────────────────────
+# Automatic IndexNow pings when a product/shop is created, edited or deleted.
+# Off by default. Enable only AFTER this build is live: receivers fetch the
+# key file at https://vidnov.com/indexnow-key.txt, which 404s on the old build.
+INDEXNOW_ENABLED=true
+# Public canonical origin — the default is already https://vidnov.com (apex).
+# Set only if the domain differs; www.<domain> must 301 to apex (see §5) so
+# canonical tags, /sitemap.xml and Search Console all name one host.
+# NEXT_PUBLIC_SITE_URL=https://vidnov.com
 ```
 
 The code already resolves Firebase admin creds in this order:
 `GOOGLE_APPLICATION_CREDENTIALS` → `FIREBASE_SERVICE_ACCOUNT_JSON` → `./service-account.json` → ADC
 (see `src/firebase/server.ts`), so any one of those works on a plain VPS.
+
+> **Two IndexNow paths — do not confuse them.** `INDEXNOW_ENABLED` above drives
+> the app's own submission (`npm run ping:search` plus pings from the product
+> and shop sync routes); its key is a **public constant** served by the app at
+> `/indexnow-key.txt`, so no `INDEXNOW_KEY` is needed for it. The growth-engine
+> distribution adapter is a separate, cron-driven channel that reads
+> `INDEXNOW_KEY`/`INDEXNOW_KEY_LOCATION` (see
+> `docs/growth-engine-launch-readiness.md`) and stays optional.
 
 > **Security:** the service-account key and Twilio credentials were previously
 > committed. **Rotate them** before going live, and never put the new ones in git.
@@ -130,9 +148,18 @@ pm2 save && pm2 startup                   # start on boot (follow printed instru
 
 ```bash
 sudo tee /etc/nginx/sites-available/goearnvid <<'EOF'
+# Canonical host is the APEX domain — canonical tags, /sitemap.xml and
+# Search Console all name it, so www must 301 to apex (certbot's
+# `-d www...` also creates this redirect; keep it either way).
 server {
     listen 80;
-    server_name goearnvid.shop www.goearnvid.shop;
+    server_name www.goearnvid.shop;
+    return 301 $scheme://goearnvid.shop$request_uri;
+}
+
+server {
+    listen 80;
+    server_name goearnvid.shop;
 
     client_max_body_size 100m;   # allow video uploads through the proxy
 
@@ -189,6 +216,37 @@ pm2 restart goearnvid
 ```
 
 Zero-downtime tip: `pm2 reload goearnvid` instead of `restart`.
+
+### After every update: search engines & AI discovery
+
+Run these on the VPS after `pm2 reload` (shown with the production domain
+`vidnov.com`; earlier sections use `goearnvid.shop` as a placeholder):
+
+```bash
+# 1. Machine-readable endpoints must all answer 200 on the live domain.
+#    /indexnow-key.txt must exist BEFORE any ping — receivers fetch it.
+for p in /indexnow-key.txt /sitemap.xml /robots.txt /llms.txt /products.json; do
+  printf '%-22s ' "$p"; curl -so /dev/null -w '%{http_code}\n' "https://vidnov.com$p"
+done
+
+# 2. Host check: www must 301 to apex (canonical origin, see §5)
+curl -sI https://www.vidnov.com/ | head -1     # → HTTP/1.1 301 Moved Permanently
+
+# 3. Submit the live URLs to IndexNow — public URLs only; the guard in
+#    src/lib/seo/indexnow.ts drops private/admin/login/user-specific paths,
+#    query strings and fragments before anything leaves the machine.
+npm run ping:search -- --force                 # → "status 202", exit 0
+```
+
+The ping requires `INDEXNOW_ENABLED=true` (§3); without it the command prints
+guidance and exits 0 without sending. **202 = the receiver accepted the batch,
+not that anything was indexed** — IndexNow promises no indexing and no ranking.
+
+One-time per domain: Google Search Console → *Add property* → URL prefix
+`https://vidnov.com` → *Sitemaps* → submit `https://vidnov.com/sitemap.xml`.
+Google does not read IndexNow — the sitemap (plus its recrawl of changed URLs)
+is Google's discovery path. After a deploy that removes an old `noindex`, use
+*URL Inspection* → *Request indexing* on key product pages to speed re-crawl.
 
 ---
 
@@ -305,3 +363,11 @@ changes: the DB stores logical paths and everything is served through
 - [ ] Live streaming works (LIVEKIT_URL / LIVEKIT_API_KEY / LIVEKIT_API_SECRET set)
 - [ ] PM2 running: `pm2 status`, logs: `pm2 logs goearnvid`
 - [ ] `manifest.json` loads — "Install App" works (Android/desktop Chrome)
+- [ ] Search/AI endpoints live: `/indexnow-key.txt` `/sitemap.xml` `/robots.txt`
+      `/llms.txt` `/products.json` → **200** on `https://vidnov.com` (§8)
+- [ ] `INDEXNOW_ENABLED=true` in production env; `npm run ping:search -- --force`
+      → **202** accepted (§3, §8)
+- [ ] Public product/shop pages emit `index, follow` + an apex canonical — no
+      `noindex` on any URL listed in the sitemap
+- [ ] Search Console property added; `https://vidnov.com/sitemap.xml` submitted
+      (§8)

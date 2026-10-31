@@ -334,6 +334,10 @@ export function AdminSidebar() {
             { href: 'conversations', label: 'Seller & Buyer Chats' },
             { href: 'complaints', label: 'Resolve Complaints', badge: supportStats.complaints },
             { href: 'seller-buyer-issues', label: 'Seller & Buyer Issues' },
+            // Buyer Request Management: demand analytics (open/no-offer/expired
+            // briefs, categories, locations, time-to-first-offer, conversion),
+            // the spam-report queue and audited moderation of requests/offers.
+            { href: 'requests', label: 'Buyer Request Management' },
           ]}
         />
 
@@ -354,10 +358,19 @@ export function AdminSidebar() {
             // job queues, per-destination publication confirmation, errors,
             // analytics, safe limits/global pause and the audit trail.
             { href: 'distribution', label: 'Distribution' },
+            // Search Engine Center: Bing/Yandex/Google verification probes,
+            // sitemap + IndexNow/Bing submission controls, page SEO checks
+            // and the shared submission/audit history. Read-only unless an
+            // admin presses a submit button.
+            { href: 'search-engine', label: 'Search Engine Center' },
             // Growth Post engine: nightly AI drafts of ready-to-post social
             // copy for the best-performing products, queued for human
             // approval. Publishing is limited to channels that exist.
             { href: 'growth', label: 'Growth Posts' },
+            // Postiz publishing bridge: the external scheduling service's
+            // channel list, post composer and delivery log (server-side
+            // POSTIZ_API_URL / POSTIZ_API_KEY — never exposed to browsers).
+            { href: 'postiz', label: 'Postiz Publishing' },
             // Application review queue (approve/reject against the existing
             // admin review API — decisions record an event, never money).
             { href: 'opportunities', label: 'Opportunity Review' },

@@ -326,6 +326,14 @@ export const EMAIL_TEMPLATES: EmailTemplateDef[] = [
     body:
       'Hi {{user_name}},\n\nYou accepted {{business_name}}’s {{currency}} {{amount}} offer for “{{request_title}}”.\n\nTrack the order from Requests → My Requests:\n{{order_link}}' + SHARED_FOOTER,
   },
+  {
+    key: 'request-expiring',
+    subject: 'Your request “{{request_title}}” expires {{expires_on}}',
+    category: 'business',
+    vars: ['user_name', 'request_title', 'expires_on', 'offers_count', 'request_link', 'app_url', 'support_email'],
+    body:
+      'Hi {{user_name}},\n\nYour request “{{request_title}}” stops accepting offers on {{expires_on}}.\n\nOffers received so far: {{offers_count}}. Renew it to keep businesses responding:\n{{request_link}}\n\nAfter it expires you can renew it in one tap — it stays visible to matched businesses for another 30 days.' + SHARED_FOOTER,
+  },
   // ============ SHOP OPPORTUNITY AGENT ============
   {
     // The Shop Opportunity Agent supplies the full, pre-reviewed body as
@@ -353,6 +361,28 @@ export const EMAIL_TEMPLATES: EmailTemplateDef[] = [
     vars: ['seller_name', 'product_name', 'caption', 'share_url', 'support_email'],
     body:
       'Hi {{seller_name}},\n\nOur growth engine drafted a social post for {{product_name}} — copy it as-is and share it on your channels:\n\n---\n{{caption}}\n---\n\nYour listing (tracked link):\n{{share_url}}\n\nSharing it keeps your shop in front of buyers already browsing Vidnov. Nothing is ever posted on your behalf.' + SHARED_FOOTER,
+  },
+  // ============ SUPPORT TICKETS ============
+  {
+    // Acknowledgement to the person who opened the ticket. Sent through the
+    // same email service as everything else: rate limits, suppression and
+    // the emailLogs trail all apply unchanged. No response-time promise is
+    // invented — only what actually happened is stated.
+    key: 'support-ticket-received',
+    subject: 'We received your support ticket',
+    category: 'messages',
+    vars: ['user_name', 'issue_type', 'ticket_ref', 'app_url', 'support_email'],
+    body:
+      'Hi {{user_name}},\n\nYour support ticket has reached our team.\n\nTopic: {{issue_type}}\nReference: {{ticket_ref}}\n\nWe have the details you sent and will reply by email — there is no need to submit it again.' + SHARED_FOOTER,
+  },
+  {
+    // Administrator notification — goes to the configured admin mailbox.
+    key: 'support-ticket-alert',
+    subject: 'New support ticket: {{issue_type}}',
+    category: 'messages',
+    vars: ['user_name', 'issue_type', 'ticket_ref', 'description', 'app_url', 'support_email'],
+    body:
+      'New support ticket received.\n\nFrom: {{user_name}}\nTopic: {{issue_type}}\nReference: {{ticket_ref}}\n\nDetails:\n{{description}}\n\nOpen Support → Tickets in the admin dashboard to respond.' + SHARED_FOOTER,
   },
 ];
 

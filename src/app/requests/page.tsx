@@ -7,7 +7,7 @@ import { useUser, useUserProfile } from '@/firebase';
 import { BuyerLayout } from '@/components/layout/buyer-layout';
 import { SellerLayout } from '@/components/layout/seller-layout';
 import { fetchMyRequests, fetchOpenRequests, fetchMyWonRequests } from '@/lib/requests/client';
-import type { MarketplaceRequest } from '@/lib/requests/types';
+import { REQUEST_CATEGORIES, type MarketplaceRequest } from '@/lib/requests/types';
 import { budgetLabel } from '@/lib/requests/labels';
 import { StatusBadge } from '@/app/buyer/requests/status-badge';
 import { CreateWithAiLink } from '@/components/ai/create-with-ai';
@@ -25,8 +25,26 @@ import {
   Inbox,
   Store,
   CheckCircle2,
+  Search,
+  ArrowDownUp,
+  Clock,
   User as UserIcon,
 } from 'lucide-react';
+
+/** Firestore Timestamp | ISO string | epoch → Date, without importing types. */
+function toDate(value: unknown): Date | null {
+  if (!value) return null;
+  if (value instanceof Date) return value;
+  if (typeof value === 'number') return new Date(value);
+  const t = value as { toDate?: () => Date; seconds?: number };
+  if (typeof t.toDate === 'function') return t.toDate();
+  if (typeof t.seconds === 'number') return new Date(t.seconds * 1000);
+  if (typeof value === 'string') {
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+  return null;
+}
 
 /**
  * REQUEST MARKETPLACE HUB — works for BOTH buyers and sellers (§24):
@@ -107,13 +125,64 @@ export default function RequestsHubPage() {
   }, [loadingProfile, isSeller]);
 
   const loading = tab === 'mine' ? loadingMine : loadingOpen;
+
+  // ── Discovery filters (§2): search · category · location · sort ───────────
+  const [q, setQ] = React.useState('');
+  const [cat, setCat] = React.useState('all');
+  const [loc, setLoc] = React.useState('all');
+  const [sort, setSort] = React.useState<'recent' | 'budget' | 'offers' | 'expiry'>('recent');
+
+  const locations = React.useMemo(() => {
+    const source = tab === 'mine' ? mine ?? [] : tab === 'open' ? open ?? [] : won ?? [];
+    return [...new Set(source.map((r) => (r.location ?? '').trim()).filter(Boolean))].sort();
+  }, [tab, mine, open, won]);
+
   // Defensive: a brief with an accepted offer is no longer open to bids, so it
   // must never be rendered in the "Open for Business" list.
-  const rows = tab === 'mine'
-    ? mine
-    : tab === 'open'
-      ? (open ?? []).filter((r) => !r.acceptedOfferId)
-      : won;
+  const rows = React.useMemo(() => {
+    const base =
+      tab === 'mine'
+        ? mine ?? []
+        : tab === 'open'
+          ? (open ?? []).filter((r) => !r.acceptedOfferId)
+          : won ?? [];
+
+    const needle = q.trim().toLowerCase();
+    const filtered = base.filter((r) => {
+      if (cat !== 'all' && r.category !== cat) return false;
+      if (loc !== 'all' && (r.location ?? '').trim() !== loc) return false;
+      if (needle) {
+        const haystack = `${r.title} ${r.description} ${r.category} ${r.location ?? ''}`.toLowerCase();
+        if (!haystack.includes(needle)) return false;
+      }
+      return true;
+    });
+
+    const ms = (v: unknown): number => {
+      if (!v) return 0;
+      if (typeof v === 'number') return v;
+      if (v instanceof Date) return v.getTime();
+      const t = v as { toDate?: () => Date; seconds?: number };
+      if (typeof t.toDate === 'function') return t.toDate().getTime();
+      if (typeof t.seconds === 'number') return t.seconds * 1000;
+      return 0;
+    };
+    const sorted = [...filtered];
+    if (sort === 'budget') {
+      sorted.sort((a, b) => (b.budgetMax ?? b.budgetMin ?? 0) - (a.budgetMax ?? a.budgetMin ?? 0));
+    } else if (sort === 'offers') {
+      sorted.sort((a, b) => (b.offersCount ?? 0) - (a.offersCount ?? 0));
+    } else if (sort === 'expiry') {
+      sorted.sort((a, b) => {
+        const ae = a.expiresAt ? Date.parse(a.expiresAt) : Number.MAX_SAFE_INTEGER;
+        const be = b.expiresAt ? Date.parse(b.expiresAt) : Number.MAX_SAFE_INTEGER;
+        return ae - be;
+      });
+    } else {
+      sorted.sort((a, b) => ms(b.createdAt) - ms(a.createdAt));
+    }
+    return sorted;
+  }, [tab, mine, open, won, q, cat, loc, sort]);
 
   // ROLE-AWARE CHROME: the Requests hub is shared, but sellers must never
   // see it wrapped in the buyer section — they get their own workspace.
@@ -185,6 +254,57 @@ export default function RequestsHubPage() {
               <CheckCircle2 className="h-3.5 w-3.5" /> My Deals ({won?.length})
             </button>
           )}
+        </div>
+
+        {/* Discovery controls (§2): search · category · location · sort */}
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-[1.6fr_1fr_1fr_1fr]">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <input
+              type="search"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Search requests…"
+              className="h-10 w-full rounded-xl border border-input bg-background pl-9 pr-3 text-sm outline-none focus:border-primary"
+            />
+          </div>
+          <select
+            value={cat}
+            onChange={(e) => setCat(e.target.value)}
+            aria-label="Filter by category"
+            className="h-10 rounded-xl border border-input bg-background px-3 text-sm outline-none focus:border-primary"
+          >
+            <option value="all">All categories</option>
+            {REQUEST_CATEGORIES.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+          <select
+            value={loc}
+            onChange={(e) => setLoc(e.target.value)}
+            aria-label="Filter by location"
+            className="h-10 rounded-xl border border-input bg-background px-3 text-sm outline-none focus:border-primary"
+          >
+            <option value="all">All locations</option>
+            {locations.map((l) => (
+              <option key={l} value={l}>
+                {l}
+              </option>
+            ))}
+          </select>
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value as typeof sort)}
+            aria-label="Sort requests"
+            className="h-10 rounded-xl border border-input bg-background px-3 text-sm outline-none focus:border-primary"
+          >
+            <option value="recent">Newest first</option>
+            <option value="budget">Highest budget</option>
+            <option value="offers">Most offers</option>
+            <option value="expiry">Expiring soon</option>
+          </select>
         </div>
 
         {loading && (
@@ -266,6 +386,20 @@ export default function RequestsHubPage() {
                       {r.deadline && (
                         <span className="flex items-center gap-1">
                           <CalendarDays className="h-3 w-3" /> Due {r.deadline}
+                        </span>
+                      )}
+                      <span className="flex items-center gap-1">
+                        <MessageSquareText className="h-3 w-3" /> {r.offersCount ?? 0} offer
+                        {(r.offersCount ?? 0) === 1 ? '' : 's'}
+                      </span>
+                      {toDate(r.createdAt) && (
+                        <span className="flex items-center gap-1">
+                          <Clock className="h-3 w-3" /> Posted{' '}
+                          {toDate(r.createdAt)!.toLocaleDateString(undefined, {
+                            day: 'numeric',
+                            month: 'short',
+                            year: 'numeric',
+                          })}
                         </span>
                       )}
                     </div>

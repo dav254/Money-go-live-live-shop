@@ -72,7 +72,13 @@ export async function createOfferDraft(
 export async function submitOffer(
   offerId: string,
   sellerId: string,
-  input: { price: number; message: string; deliveryDays?: number | null; mediaIds?: string[] },
+  input: {
+    price: number;
+    message: string;
+    deliveryDays?: number | null;
+    availability?: string | null;
+    mediaIds?: string[];
+  },
 ): Promise<MarketplaceOffer> {
   const offerRef = db.collection(OFFERS_COLLECTION).doc(offerId);
   const snap = await offerRef.get();
@@ -84,6 +90,7 @@ export async function submitOffer(
   if (!Number.isFinite(price) || price <= 0) throw new Error('Enter a valid price.');
   const message = (input.message ?? '').trim();
   if (message.length < 10) throw new Error('Tell the customer more — description is too short.');
+  const availability = (input.availability ?? '').trim().slice(0, 80) || null;
 
   const wasDraft = offer.status === 'draft';
   const submittedAt = new Date().toISOString();
@@ -91,6 +98,7 @@ export async function submitOffer(
     price,
     message,
     deliveryDays: input.deliveryDays ?? null,
+    availability,
     mediaIds: (input.mediaIds ?? offer.mediaIds ?? []).slice(0, 7),
     status: 'submitted',
     updatedAt: FieldValue.serverTimestamp(),
@@ -103,16 +111,29 @@ export async function submitOffer(
     price,
     message,
     deliveryDays: input.deliveryDays ?? null,
+    availability,
     mediaIds: (input.mediaIds ?? offer.mediaIds ?? []).slice(0, 7),
     status: 'submitted',
     updatedAt: submittedAt,
   });
 
   if (wasDraft) {
+    const reqSnap = await db
+      .collection(REQUESTS_COLLECTION)
+      .doc(offer.requestId)
+      .get()
+      .catch(() => null);
+    const req = reqSnap?.exists ? (reqSnap.data() as MarketplaceRequest) : null;
     await db
       .collection(REQUESTS_COLLECTION)
       .doc(offer.requestId)
-      .update({ offersCount: FieldValue.increment(1), updatedAt: FieldValue.serverTimestamp() })
+      .update({
+        // First-offer stamp: one write, never overwritten — the admin
+        // dashboard reports time-to-first-offer only where this exists.
+        ...(req && !req.firstOfferAt ? { firstOfferAt: submittedAt } : {}),
+        offersCount: FieldValue.increment(1),
+        updatedAt: FieldValue.serverTimestamp(),
+      })
       .catch(() => undefined);
     void pbBumpRequestCounter(offer.requestId, 'offersCount', 1);
     void notifyCustomerOfOffer(offerId);
@@ -344,4 +365,80 @@ export async function acceptOffer(
   })();
 
   return { orderId: orderRef.id };
+}
+
+/**
+ * Customer explicitly declines ONE offer (spec §4 — accept **or** reject).
+ * The request stays open for other sellers; only acceptance closes it.
+ * Seller ownership of the offer is checked the other way round: the CUSTOMER
+ * owns the decision, the offer must simply belong to their request.
+ */
+export async function declineOffer(
+  requestId: string,
+  offerId: string,
+  customerId: string,
+): Promise<void> {
+  const reqSnap = await db.collection(REQUESTS_COLLECTION).doc(requestId).get();
+  if (!reqSnap.exists) throw new Error('Request not found.');
+  const request = reqSnap.data() as MarketplaceRequest;
+  if (request.customerId !== customerId) throw new Error('Not your request.');
+  if (request.acceptedOfferId) throw new Error('Another offer has already been accepted.');
+
+  const offerRef = db.collection(OFFERS_COLLECTION).doc(offerId);
+  const offerSnap = await offerRef.get();
+  if (!offerSnap.exists) throw new Error('Offer not found.');
+  const offer = offerSnap.data() as MarketplaceOffer;
+  if (offer.requestId !== requestId) throw new Error('Offer does not belong to this request.');
+  if (offer.status !== 'submitted') throw new Error('This offer can no longer be declined.');
+
+  const now = FieldValue.serverTimestamp();
+  await offerRef.update({ status: 'declined', updatedAt: now });
+  void pbPatchOffer(offerId, { status: 'declined', updatedAt: new Date().toISOString() });
+
+  void (async () => {
+    try {
+      await notify({
+        db: db as unknown as Firestore,
+        userId: offer.sellerId,
+        type: 'SYSTEM',
+        title: 'Offer not selected',
+        message: `The customer declined your ${offer.currency} ${offer.price} offer on “${request.title}”. The request is still open — you can submit an updated offer.`,
+        entityType: 'OFFER',
+        entityId: offerId,
+        link: `/requests/${requestId}`,
+      });
+    } catch {
+      // Non-blocking.
+    }
+  })();
+}
+
+/** Report an offer the seller should not have received (spam/scam). */
+export async function reportOffer(
+  requestId: string,
+  offerId: string,
+  reporterId: string,
+  reason: string,
+): Promise<void> {
+  const text = (reason ?? '').trim().slice(0, 200);
+  if (text.length < 5) throw new Error('Add a short reason for the report.');
+  const reqSnap = await db.collection(REQUESTS_COLLECTION).doc(requestId).get();
+  if (!reqSnap.exists) throw new Error('Request not found.');
+  const request = reqSnap.data() as MarketplaceRequest;
+  if (request.customerId !== reporterId) throw new Error('Only the customer can report an offer on their request.');
+
+  const offerRef = db.collection(OFFERS_COLLECTION).doc(offerId);
+  const offerSnap = await offerRef.get();
+  if (!offerSnap.exists) throw new Error('Offer not found.');
+  const offer = offerSnap.data() as MarketplaceOffer;
+  if (offer.requestId !== requestId) throw new Error('Offer does not belong to this request.');
+  if (offer.sellerId === reporterId) throw new Error('You cannot report your own offer.');
+
+  const reports = Array.isArray(offer.reports) ? offer.reports : [];
+  if (reports.some((r) => r.by === reporterId)) return; // one report per uid
+  if (reports.length >= 10) return;
+  await offerRef.update({
+    reports: [...reports, { by: reporterId, reason: text, at: new Date().toISOString() }],
+    updatedAt: FieldValue.serverTimestamp(),
+  });
 }

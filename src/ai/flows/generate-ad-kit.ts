@@ -63,8 +63,7 @@ const prompt = ai.definePrompt({
 Product Information:
 - Name: {{{productName}}}
 - Description: {{{productDescription}}}
-- Seller Location: {{{location}}}
-- Product Link: https://www.vidnov.com/products/{{{productId}}}
+- Seller Location: {{{location}}} - Product Link: https://vidnov.com/products/{{{productId}}}
 
 Generate the following:
 1.  **title**: A catchy, SEO-friendly title for the YouTube video or TikTok post.

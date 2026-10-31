@@ -6,6 +6,11 @@ run, endpoints actually called, code actually inspected. **Code readiness and
 production deployment readiness are separate** — see § "Deployment readiness"
 at the end._
 
+_Update 2026-10-30: §12 (SEO/IndexNow/AI discovery), the release-gates table,
+the fix list and the deployment-readiness checklist were refreshed after the
+search-discovery session. All of it sits in the **uncommitted working tree** —
+no deploy was performed._
+
 **Legend:** READY = complete, wired, tested, no known defect · NEEDS FIX =
 works but a defect/config item remains · BLOCKED = needs a credential,
 approval or access outside this repository · NOT IMPLEMENTED = intentionally
@@ -36,7 +41,7 @@ absent (no fake substitute exists).
 | 10b | Payments — PayPal | `api/webhooks/paypal` | **BLOCKED** | Signature verification code verified; `PAYPAL_CLIENT_ID`/`PAYPAL_CLIENT_SECRET` are **blank** in env (names only) | — | Supply credentials in production env to enable; UI hides the option honestly today |
 | 10c | Invoices / revenue reporting | admin finance pages, `distribution/funnel` | **READY** (code) | Funnel separates GMV vs delivered revenue vs pending vs disputed from one bounded scan (`growth-funnel` tests) | — | Finance pages read Firestore directly; no index dependency (equality/range single-field) |
 | 11 | Email, support workflows, account notifications | `lib/notifications/{email-service,store,engine}`, admin support routes | **READY** (code) | Template→renderer→provider→`emailLogs` flow; dev mailbox default, production needs `EMAIL_PROVIDER`+`EMAIL_API_KEY` (both present); complaints routes guarded (`admin-authz`); `notifications-normalize` tests | — | Real send unverified in-session; production `EMAIL_MODE` must be confirmed on the VPS |
-| 12 | SEO: metadata, sitemap, robots, public seller indexing | `sitemap.ts`, `sitemap-catalogue.ts`, `robots.ts`, `sitemap-entries.ts` | **READY** | `sitemap` + `sitemap-catalogue` suites (quota-failure, pagination, empty catalogue); live **200 application/xml**; robots starts with `OAI-SearchBot: Allow` + original disallows; PB-first with Firestore fallback | (Earlier session) PocketBase-first catalogue | Indexing itself not claimable — Search Console/IndexNow/Bing **BLOCKED** on credentials |
+| 12 | SEO: metadata, sitemap, robots, public seller indexing, IndexNow, AI discovery | `sitemap.ts`, `sitemap-catalogue.ts`, `robots.ts`, `sitemap-entries.ts`, `lib/seo/indexnow.ts`, `app/indexnow-key.txt/route.ts`, `app/llms.txt/route.ts`, `app/products.json/route.ts`, `api/shops/sync` | **READY** (code) | `sitemap` + `sitemap-catalogue` suites (quota-failure, pagination, empty catalogue); `ai-exposure` **32/32** incl. private-URL exclusion, shop ping, canonical tags; live **200 application/xml**; robots starts with `OAI-SearchBot: Allow` + original disallows; preview smoke: all six machine endpoints 200, key file `MATCH=yes` vs the code constant; `ping:search --force` → **202** | (Earlier session) PocketBase-first catalogue; (2026-10-30) IndexNow private-URL guard, shop create/edit ping, apex canonical default, sitemap pointers aligned, +2 tests → suite 930 | Live site not yet on this build: `/indexnow-key.txt` `/llms.txt` `/products.json` → **404**, and the live product page serves `noindex, follow` while sitemap-listed (code emits `index, follow` for public listings — fixed, needs deploy). Post-deploy: set `INDEXNOW_ENABLED`, run `npm run ping:search -- --force`, submit sitemap in Search Console (`DEPLOY.md` §8/§10). **No indexing guarantee claimable** — a 202 is batch acceptance only; Google reads the sitemap, not IndexNow |
 | 13 | Local media storage, external integrations, adapters, error handling | `media/storage-adapter`, `pocketbase/*`, `d1/*`, cloudinary | **READY** (code) | VPS-disk adapter + PB mirrors verified by mock-wire tests; `connectivity-log-filter` tests; adapter failures return `false/null` (never throw) | `api/d1/health` no longer echoes raw upstream error text to anonymous callers (**fixed this session**, 8 tests added) | Cloudflare D1 adapter is **health-only** — nothing else uses it (NOT IMPLEMENTED as a data source, honestly reported as "not configured") |
 | 14 | Cron, scheduled tasks, env config, monitoring, rollback | `api/{distribution/cron,media/cleanup-cron,live/watchdog}`, `server-health` | **READY** (code) | All three schedulers **fail closed** (flag+secret, flag+secret, header secret) — tested in `distribution-cron` (12) and `public-endpoint-hygiene` (8); live cron → **204** disabled; rollback procedure documented + backup restore verified by execution | Added hygiene tests pinning 403/503/204 behaviour | **TLS override removal pending** (below); no real scheduler is configured yet |
 | 15 | Deprecated/dangerous endpoints | `api/{transactions,mux,checkout/simulate}` | **READY** | All three return **410** with zero data access (asserted in hygiene tests) | — | None |
@@ -45,12 +50,48 @@ absent (no fake substitute exists).
 
 - **READY: 13 rows** (incl. code-READY notes for #6, #10a, #11, #12, #13, #14)
 - **NEEDS FIX: 1** — `NODE_TLS_REJECT_UNAUTHORIZED` present in production environment config (see below)
-- **BLOCKED: 3** — PayPal credentials, all external distribution/search-channel credentials, production deployment access
+- **BLOCKED: 2** — PayPal credentials, production deployment access. (Search
+  channels are no longer credential-blocked: IndexNow ships **credential-free**
+  — public key served by the app, opt-in `INDEXNOW_ENABLED`, run via
+  `npm run ping:search`. The optional growth-engine adapters Bing / GSC-API / GA4
+  still want their own credentials; *manual* Search Console submission needs none.)
 - **NOT IMPLEMENTED: 3** — Meta catalog / Google Merchant / TikTok Shop adapters (need app review + credentials; declared `not_configured`, no fake runtime), automated seller bulk-outreach (needs an approved messaging channel + your approval policy; the `opportunities` tracking surface exists), Cloudflare D1 as a data source (health check only)
 
 ## Fixes completed in this audit
 
 1. **`api/d1/health` stopped returning raw upstream error text** to an unauthenticated caller (Cloudflare error messages can carry account/token-shaped detail); failure now returns one static sentence, logs a static line. +8 regression tests in `src/tests/public-endpoint-hygiene.test.ts`, which also pins: 410 stubs stay disabled, system-status returns health only, media poll field whitelist, password-reset anti-enumeration, both schedulers fail closed.
+
+## Fixes completed — search & AI discovery session (2026-10-30)
+
+1. **IndexNow private-URL guard** (`src/lib/seo/indexnow.ts`): rejects non-`/`
+   inputs, whitespace/control characters, **query strings and fragments** (the
+   property that makes user-specific URLs impossible by construction), and any
+   path in the shared segment-aware deny-list (`/dashboard`, `/admin`,
+   `/auth`, `/api`, `/buyer`, `/seller`, …) plus auth-flow surfaces (`/cart`,
+   `/verify-email`, `/forgot-password`, `/reset-password`, `/invoice`, …) —
+   all before any network call; plus per-batch dedup, 5s timeout, never throws,
+   status-only logs. A private-only batch never leaves the machine.
+2. **Shop create/edit now pings IndexNow** — `POST /api/shops/sync` submits
+   `/sellers/{shopId}` on the success path (product create/edit/delete and
+   video-studio publish already pinged). Payload is paths only: no seller or
+   customer data leaves the machine.
+3. **Canonical origin corrected to the apex host** — `DEFAULT_PUBLIC_ORIGIN`
+   said `www.` while the live redirect, the sitemap and the Search Console
+   property are all apex; flipped to `https://vidnov.com`, fixed the hardcoded
+   `www` product link in `generate-ad-kit.ts`, and pointed the `llms.txt` /
+   `products.json` sitemap references at `SITEMAP_ORIGIN`, so robots, llms and
+   the catalogue feed now name the identical sitemap URL.
+4. **Tests** — +2 in `ai-exposure` (32 total): private-URL exclusion across a
+   17-input mix and the shop-ping wiring; two hardcoded `www` expectations made
+   origin-derived. Full suite **930 pass / 0 fail**; typecheck exit 0;
+   production build exit 0.
+5. **End-to-end verification in the workspace preview** — `/`, `/sitemap.xml`,
+   `/robots.txt`, `/llms.txt`, `/products.json`, `/indexnow-key.txt` all 200
+   with correct content types; key body `MATCH=yes` against the code constant;
+   `npm run ping:search -- --force` → 202 accepted, exit 0. Read-only live
+   inspection confirmed the old build still 404s the three new endpoints and
+   serves `noindex, follow` on the sitemap-listed product page — **both resolve
+   on deploy**; nothing was deployed this session.
 
 ## TLS override — investigation result (no value printed)
 
@@ -77,10 +118,10 @@ legacy FCM push copies. Details: `docs/growth-engine-launch-readiness.md`.
 
 | Gate | Command | Result |
 |---|---|---|
-| Typecheck | `npm run typecheck` | **exit 0** |
-| Tests | `npm test` | see final report (baseline 739 + 8 new) |
+| Typecheck | `npm run typecheck` | **exit 0** (2026-10-30 rerun) |
+| Tests | `npm test` | **930 pass / 0 fail** (2026-10-30; baseline 739 + audit additions) |
 | Lint | `npm run lint` | **not runnable** — no ESLint config (pre-existing) |
-| Build | isolated `next build` in `/tmp/vidnov-build-check` | see final report |
+| Build | `npm run build` | **exit 0** (2026-10-30, current working tree) |
 | Secrets | staged-file scan (private keys / AWS / Stripe-live / env files) | clean — re-run at commit |
 
 ## Deployment readiness (SEPARATE from code readiness)
@@ -92,3 +133,19 @@ has only `main`; the historical `vidnov-vps` ref does not exist). Checklist:
 `docs/vidnov-release-readiness` §VPS steps → run the exact commands in the
 release report. Keep cron disabled until `VIDNOV_CRON_ENABLED` +
 `CRON_SECRET` are deliberately configured.
+
+**Post-deploy search steps (after any deploy, in order):**
+
+1. Verify the five machine endpoints on `https://vidnov.com` —
+   `/indexnow-key.txt`, `/sitemap.xml`, `/robots.txt`, `/llms.txt`,
+   `/products.json` must all return **200** (the key file must exist before
+   any ping: receivers fetch it).
+2. Confirm `INDEXNOW_ENABLED=true` in the VPS env (`/root/app/.env`), then
+   `pm2 reload goearnvid` if it was just added.
+3. Run `npm run ping:search -- --force` → **202** accepted, exit 0.
+4. Search Console: add the `https://vidnov.com` property, submit
+   `https://vidnov.com/sitemap.xml` under *Sitemaps*, and *Request indexing*
+   on key product pages (clears the old live `noindex` faster than waiting).
+
+Exact commands: `DEPLOY.md` §8 ("After every update: search engines & AI
+discovery") and the §10 checklist.

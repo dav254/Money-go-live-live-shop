@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/firebase/server';
 import { verifyRequestUser } from '@/lib/media/api-auth';
 import { pbMirrorProduct, pbDeleteProduct } from '@/lib/pocketbase/products';
+import { pingIndexNow } from '@/lib/seo/indexnow';
 
 export const runtime = 'nodejs';
 
@@ -45,6 +46,9 @@ export async function POST(request: NextRequest) {
       }
     }
     const mirrored = await pbDeleteProduct(productId);
+    // Deletion is a change too: IndexNow (own opt-in flag inside) is told so
+    // the URL drops out of the index. Fire-and-forget by contract.
+    void pingIndexNow([`/products/${productId}`]);
     return NextResponse.json({ ok: true, mirrored });
   }
 
@@ -54,6 +58,9 @@ export async function POST(request: NextRequest) {
   }
 
   const mirrored = await pbMirrorProduct(productId, scrubForMirror(data));
+  // Create/edit: tell the search index the URL changed, right now, instead of
+  // waiting for a spider (own opt-in flag inside; never blocks the mirror).
+  void pingIndexNow([`/products/${productId}`]);
   return NextResponse.json({ ok: true, mirrored });
 }
 

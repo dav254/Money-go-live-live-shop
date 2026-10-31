@@ -27,6 +27,9 @@ export interface SendResult {
   providerId?: string;
   accepted: boolean;
   error?: string;
+  /** HTTP status of the provider call, when one was received — the service
+   *  classifies it into a safe error category (see email-reliability.ts). */
+  httpStatus?: number;
 }
 
 export interface EmailProvider {
@@ -70,7 +73,7 @@ const resendProvider: EmailProvider = {
     });
     if (!res.ok) {
       const body = await res.text().catch(() => '');
-      return { accepted: false, error: `resend ${res.status}: ${body.slice(0, 200)}` };
+      return { accepted: false, httpStatus: res.status, error: `resend ${res.status}: ${body.slice(0, 200)}` };
     }
     const data = (await res.json()) as { id?: string };
     return { accepted: true, providerId: data.id };
@@ -102,7 +105,7 @@ const postmarkProvider: EmailProvider = {
     });
     if (!res.ok) {
       const body = await res.text().catch(() => '');
-      return { accepted: false, error: `postmark ${res.status}: ${body.slice(0, 200)}` };
+      return { accepted: false, httpStatus: res.status, error: `postmark ${res.status}: ${body.slice(0, 200)}` };
     }
     const data = (await res.json()) as { MessageID?: string };
     return { accepted: true, providerId: data.MessageID };
@@ -134,22 +137,54 @@ const sendgridProvider: EmailProvider = {
     });
     if (!res.ok) {
       const body = await res.text().catch(() => '');
-      return { accepted: false, error: `sendgrid ${res.status}: ${body.slice(0, 200)}` };
+      return { accepted: false, httpStatus: res.status, error: `sendgrid ${res.status}: ${body.slice(0, 200)}` };
     }
     return { accepted: true, providerId: res.headers.get('x-message-id') ?? undefined };
   },
 };
 
+// ---------------------------------------------------------------------------
+// Unconfigured — production must FAIL HONESTLY instead of pretending to send.
+// The old behaviour (silently falling back to `console`) logged `SENT` for
+// mail that never left the machine; that is exactly the fake confirmation
+// this system exists to prevent.
+// ---------------------------------------------------------------------------
+const unconfiguredProvider = (reason: string): EmailProvider => ({
+  id: 'unconfigured',
+  async send() {
+    return { accepted: false, error: reason };
+  },
+});
+
 /**
- * Resolves the provider for a configured name. Unknown or missing names fall
- * back to the console provider so the app never hard-crashes on mail.
+ * Resolves the provider for a configured name.
+ *
+ * - `development` mode keeps the old `console` fallback (nothing is meant to
+ *   be delivered there anyway).
+ * - `production` mode with missing/unknown credentials returns a provider
+ *   that reports `accepted: false` — the log then reads FAILED with a
+ *   `config` error category, never SENT.
  */
-export function getEmailProvider(providerName: string | undefined, apiKey: string | undefined): EmailProvider {
-  if (!providerName || !apiKey) return consoleProvider;
-  switch (providerName.toLowerCase()) {
+export function getEmailProvider(
+  providerName: string | undefined,
+  apiKey: string | undefined,
+  mode: 'development' | 'production' = 'development',
+): EmailProvider {
+  const name = (providerName ?? '').trim().toLowerCase();
+  const key = (apiKey ?? '').trim();
+
+  if (!name || !key) {
+    if (mode === 'development') return consoleProvider;
+    return unconfiguredProvider('Email provider is not configured (EMAIL_PROVIDER / EMAIL_API_KEY missing).');
+  }
+  switch (name) {
     case 'resend': return resendProvider;
     case 'postmark': return postmarkProvider;
     case 'sendgrid': return sendgridProvider;
-    default: return consoleProvider;
+    default:
+      if (mode === 'development') return consoleProvider;
+      return unconfiguredProvider(
+        `Unknown EMAIL_PROVIDER "${providerName}". Supported: resend, postmark, sendgrid.`,
+      );
   }
 }

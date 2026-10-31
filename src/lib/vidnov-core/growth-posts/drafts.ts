@@ -269,7 +269,10 @@ export function parseDraftResponse(raw: string): ParsedDraft {
  * 297 characters is a safe approximation for latin hashtags. Telegram's
  * 1024 is the photo-caption cap (we always post with the product image when
  * one exists), Mastodon's 500 is the documented default, Discord's 2000 is
- * the message-content cap.
+ * the message-content cap. Pinterest's pin description caps at 800 (500 is
+ * a safe budget that also fits its title/link split) and Reddit's link-post
+ * TITLE caps at 300 — the publisher sends the URL as the link field, so the
+ * budget is spent on the headline, not the URL.
  */
 export const CHANNEL_TEXT_LIMITS: Record<GrowthPublishChannel, number> = {
   copy: 4_000,
@@ -278,6 +281,8 @@ export const CHANNEL_TEXT_LIMITS: Record<GrowthPublishChannel, number> = {
   mastodon: 500,
   telegram: 1_024,
   discord: 2_000,
+  pinterest: 500,
+  reddit: 300,
 };
 
 /**
@@ -314,15 +319,29 @@ export function buildPostText(
 /* ── Provider status & publish gates (env presence only) ────────────────── */
 
 /**
- * Env var NAMES each social channel needs. All four are free and need NO
- * platform approval — an admin creates the account/credential once and the
- * channel flips to `configured`.
+ * Env var NAMES each social channel needs. All six are free to call; what
+ * differs is the setup an admin must do once:
+ *   • Bluesky/Mastodon/Telegram/Discord — create the credential, done.
+ *   • Pinterest — a Pinterest BUSINESS account, an app (Trial → Standard
+ *     access review), an OAuth access token and a board id. Pins created
+ *     under Trial access are visible only to their creator.
+ *   • Reddit — a "script" app + the brand's own subreddit; posts are only
+ *     ever sent to `REDDIT_SUBREDDIT` (your own community), never scraped
+ *     into other people's.
  */
 export const SOCIAL_ENV_REQUIREMENTS: Record<SocialChannel, readonly string[]> = {
   bluesky: ['BLUESKY_HANDLE', 'BLUESKY_APP_PASSWORD'],
   mastodon: ['MASTODON_API_URL', 'MASTODON_ACCESS_TOKEN'],
   telegram: ['TELEGRAM_BOT_TOKEN', 'TELEGRAM_CHANNEL_ID'],
   discord: ['DISCORD_WEBHOOK_URL'],
+  pinterest: ['PINTEREST_ACCESS_TOKEN', 'PINTEREST_BOARD_ID'],
+  reddit: [
+    'REDDIT_CLIENT_ID',
+    'REDDIT_CLIENT_SECRET',
+    'REDDIT_USERNAME',
+    'REDDIT_PASSWORD',
+    'REDDIT_SUBREDDIT',
+  ],
 };
 
 const SOCIAL_LABELS: Record<SocialChannel, string> = {
@@ -330,6 +349,8 @@ const SOCIAL_LABELS: Record<SocialChannel, string> = {
   mastodon: 'Mastodon',
   telegram: 'Telegram channel',
   discord: 'Discord channel',
+  pinterest: 'Pinterest',
+  reddit: 'Reddit',
 };
 
 export function growthProviderStatuses(

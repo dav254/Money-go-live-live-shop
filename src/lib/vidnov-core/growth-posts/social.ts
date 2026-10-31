@@ -13,6 +13,18 @@
  *                 The photo is passed BY URL, so nothing is downloaded.
  *   • Discord   — one webhook URL, no auth at all; embed with the product
  *                 image URL and a `wait=true` response carrying the message.
+ *   • Pinterest — `POST /v5/pins` with `media_source.source_type=image_url`
+ *                 (Pinterest fetches the image itself). Pins are IMAGE-ONLY:
+ *                 no product image ⇒ honest refusal. Needs a business
+ *                 account, an OAuth access token and a board id — and pins
+ *                 created under Pinterest's TRIAL access are visible only to
+ *                 their creator until the app passes Standard review.
+ *   • Reddit    — script-app OAuth (password grant) at `/api/v1/access_token`
+ *                 → `POST /api/submit` on oauth.reddit.com, always as a LINK
+ *                 post to `REDDIT_SUBREDDIT` (the brand's own community).
+ *                 A unique `User-Agent` is mandatory or Reddit answers 429.
+ *                 Posting to other people's subreddits is a HUMAN decision
+ *                 (self-promotion rules) and is never automated here.
  *
  * ## Honesty contract
  * `ok: true` is returned ONLY when the platform's own response carried a
@@ -23,8 +35,7 @@
  *
  * ## Deliberately absent
  * X (charged per post), WhatsApp Channels (no official publish API),
- * Instagram/Facebook/Threads (Phase 2B — reviewed Meta app), Pinterest
- * (catalog feed, not a publishing API), Reddit (self-promotion rules).
+ * Instagram/Facebook/Threads (Phase 2B — reviewed Meta app).
  */
 
 import { sanitizeErrorMessage } from '../distribution/job-utils';
@@ -302,6 +313,112 @@ async function publishDiscord(input: SocialPublishInput, fetchLike: FetchLike): 
   return succeed(data.id, 'Published to Discord.');
 }
 
+/* ── Pinterest ──────────────────────────────────────────────────────────── */
+
+async function publishPinterest(input: SocialPublishInput, fetchLike: FetchLike): Promise<SocialPublishOutcome> {
+  const token = (input.env.PINTEREST_ACCESS_TOKEN ?? '').trim();
+  const boardId = (input.env.PINTEREST_BOARD_ID ?? '').trim();
+  if (!token || !boardId) return fail('Pinterest credentials are missing.');
+  if (!/^\d+$/.test(boardId)) return fail('Pinterest board id must be numeric.');
+  // A pin cannot be text-only: without a public product image there is
+  // nothing to pin, so we refuse instead of publishing a broken pin.
+  if (!input.imageUrl || !/^https?:\/\//i.test(input.imageUrl)) {
+    return fail('Pinterest needs a product image URL — this listing has none.');
+  }
+
+  const res = await fetchLike('https://api.pinterest.com/v5/pins', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      'User-Agent': 'vidnov:growth-posts:v1.0',
+    },
+    body: JSON.stringify({
+      board_id: boardId,
+      title: input.productName.slice(0, 100),
+      description: input.text.slice(0, 500),
+      link: input.shareUrl.slice(0, 2048),
+      alt_text: input.productName.slice(0, 500),
+      media_source: { source_type: 'image_url', url: input.imageUrl },
+    }),
+    signal: AbortSignal.timeout(20_000),
+  });
+  if (!res.ok) return fail(`Pinterest rejected the pin (${res.status}).`);
+  const data = (await res.json().catch(() => null)) as { id?: string } | null;
+  if (!data?.id) return fail('Pinterest returned no pin id.');
+  // The API response carries no permalink — it is derived from the id.
+  return succeed(`https://www.pinterest.com/pin/${data.id}`, 'Published to Pinterest.');
+}
+
+/* ── Reddit ─────────────────────────────────────────────────────────────── */
+
+async function publishReddit(input: SocialPublishInput, fetchLike: FetchLike): Promise<SocialPublishOutcome> {
+  const clientId = (input.env.REDDIT_CLIENT_ID ?? '').trim();
+  const clientSecret = (input.env.REDDIT_CLIENT_SECRET ?? '').trim();
+  const username = (input.env.REDDIT_USERNAME ?? '').trim();
+  const password = (input.env.REDDIT_PASSWORD ?? '').trim();
+  const subreddit = (input.env.REDDIT_SUBREDDIT ?? '').trim().replace(/^r\//i, '');
+  if (!clientId || !clientSecret || !username || !password || !subreddit) {
+    return fail('Reddit credentials are missing.');
+  }
+  // Reddit refuses anonymous/undescriptive agents — a unique UA is required.
+  const userAgent = `vidnov:growth-posts:v1.0 (by /u/${username})`;
+
+  const tokenRes = await fetchLike('https://www.reddit.com/api/v1/access_token', {
+    method: 'POST',
+    headers: {
+      Authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'User-Agent': userAgent,
+    },
+    body: new URLSearchParams({ grant_type: 'password', username, password }).toString(),
+    signal: AbortSignal.timeout(20_000),
+  });
+  if (!tokenRes.ok) return fail(`Reddit sign-in failed (${tokenRes.status}).`);
+  const session = (await tokenRes.json().catch(() => null)) as { access_token?: string } | null;
+  if (!session?.access_token) return fail('Reddit sign-in returned no session.');
+
+  // The share URL travels in the link field, so the title keeps the copy:
+  // drop a trailing standalone URL line, collapse whitespace, cap at 300.
+  const withoutUrl = input.text
+    .split('\n')
+    .filter((line) => line.trim() !== input.shareUrl)
+    .join(' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const title = (withoutUrl || input.productName).slice(0, 300);
+
+  const res = await fetchLike('https://oauth.reddit.com/api/submit', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${session.access_token}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'User-Agent': userAgent,
+    },
+    body: new URLSearchParams({
+      api_type: 'json',
+      kind: 'link',
+      sr: subreddit,
+      title,
+      url: input.shareUrl,
+    }).toString(),
+    signal: AbortSignal.timeout(20_000),
+  });
+  const data = (await res.json().catch(() => null)) as
+    | { json?: { errors?: unknown[][]; data?: { id?: string; name?: string; url?: string } } }
+    | null;
+  const errors = data?.json?.errors;
+  // Reddit answers 200 with a populated errors[] — treat both as refusal,
+  // and keep only the status: reasons (e.g. subreddit rules) stay upstream.
+  if (!res.ok || (Array.isArray(errors) && errors.length > 0)) {
+    return fail(`Reddit rejected the post (${res.status}).`);
+  }
+  const posted = data?.json?.data;
+  const remoteId = posted?.name || posted?.id;
+  if (!remoteId) return fail('Reddit returned no post id.');
+  return succeed(remoteId, 'Published to Reddit.');
+}
+
 /* ── Dispatcher ─────────────────────────────────────────────────────────── */
 
 export async function publishSocial(input: SocialPublishInput): Promise<SocialPublishOutcome> {
@@ -316,6 +433,10 @@ export async function publishSocial(input: SocialPublishInput): Promise<SocialPu
         return await publishTelegram(input, fetchLike);
       case 'discord':
         return await publishDiscord(input, fetchLike);
+      case 'pinterest':
+        return await publishPinterest(input, fetchLike);
+      case 'reddit':
+        return await publishReddit(input, fetchLike);
       default:
         return fail('Unknown social channel.');
     }

@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { cn } from '@/lib/utils';
 import { publicOrigin } from '@/lib/site-url';
+import { buildOrganizationJsonLd, serializeJsonLd } from '@/lib/seo/json-ld';
 import { Providers } from './providers';
 import { RoleBoundary } from '@/components/auth/role-boundary';
 import { SurfaceBoundary } from '@/components/auth/surface-boundary';
@@ -31,6 +32,18 @@ export const metadata: Metadata = {
     apple: '/icons/apple-touch-icon.png',
   },
   metadataBase: new URL(publicOrigin()),
+  /*
+    BING WEBMASTER — site ownership verification. Bing checks the homepage for
+    this exact name/content pair, and the root layout puts it in the <head> of
+    every page (the home page included). It must stay here permanently: Bing
+    re-checks the tag to keep the site verified, so removing it after
+    verification succeeds would drop the verification.
+  */
+  verification: {
+    other: {
+      'msvalidate.01': '65BCB3F6E5C04EAAFC7BE59684ADBF43',
+    },
+  },
 };
 
 export default function RootLayout({
@@ -52,6 +65,16 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{
             __html: `(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer','GTM-KKSDKPJC');`,
           }}
+        />
+        {/*
+          SITE ORGANIZATION JSON-LD — entity identity for search engines and
+          AI crawlers (name, logo, canonical origin, site search action).
+          Built by the same helpers as the product/shop graphs; serializeJsonLd
+          escapes `<` so no value can break out of the tag.
+        */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: serializeJsonLd(buildOrganizationJsonLd()) }}
         />
       </head>
       <body

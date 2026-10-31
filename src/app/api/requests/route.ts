@@ -2,8 +2,8 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { db } from '@/firebase/server';
 import { FieldValue } from 'firebase-admin/firestore';
 import { verifyUserContext, type UserContext } from '@/lib/notifications/server-utils';
-import { createRequest, closeRequest, deleteRequest } from '@/lib/requests/request-service';
-import { getMyOffer, submitOffer, acceptOffer } from '@/lib/requests/offer-service';
+import { createRequest, closeRequest, deleteRequest, editRequest, renewRequest, reportRequest, isExpired } from '@/lib/requests/request-service';
+import { getMyOffer, submitOffer, acceptOffer, declineOffer, reportOffer } from '@/lib/requests/offer-service';
 import { findMatchingSellers } from '@/lib/requests/matching';
 import { REQUESTS_COLLECTION } from '@/lib/media/config';
 import { pbBumpRequestCounter } from '@/lib/pocketbase/requests';
@@ -12,6 +12,26 @@ import type { MarketplaceRequest } from '@/lib/requests/types';
 
 export const runtime = 'nodejs';
 export const maxDuration = 30;
+
+/* ── Spam guard (in-memory, per instance — the VPS runs one process) ───────
+ * Generous for humans, hostile to scripts: a burst of identical writes is
+ * how one account floods every seller's queue. Buckets are pruned on read and
+ * the whole map is bounded, so this can never grow without limit. */
+const RATE_WINDOW_MS = 60 * 60 * 1000;
+const writeBuckets = new Map<string, number[]>();
+
+function allowWrite(key: string, maxPerHour: number): boolean {
+  const now = Date.now();
+  const hits = (writeBuckets.get(key) ?? []).filter((t) => now - t < RATE_WINDOW_MS);
+  if (writeBuckets.size > 5_000) writeBuckets.clear();
+  if (hits.length >= maxPerHour) {
+    writeBuckets.set(key, hits);
+    return false;
+  }
+  hits.push(now);
+  writeBuckets.set(key, hits);
+  return true;
+}
 
 /**
  * Requests API (spec §24–37).
@@ -74,6 +94,9 @@ export async function GET(request: NextRequest) {
         const data = doc.data() as MarketplaceRequest;
         if (data.acceptedOfferId) return;
         if (data.status === 'deleted') return;
+        // Expired briefs stop taking offers — the owner still sees them in
+        // "My requests" with a Renew button.
+        if (isExpired(data)) return;
         visible.push({ ...data, id: doc.id });
       });
       // Fire-and-forget view count is skipped: list views are not detail views.
@@ -118,6 +141,12 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const user = await verifyUserContext(request);
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!allowWrite(`request:create:${user.uid}`, 5)) {
+    return NextResponse.json(
+      { error: 'You have posted several requests recently — please try again later.' },
+      { status: 429 },
+    );
+  }
 
   try {
     const body = (await request.json()) as {
@@ -129,6 +158,7 @@ export async function POST(request: NextRequest) {
       budgetMax?: number | null;
       location?: string;
       deadline?: string | null;
+      fulfilment?: 'delivery' | 'collection' | 'either';
       mediaIds?: string[];
     };
 
@@ -143,6 +173,7 @@ export async function POST(request: NextRequest) {
         budgetMax: body.budgetMax ?? null,
         location: body.location,
         deadline: body.deadline ?? null,
+        fulfilment: body.fulfilment,
         mediaIds: body.mediaIds ?? [],
       },
       { name: user.name, email: user.email },
@@ -173,6 +204,52 @@ export async function PATCH(request: NextRequest) {
       await deleteRequest(id, user.uid);
       return NextResponse.json({ ok: true });
     }
+    if (action === 'edit') {
+      if (!allowWrite(`request:edit:${user.uid}`, 20)) {
+        return NextResponse.json({ error: 'Too many edits — please slow down.' }, { status: 429 });
+      }
+      const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
+      const updated = await editRequest(id, user.uid, {
+        ...(body.title !== undefined ? { title: String(body.title) } : {}),
+        ...(body.description !== undefined ? { description: String(body.description) } : {}),
+        ...(body.category !== undefined ? { category: String(body.category) } : {}),
+        ...(body.quantity !== undefined ? { quantity: Number(body.quantity) } : {}),
+        ...(body.budgetMin !== undefined ? { budgetMin: body.budgetMin === null ? null : Number(body.budgetMin) } : {}),
+        ...(body.budgetMax !== undefined ? { budgetMax: body.budgetMax === null ? null : Number(body.budgetMax) } : {}),
+        ...(body.location !== undefined ? { location: String(body.location) } : {}),
+        ...(body.deadline !== undefined ? { deadline: body.deadline ? String(body.deadline) : null } : {}),
+        ...(body.fulfilment !== undefined
+          ? { fulfilment: body.fulfilment as 'delivery' | 'collection' | 'either' | undefined }
+          : {}),
+      });
+      return NextResponse.json({ request: updated });
+    }
+    if (action === 'renew') {
+      if (!allowWrite(`request:renew:${user.uid}`, 10)) {
+        return NextResponse.json({ error: 'Too many renewals — please slow down.' }, { status: 429 });
+      }
+      const renewed = await renewRequest(id, user.uid);
+      return NextResponse.json({ ok: true, request: renewed });
+    }
+    if (action === 'decline') {
+      const body = (await request.json().catch(() => ({}))) as { offerId?: string };
+      if (!body.offerId) return NextResponse.json({ error: 'Missing offerId.' }, { status: 400 });
+      await declineOffer(id, body.offerId, user.uid);
+      return NextResponse.json({ ok: true });
+    }
+    if (action === 'report') {
+      const body = (await request.json().catch(() => ({}))) as { target?: 'request' | 'offer'; offerId?: string; reason?: string };
+      if (!allowWrite(`request:report:${user.uid}`, 5)) {
+        return NextResponse.json({ error: 'Too many reports — please slow down.' }, { status: 429 });
+      }
+      if (body.target === 'offer') {
+        if (!body.offerId) return NextResponse.json({ error: 'Missing offerId.' }, { status: 400 });
+        await reportOffer(id, body.offerId, user.uid, body.reason ?? '');
+      } else {
+        await reportRequest(id, user.uid, body.reason ?? '');
+      }
+      return NextResponse.json({ ok: true });
+    }
     if (action === 'match') {
       const snap = await db.collection(REQUESTS_COLLECTION).doc(id).get();
       if (!snap.exists) return NextResponse.json({ error: 'Not found' }, { status: 404 });
@@ -187,16 +264,21 @@ export async function PATCH(request: NextRequest) {
     }
     if (action === 'offer') {
       // `id` here is the OFFER id — submit/update the seller's offer.
+      if (!allowWrite(`offer:submit:${user.uid}`, 10)) {
+        return NextResponse.json({ error: 'Too many offer submissions — please slow down.' }, { status: 429 });
+      }
       const body = (await request.json().catch(() => ({}))) as {
         price?: number;
         message?: string;
         deliveryDays?: number | null;
+        availability?: string | null;
         mediaIds?: string[];
       };
       const offer = await submitOffer(id, user.uid, {
         price: Number(body.price),
         message: body.message ?? '',
         deliveryDays: body.deliveryDays ?? null,
+        availability: body.availability ?? null,
         mediaIds: body.mediaIds,
       });
       return NextResponse.json({ offer });

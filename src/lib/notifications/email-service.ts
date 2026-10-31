@@ -17,8 +17,25 @@ import { pbWriteDevMailbox, pbWriteEmailLog } from '@/lib/pocketbase/email-logs'
 import { getTemplate, type EmailTemplateDef } from './templates';
 import { renderTemplate } from './renderer';
 import { getEmailProvider, type OutgoingEmail } from './email-provider';
+import {
+  classifySendError,
+  classifyThrown,
+  hasDuplicateCooldown,
+  nextAttemptIso,
+  normalizeAddress,
+  shouldRetry,
+} from './email-reliability';
+import { enqueueRetryJob, isSuppressed, updateRetryJob, type StoreDb } from './email-store';
 
-export type EmailStatus = 'QUEUED' | 'SENDING' | 'SENT' | 'DELIVERED' | 'FAILED' | 'BOUNCED';
+export type EmailStatus =
+  | 'QUEUED'
+  | 'SENDING'
+  | 'SENT'
+  | 'DELIVERED'
+  | 'DELAYED'
+  | 'FAILED'
+  | 'BOUNCED'
+  | 'SKIPPED';
 
 export interface EmailLogEntry {
   id?: string;
@@ -34,16 +51,18 @@ export interface EmailLogEntry {
   sentAt?: unknown;
   deliveredAt?: unknown;
   failureReason?: string;
+  /** Safe category (`rate_limited | timeout | server | config | invalid | …). */
+  errorClass?: string;
   devMode: boolean;
   createdAt: unknown;
 }
 
-/** Minimal Firestore write contract so this module stays testable. */
-export interface FirestoreLike {
-  collection(path: string): {
-    add(data: unknown): Promise<{ id: string }>;
-  };
-}
+/**
+ * Minimal Firestore contract — the real admin `db` satisfies it structurally
+ * (collection/add/doc/where/limit and the document verbs), and tests may
+ * pass a fake. Storage operations themselves live in `email-store.ts`.
+ */
+export type FirestoreLike = StoreDb;
 
 // ---------------------------------------------------------------------------
 // Lazy Firestore access — resolved through the shared, initialized admin app
@@ -70,6 +89,23 @@ function getDb(): FirestoreLike | null {
 const RATE_LIMIT = { maxPerHour: 30, maxPerDay: 120 } as const;
 
 const rateBuckets = new Map<string, { hour: number[]; day: number[] }>();
+
+/**
+ * Duplicate cooldown — verification / reset / welcome mail must never
+ * double-fire when a client retries a request (or a user double-clicks).
+ * In-memory by design: it protects the window that matters (seconds), needs
+ * no index, and resets harmlessly across instances.
+ */
+const recentSends = new Map<string, number>();
+
+function rememberSend(key: string, nowMs: number): void {
+  if (recentSends.size > 500) {
+    for (const [k, at] of recentSends) {
+      if (nowMs - at > 3_600_000) recentSends.delete(k);
+    }
+  }
+  recentSends.set(key, nowMs);
+}
 
 function checkRateLimit(recipient: string): { ok: true } | { ok: false; reason: string } {
   const now = Date.now();
@@ -105,6 +141,14 @@ export interface SendTemplateOptions {
   fromOverride?: string;
   /** Overrides the rendered subject. */
   subjectOverride?: string;
+  /** Skip the duplicate cooldown (explicit human-triggered test sends). */
+  ignoreCooldown?: boolean;
+  /** 1 = the first delivery attempt (the default); >1 = a retry runner call. */
+  attempt?: number;
+  /** Set by the retry runner so a failure updates its job instead of adding one. */
+  retryJobId?: string;
+  /** Escape hatch: set false to never enqueue a retry for this send. */
+  enqueueRetry?: boolean;
 }
 
 export interface SendTemplateResult {
@@ -113,8 +157,12 @@ export interface SendTemplateResult {
   logId?: string;
   providerId?: string;
   error?: string;
+  /** Safe error category when the send failed. */
+  errorClass?: string;
   /** True when the message was captured in dev mode (not actually sent). */
   devCaptured?: boolean;
+  /** True when the send was skipped by the duplicate cooldown. */
+  skippedDuplicate?: boolean;
 }
 
 async function writeEmailLog(entry: Omit<EmailLogEntry, 'id' | 'createdAt'>): Promise<string | undefined> {
@@ -131,6 +179,59 @@ async function writeEmailLog(entry: Omit<EmailLogEntry, 'id' | 'createdAt'>): Pr
   } catch (error) {
     console.error('[email] failed to write delivery log:', error);
     return undefined;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Retry scheduling — the bridge from a failed send to the durable queue.
+// ---------------------------------------------------------------------------
+
+async function maybeScheduleRetry(params: {
+  mode: 'development' | 'production';
+  options: SendTemplateOptions;
+  from: string;
+  errorClass: string;
+  note?: string | undefined;
+  db: FirestoreLike | null;
+}): Promise<void> {
+  try {
+    const attempts = Math.max(1, params.options.attempt ?? 1);
+    const decision = shouldRetry({
+      templateKey: params.options.templateKey,
+      attempts,
+      errorClass: params.errorClass,
+      mode: params.mode,
+    });
+    if (!decision.retry || !params.db) return;
+
+    const lastError = (params.note ?? '').slice(0, 300);
+    const nextAttemptAt = nextAttemptIso(Date.now(), attempts);
+
+    if (params.options.retryJobId) {
+      await updateRetryJob(params.db, params.options.retryJobId, {
+        attempts,
+        status: 'pending',
+        nextAttemptAt,
+        lastErrorClass: params.errorClass,
+        lastError,
+      });
+      return;
+    }
+    if (params.options.enqueueRetry === false) return;
+
+    await enqueueRetryJob(params.db, {
+      to: params.options.to,
+      from: params.from,
+      templateKey: params.options.templateKey,
+      category: params.options.category,
+      vars: params.options.vars,
+      userId: params.options.userId,
+      errorClass: params.errorClass,
+      lastError,
+      nextAttemptAt,
+    });
+  } catch {
+    // A queue hiccup must never mask the send result already reported.
   }
 }
 
@@ -162,6 +263,26 @@ export async function sendTemplateEmail(options: SendTemplateOptions): Promise<S
     html: rendered.html,
     templateKey: tpl.key,
   };
+
+  // ----- Duplicate cooldown: verification / reset / welcome never double-fire -----
+  const nowMs = Date.now();
+  const cooldownKey = `${tpl.key}:${normalizeAddress(options.to)}`;
+  if (!options.ignoreCooldown && hasDuplicateCooldown(tpl.key, recentSends.get(cooldownKey) ?? null, nowMs)) {
+    await writeEmailLog({
+      to: options.to,
+      from,
+      subject: message.subject,
+      template: tpl.key,
+      category: tpl.category,
+      status: 'SKIPPED',
+      provider: cfg.emailProvider || 'none',
+      failureReason: 'Duplicate within the cooldown window — not sent again.',
+      errorClass: 'duplicate',
+      userId: options.userId,
+      devMode: cfg.emailMode !== 'production',
+    });
+    return { ok: true, status: 'SKIPPED', skippedDuplicate: true };
+  }
 
   // ----- Development mode: capture, never send -----
   if (cfg.emailMode === 'development') {
@@ -214,17 +335,34 @@ export async function sendTemplateEmail(options: SendTemplateOptions): Promise<S
   }
 
   // ----- Production mode -----
+  // Hard-bounce suppression: a permanently bouncing recipient is refused
+  // BEFORE any provider call — permanent problems are never retried and
+  // never re-attempted by hand from the queue.
+  const prodDb = getDb();
+  if (prodDb) {
+    const suppression = await isSuppressed(prodDb, options.to);
+    if (suppression.suppressed) {
+      const reason = 'Recipient is suppressed after a permanent bounce.';
+      await writeEmailLog({
+        to: options.to, from, subject: message.subject, template: tpl.key,
+        category: tpl.category, status: 'FAILED', provider: cfg.emailProvider || 'none',
+        failureReason: reason, errorClass: 'suppressed', userId: options.userId, devMode: false,
+      });
+      return { ok: false, status: 'FAILED', errorClass: 'suppressed', error: reason };
+    }
+  }
+
   const rate = checkRateLimit(options.to);
   if (!rate.ok) {
     await writeEmailLog({
       to: options.to, from, subject: message.subject, template: tpl.key,
       category: tpl.category, status: 'FAILED', provider: cfg.emailProvider || 'none',
-      failureReason: rate.reason, userId: options.userId, devMode: false,
+      failureReason: rate.reason, errorClass: 'rate_limited', userId: options.userId, devMode: false,
     });
-    return { ok: false, status: 'FAILED', error: rate.reason };
+    return { ok: false, status: 'FAILED', errorClass: 'rate_limited', error: rate.reason };
   }
 
-  const provider = getEmailProvider(cfg.emailProvider, cfg.emailApiKey);
+  const provider = getEmailProvider(cfg.emailProvider, cfg.emailApiKey, cfg.emailMode);
   await writeEmailLog({
     to: options.to, from, subject: message.subject, template: tpl.key,
     category: tpl.category, status: 'SENDING', provider: provider.id,
@@ -233,21 +371,39 @@ export async function sendTemplateEmail(options: SendTemplateOptions): Promise<S
 
   try {
     const result = await provider.send(message);
-    const status: EmailStatus = result.accepted ? 'SENT' : 'FAILED';
-    await writeEmailLog({
-      to: options.to, from, subject: message.subject, template: tpl.key,
-      category: tpl.category, status, provider: provider.id,
-      providerId: result.providerId, userId: options.userId,
-      failureReason: result.error, devMode: false,
-    });
-    return { ok: result.accepted, status, providerId: result.providerId, error: result.error };
-  } catch (error: any) {
+    if (result.accepted) {
+      rememberSend(cooldownKey, nowMs);
+      await writeEmailLog({
+        to: options.to, from, subject: message.subject, template: tpl.key,
+        category: tpl.category, status: 'SENT', provider: provider.id,
+        providerId: result.providerId, userId: options.userId, devMode: false,
+      });
+      return { ok: true, status: 'SENT', providerId: result.providerId };
+    }
+
+    // HONESTY: `accepted` is NOT `delivered`. The log stops at SENT until a
+    // provider webhook proves DELIVERED (or BOUNCED).
+    const errorClass = classifySendError(result.httpStatus, result.error);
     await writeEmailLog({
       to: options.to, from, subject: message.subject, template: tpl.key,
       category: tpl.category, status: 'FAILED', provider: provider.id,
-      failureReason: error?.message ?? 'unknown provider error', userId: options.userId, devMode: false,
+      providerId: result.providerId, userId: options.userId,
+      failureReason: result.error, errorClass, devMode: false,
     });
-    return { ok: false, status: 'FAILED', error: error?.message ?? 'provider error' };
+    await maybeScheduleRetry({
+      mode: cfg.emailMode, options, from, errorClass, note: result.error, db: prodDb,
+    });
+    return { ok: false, status: 'FAILED', providerId: result.providerId, errorClass, error: result.error };
+  } catch (error: unknown) {
+    const errorClass = classifyThrown(error);
+    const note = error instanceof Error ? error.message : 'provider error';
+    await writeEmailLog({
+      to: options.to, from, subject: message.subject, template: tpl.key,
+      category: tpl.category, status: 'FAILED', provider: provider.id,
+      failureReason: note, errorClass, userId: options.userId, devMode: false,
+    });
+    await maybeScheduleRetry({ mode: cfg.emailMode, options, from, errorClass, note, db: prodDb });
+    return { ok: false, status: 'FAILED', errorClass, error: note };
   }
 }
 

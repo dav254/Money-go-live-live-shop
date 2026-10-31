@@ -351,6 +351,7 @@ export default function AdminDashboardPage() {
               links: [
                 { label: 'Server status', href: '/dashboard/admin/system/server-status' },
                 { label: 'Media storage', href: '/dashboard/admin/system/media-storage' },
+                { label: 'Error center', href: '/dashboard/admin/error-logs' },
               ],
             },
             {

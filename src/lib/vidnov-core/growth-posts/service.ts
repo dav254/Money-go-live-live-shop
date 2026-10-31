@@ -57,6 +57,7 @@ export class GrowthPostsError extends Error {
     public readonly code:
       | 'not_found'
       | 'invalid_transition'
+      | 'invalid_input'
       | 'not_configured'
       | 'store_unavailable'
       | 'no_recipient'
@@ -147,6 +148,11 @@ function toPost(id: string, raw: Record<string, unknown>): GrowthPost | null {
       ? { results: raw.results as Record<string, GrowthPublishResult> }
       : {}),
     ...(str(raw.reason) ? { reason: str(raw.reason) } : {}),
+    ...(str(raw.scheduledAt) ? { scheduledAt: str(raw.scheduledAt) } : {}),
+    ...(Array.isArray(raw.scheduledChannels)
+      ? { scheduledChannels: raw.scheduledChannels.filter(isSocialChannel) }
+      : {}),
+    ...(str(raw.scheduledBy) ? { scheduledBy: str(raw.scheduledBy) } : {}),
   };
 }
 
@@ -451,7 +457,13 @@ async function resolveRecipient(db: Firestore, sellerId: string): Promise<{ emai
 
 export async function publishGrowthPost(
   db: Firestore,
-  params: { id: string; channel: GrowthPublishChannel; actorUid: string },
+  params: {
+    id: string;
+    channel: GrowthPublishChannel;
+    actorUid: string;
+    /** Injectable fetch for tests — production omits it and uses global fetch. */
+    fetchLike?: (input: string, init?: RequestInit) => Promise<Response>;
+  },
 ): Promise<PublishResult> {
   const { post } = await loadPost(db, params.id);
   // Intended SUCCESS target — checked up front so an unapproved draft can
@@ -499,6 +511,7 @@ export async function publishGrowthPost(
       productName: post.productName,
       imageUrl: post.productImage,
       env: process.env,
+      ...(params.fetchLike ? { fetchLike: params.fetchLike } : {}),
     });
 
     const nowIso = iso();
@@ -612,4 +625,300 @@ export async function publishGrowthPost(
       ? 'Captured in development mode — recorded as dev_captured, NOT delivered.'
       : `Email accepted by the provider (${emailStatus}).`,
   };
+}
+
+/* ── Scheduling — the in-house Postiz layer ──────────────────────────── */
+
+/**
+ * Queue an APPROVED post for automatic publishing on specific social
+ * channels at a future instant. This does NOT change the queue status — the
+ * post stays exactly what it was and gains a pending action; the scheduler
+ * tick (`runDueGrowthPosts`) is the only thing that later spends it.
+ *
+ * Bounds, in order:
+ *   1. the post must still be able to reach `published` (drafts must be
+ *      approved first; a rejected post can never be scheduled),
+ *   2. channels are deduped social channels only — `copy` and `email` are
+ *      human actions and stay manual,
+ *   3. the instant must be a real date, at least a minute out and at most
+ *      `scheduleMaxAheadDays` days ahead — no backlog bombs, no eternally
+ *      armed posts.
+ */
+export async function scheduleGrowthPost(
+  db: Firestore,
+  params: { id: string; channels: string[]; at: string; actorUid: string; now?: Date },
+): Promise<GrowthPost> {
+  const now = params.now ?? new Date();
+  const { post } = await loadPost(db, params.id);
+
+  if (!canTransitionGrowthPost(post.status, 'published')) {
+    throw new GrowthPostsError(
+      'invalid_transition',
+      `A ${post.status} post cannot be scheduled for publishing.`,
+    );
+  }
+
+  const channels = [
+    ...new Set((params.channels ?? []).map((c) => String(c).trim().toLowerCase()).filter(Boolean)),
+  ];
+  if (channels.length === 0 || channels.length > GROWTH_POST_LIMITS.schedulerChannelsMax) {
+    throw new GrowthPostsError(
+      'invalid_input',
+      `Pick between one and ${GROWTH_POST_LIMITS.schedulerChannelsMax} social channels.`,
+    );
+  }
+  for (const channel of channels) {
+    if (!isSocialChannel(channel)) {
+      throw new GrowthPostsError('invalid_input', `Unknown social channel: ${channel}.`);
+    }
+  }
+
+  const atMs = Date.parse(params.at);
+  if (Number.isNaN(atMs)) {
+    throw new GrowthPostsError('invalid_input', 'The schedule time is not a valid date.');
+  }
+  if (atMs < now.getTime() + GROWTH_POST_LIMITS.scheduleMinAheadMs) {
+    throw new GrowthPostsError('invalid_input', 'Pick a time at least a minute from now.');
+  }
+  if (atMs > now.getTime() + GROWTH_POST_LIMITS.scheduleMaxAheadDays * 86_400_000) {
+    throw new GrowthPostsError(
+      'invalid_input',
+      `Scheduling is limited to ${GROWTH_POST_LIMITS.scheduleMaxAheadDays} days ahead.`,
+    );
+  }
+
+  return savePatch(db, params.id, {
+    scheduledAt: new Date(atMs).toISOString(),
+    scheduledChannels: channels,
+    scheduledBy: params.actorUid,
+  });
+}
+
+/** Cancel a pending schedule. Idempotent — clearing an unset schedule is a no-op. */
+export async function unscheduleGrowthPost(
+  db: Firestore,
+  params: { id: string; actorUid: string },
+): Promise<GrowthPost> {
+  await loadPost(db, params.id); // 404s honestly if the post vanished
+  return savePatch(db, params.id, {
+    scheduledAt: null,
+    scheduledChannels: null,
+    scheduledBy: null,
+  });
+}
+
+/* ── Composer — write your own post, gated by the same real listing ──── */
+
+/** Control characters stripped from admin-written copy (newlines survive). */
+function sanitizeCaption(raw: unknown): string {
+  return String(raw ?? '')
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '')
+    .replace(/[ \t]+/g, ' ')
+    .trim();
+}
+
+/** Admin hashtags → the queue's plain-token shape: no `#`, ≤8, ≤30 chars. */
+function normalizeHashtags(raw: unknown): string[] {
+  const list = Array.isArray(raw) ? raw : [];
+  const tags: string[] = [];
+  for (const item of list) {
+    const tag = String(item).replace(/^#/, '').replace(/\s+/g, '').slice(0, 30);
+    if (tag && !tags.includes(tag)) tags.push(tag);
+    if (tags.length >= 8) break;
+  }
+  return tags;
+}
+
+/**
+ * Create an admin-written post about a REAL listing, straight into
+ * `approved` — the admin is the author, so there is nothing to approve.
+ *
+ * The listing must pass the exact same `evaluateProductEligibility` gate the
+ * nightly drafter uses (safe id, seller, name, price, image, visible), so a
+ * composed post can never promote a hidden, price-less or picture-less
+ * listing. No AI tokens are spent and no daily draft budget is consumed.
+ */
+export async function composeGrowthPost(
+  db: Firestore,
+  params: { productId: string; caption: string; hashtags?: string[]; actorUid: string; now?: Date },
+): Promise<GrowthPost> {
+  const now = params.now ?? new Date();
+  const productId = String(params.productId ?? '').trim();
+  if (!productId) {
+    throw new GrowthPostsError('invalid_input', 'Pick a product to compose about.');
+  }
+
+  let raw: Record<string, unknown>;
+  try {
+    const snap = await db.collection('products').doc(productId).get();
+    if (!snap.exists) throw new GrowthPostsError('not_found', 'That product no longer exists.');
+    raw = (snap.data() ?? {}) as Record<string, unknown>;
+  } catch (error) {
+    if (error instanceof GrowthPostsError) throw error;
+    throw new GrowthPostsError('store_unavailable', 'The product store is unavailable right now.');
+  }
+
+  const eligibility = evaluateProductEligibility(productId, raw);
+  if (!eligibility.eligible) {
+    // The reason vocabulary is a fixed, safe enum (never upstream text).
+    throw new GrowthPostsError(
+      'invalid_input',
+      `This listing is not eligible for promotion (${eligibility.reasons.join(', ')}).`,
+    );
+  }
+
+  const caption = sanitizeCaption(params.caption);
+  if (!caption) {
+    throw new GrowthPostsError('invalid_input', 'Write the post copy first.');
+  }
+  if (caption.length > 4_000) {
+    throw new GrowthPostsError('invalid_input', 'The post copy is too long (4,000 characters max).');
+  }
+
+  const candidate = toCandidate(productId, raw);
+  const nowIso = iso(now);
+  const body = {
+    productId,
+    sellerId: str(raw.sellerId),
+    productName: candidate.name,
+    ...(candidate.imageUrl ? { productImage: candidate.imageUrl } : {}),
+    ...(Number.isFinite(candidate.price) ? { price: candidate.price } : {}),
+    ...(candidate.currency ? { currency: candidate.currency } : {}),
+    caption,
+    hashtags: normalizeHashtags(params.hashtags),
+    sharePath: sharePathFor(productId),
+    // Composed posts skip the approval queue: the admin IS the author.
+    status: 'approved' as const,
+    createdAt: nowIso,
+    updatedAt: nowIso,
+    draftedBy: params.actorUid,
+    decidedBy: params.actorUid,
+    decidedAt: nowIso,
+  };
+
+  try {
+    const ref = await db.collection(GROWTH_POSTS_COLLECTION).add(body);
+    await pbMirrorGrowthPost(ref.id, { id: ref.id, ...body });
+    const { post } = await loadPost(db, ref.id);
+    return post;
+  } catch (error) {
+    if (error instanceof GrowthPostsError) throw error;
+    throw new GrowthPostsError('store_unavailable', 'The growth post store is unavailable right now.');
+  }
+}
+
+/* ── The tick — publishes what is due, bounded and honest ───────────────── */
+
+/** Counters only — per-post rows stay in the admin-queue (authenticated). */
+export interface SchedulerReport {
+  ranAt: string;
+  actorUid: string;
+  /** Posts whose `scheduledAt` had passed and whose state could still publish. */
+  due: number;
+  /** Channel attempts confirmed by the platform's own message id. */
+  published: number;
+  /** Channel attempts that failed, were unconfigured, or could not run. */
+  failed: number;
+  /** Schedules consumed (cleared) this run — pending action spent either way. */
+  cleared: number;
+}
+
+/**
+ * One scheduler pass: publish every post whose scheduled instant has passed,
+ * one channel at a time, then CLEAR its schedule.
+ *
+ * Honesty rules carried over from `publishGrowthPost`:
+ *   • `published` can only be written by that function, and only together
+ *     with the platform's own id — this tick never sets a status itself;
+ *   • a channel that is not configured throws before any network call; the
+ *     tick records that as a failed attempt with the gate's env-NAMES note
+ *     and leaves the post's own state untouched (nothing was attempted);
+ *   • clearing happens AFTER the attempts: a store hiccup leaves the
+ *     schedule armed (possible retry next tick) rather than silently
+ *     dropping the post the admin asked to publish.
+ *
+ * Bounded by construction: ≤`schedulerPerRun` posts × ≤4 channels per run,
+ * each provider call carrying its own timeout inside `social.ts`.
+ */
+export async function runDueGrowthPosts(
+  db: Firestore,
+  params: {
+    actorUid: string;
+    now?: Date;
+    limit?: number;
+    fetchLike?: (input: string, init?: RequestInit) => Promise<Response>;
+  },
+): Promise<SchedulerReport> {
+  const now = params.now ?? new Date();
+  const limit = Math.min(
+    GROWTH_POST_LIMITS.schedulerPerRun,
+    Math.max(1, params.limit ?? GROWTH_POST_LIMITS.schedulerPerRun),
+  );
+  const report: SchedulerReport = {
+    ranAt: iso(now),
+    actorUid: params.actorUid,
+    due: 0,
+    published: 0,
+    failed: 0,
+    cleared: 0,
+  };
+
+  const rows = await listGrowthPosts(db, { limit: GROWTH_POST_LIMITS.listLimit });
+  const due = rows
+    .filter(
+      (p) =>
+        typeof p.scheduledAt === 'string' &&
+        p.scheduledAt !== '' &&
+        !Number.isNaN(Date.parse(p.scheduledAt)) &&
+        Date.parse(p.scheduledAt) <= now.getTime() &&
+        canTransitionGrowthPost(p.status, 'published'),
+    )
+    .sort((a, b) => ((a.scheduledAt ?? '') <= (b.scheduledAt ?? '') ? -1 : 1))
+    .slice(0, limit);
+
+  report.due = due.length;
+
+  for (const post of due) {
+    for (const channel of post.scheduledChannels ?? []) {
+      try {
+        const result = await publishGrowthPost(db, {
+          id: post.id,
+          channel,
+          actorUid: params.actorUid,
+          ...(params.fetchLike ? { fetchLike: params.fetchLike } : {}),
+        });
+        if (result.outcome === 'published') report.published += 1;
+        else report.failed += 1;
+      } catch (error) {
+        // not_configured / invalid_transition / store trouble: record the
+        // attempt honestly (env-NAMES gate reason or a static message) and
+        // keep going — one broken channel must not starve the others.
+        report.failed += 1;
+        const note = error instanceof GrowthPostsError ? error.message : 'The publish attempt did not complete.';
+        try {
+          const { post: fresh } = await loadPost(db, post.id);
+          const results: Record<string, GrowthPublishResult> = {
+            ...(fresh.results ?? {}),
+            [channel]: { state: 'failed', at: iso(now), note },
+          };
+          await savePatch(db, post.id, { results });
+        } catch {
+          // Store unavailable — the counter in this report still records it.
+        }
+      }
+    }
+
+    try {
+      await savePatch(db, post.id, {
+        scheduledAt: null,
+        scheduledChannels: null,
+        scheduledBy: null,
+      });
+      report.cleared += 1;
+    } catch {
+      // Keep the schedule armed: the next tick retries instead of losing it.
+    }
+  }
+
+  return report;
 }

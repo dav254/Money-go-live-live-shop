@@ -8,12 +8,16 @@
  *   POST actions:
  *     { action: 'draft',   limit? }              → one bounded draft run
  *     { action: 'decide',  id, decision, reason? }→ approve / reject
- *     { action: 'publish', id, channel }          → copy | email (gated)
+ *     { action: 'publish', id, channel }          → copy | email | social publish
+ *     { action: 'compose', productId, caption, hashtags? } → admin-written post
+ *     { action: 'schedule', id, channels[], at }  → arm the scheduler tick
+ *     { action: 'unschedule', id }                → cancel a pending schedule
  *
  * Honesty: responses carry the record and the provider status derived from
  * env presence only. A publish that the provider rejected comes back as
  * `outcome: 'failed'` with the post already marked failed — never as a
- * success, and never as "published to social" (no such channel exists yet).
+ * success. `schedule` never publishes anything by itself: it only arms a
+ * pending action that `/api/growth-posts/scheduler` spends at the due time.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -22,11 +26,14 @@ import { verifyAdminUid } from '@/lib/notifications/server-utils';
 import { growthProviderStatuses } from '@/lib/vidnov-core/growth-posts/drafts';
 import {
   GrowthPostsError,
+  composeGrowthPost,
   decideGrowthPost,
   growthCounts,
   listGrowthPosts,
   publishGrowthPost,
   runGrowthDraftJob,
+  scheduleGrowthPost,
+  unscheduleGrowthPost,
 } from '@/lib/vidnov-core/growth-posts/service';
 import {
   GROWTH_POST_STATES,
@@ -42,6 +49,7 @@ function errorStatus(code: GrowthPostsError['code']): number {
   switch (code) {
     case 'not_found': return 404;
     case 'invalid_transition': return 409;
+    case 'invalid_input': return 400;
     case 'not_configured': return 409;
     case 'no_recipient': return 409;
     case 'store_unavailable': return 503;
@@ -85,6 +93,11 @@ export async function POST(request: NextRequest) {
     decision?: string;
     reason?: string;
     channel?: string;
+    channels?: string[];
+    at?: string;
+    productId?: string;
+    caption?: string;
+    hashtags?: string[];
     limit?: number;
   };
   try {
@@ -129,6 +142,37 @@ export async function POST(request: NextRequest) {
           actorUid: adminUid,
         });
         return NextResponse.json({ result });
+      }
+
+      case 'compose': {
+        const post = await composeGrowthPost(db, {
+          productId: body.productId ?? '',
+          caption: body.caption ?? '',
+          hashtags: Array.isArray(body.hashtags) ? body.hashtags : [],
+          actorUid: adminUid,
+        });
+        return NextResponse.json({ post });
+      }
+
+      case 'schedule': {
+        if (!body.id || !body.at) {
+          return NextResponse.json({ error: 'A post id and a schedule time are required.' }, { status: 400 });
+        }
+        const post = await scheduleGrowthPost(db, {
+          id: body.id,
+          channels: Array.isArray(body.channels) ? body.channels : [],
+          at: body.at,
+          actorUid: adminUid,
+        });
+        return NextResponse.json({ post });
+      }
+
+      case 'unschedule': {
+        if (!body.id) {
+          return NextResponse.json({ error: 'A post id is required.' }, { status: 400 });
+        }
+        const post = await unscheduleGrowthPost(db, { id: body.id, actorUid: adminUid });
+        return NextResponse.json({ post });
       }
 
       default:

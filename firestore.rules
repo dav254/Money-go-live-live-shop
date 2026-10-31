@@ -324,6 +324,16 @@ service cloud.firestore {
 
     // passwordResetTokens / passwordResetRequests / passwordResetRequests
     // are intentionally NOT readable by any client — the admin SDK only.
+    //
+    // Email reliability layer (same rule, enforced by the default-deny
+    // catch-all): emailVerificationTokens (hashed single-use links),
+    // emailJobs (durable retry queue), emailSuppressions (hard bounces),
+    // emailWebhookEvents (webhook idempotency). Admin SDK only — no client
+    // read, ever.
+    //
+    // Postiz marketing integration: postizLog (staged-post audit trail).
+    // Written and read only by the admin SDK through admin-gated routes;
+    // clients have no path to it, ever.
 
     // =========================
     // =========================

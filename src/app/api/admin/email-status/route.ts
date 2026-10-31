@@ -29,6 +29,9 @@ export async function GET(_request: NextRequest) {
     { key: 'EMAIL_PROVIDER', set: Boolean((process.env.EMAIL_PROVIDER ?? '').trim()) },
     { key: 'EMAIL_API_KEY', set: Boolean((process.env.EMAIL_API_KEY ?? '').trim()) },
     { key: 'APP_URL', set: Boolean((process.env.APP_URL ?? '').trim()) },
+    // Reliability layer — names only, presence booleans.
+    { key: 'EMAIL_WEBHOOK_SECRET', set: Boolean((process.env.EMAIL_WEBHOOK_SECRET ?? '').trim()) },
+    { key: 'EMAIL_RETRY_CRON_ENABLED', set: Boolean((process.env.EMAIL_RETRY_CRON_ENABLED ?? '').trim()) },
   ];
 
   let captured: { id: string; to: string; subject: string; createdAt: unknown }[] = [];

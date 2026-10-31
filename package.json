@@ -14,7 +14,8 @@
     "build": "NODE_ENV=production next build",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "ping:search": "tsx scripts/ping-indexnow.ts"
   },
   "dependencies": {
     "@genkit-ai/google-genai": "^1.0.0",

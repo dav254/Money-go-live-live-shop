@@ -25,15 +25,36 @@ export async function POST(request: NextRequest) {
 
   const templateKey = body.templateKey || 'welcome';
 
-  let result: { ok: boolean; status: string; provider?: string; error?: string };
+  let result: {
+    ok: boolean;
+    status: string;
+    provider?: string;
+    error?: string;
+    errorClass?: string;
+    devCaptured?: boolean;
+    skippedDuplicate?: boolean;
+  };
   try {
     const sent = await sendTemplateEmail({
       templateKey,
       to,
       category: 'account',
       vars: { user_name: 'Admin test', app_url: process.env.APP_URL || '' },
+      // A test must never be blocked by the duplicate cooldown — it is an
+      // explicit, human-triggered diagnostic — and a test failure must never
+      // queue a retry either.
+      ignoreCooldown: true,
+      enqueueRetry: false,
     });
-    result = { ok: sent.ok, status: sent.status, provider: sent.providerId, error: sent.error };
+    result = {
+      ok: sent.ok,
+      status: sent.status,
+      provider: sent.providerId,
+      error: sent.error,
+      errorClass: sent.errorClass,
+      devCaptured: sent.devCaptured,
+      skippedDuplicate: sent.skippedDuplicate,
+    };
   } catch (error) {
     result = {
       ok: false,
@@ -42,13 +63,21 @@ export async function POST(request: NextRequest) {
     };
   }
 
+  // Honest messages: capture ≠ send ≠ delivered.
+  const message = result.skippedDuplicate
+    ? 'Skipped: this recipient received the same template moments ago (duplicate cooldown). Nothing was sent again.'
+    : result.ok && result.devCaptured
+      ? 'Captured to the development mailbox — EMAIL_MODE is not production, so nothing actually left the server.'
+      : result.ok
+        ? `Test email accepted by the provider${result.provider ? ` (${result.provider})` : ''}. Delivery is confirmed only by the provider webhook.`
+        : `Delivery failed${result.errorClass ? ` [${result.errorClass}]` : ''}: ${result.error ?? 'unknown error'}`;
+
   return NextResponse.json({
     ok: result.ok,
     status: result.status,
     provider: result.provider ?? null,
     error: result.error ?? null,
-    message: result.ok
-      ? `Test email accepted by the provider${result.provider ? ` (${result.provider})` : ''}.`
-      : `Delivery failed: ${result.error ?? 'unknown error'}`,
+    errorClass: result.errorClass ?? null,
+    message,
   });
 }

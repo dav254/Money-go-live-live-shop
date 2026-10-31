@@ -687,6 +687,11 @@ export interface ErrorLog {
   /** Some writers use errorMessage instead of message. */
   errorMessage?: string;
   stack?: string;
+  /** The /api/error-log writer names it errorStack instead of stack. */
+  errorStack?: string;
+  /** Written server-side by /api/error-log alongside the error itself. */
+  environment?: string;
+  userAgent?: string;
   status?: 'new' | 'resolved' | 'ignored';
   userId?: string;
   context?: unknown;

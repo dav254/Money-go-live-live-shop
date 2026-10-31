@@ -133,11 +133,11 @@ export async function GET(request: NextRequest) {
       label: 'AI Studio',
       state: failed > 10 ? 'degraded' : 'operational',
       detail: failed === 0 ? 'No failed jobs' : `${failed} failed job${failed === 1 ? '' : 's'}`,
-      href: '/dashboard/admin/ai-management',
+      href: '/dashboard/admin/ai/center',
     });
     if (failed > 0) alerts.push(`${failed} AI generation job${failed === 1 ? '' : 's'} failed.`);
   } catch {
-    signals.push({ id: 'ai', label: 'AI Studio', state: 'degraded', detail: 'Could not read AI jobs', href: '/dashboard/admin/ai-management' });
+    signals.push({ id: 'ai', label: 'AI Studio', state: 'degraded', detail: 'Could not read AI jobs', href: '/dashboard/admin/ai/center' });
   }
 
   // ---- Live streams ----------------------------------------------------------

@@ -33,6 +33,51 @@ interface EmailStatus {
   captured: { id: string; to: string; subject: string; createdAt: string | null }[];
 }
 
+interface EmailLogRow {
+  id: string;
+  to: string;
+  from: string;
+  subject: string;
+  template: string;
+  status: string;
+  provider: string;
+  providerId: string | null;
+  failureReason: string | null;
+  errorClass: string | null;
+  createdAt: string | null;
+  devMode: boolean;
+}
+
+interface SuppressionRow {
+  address: string;
+  reason: string;
+  source: string;
+  createdAt: string | null;
+}
+
+interface WebhookEventRow {
+  id: string;
+  type: string;
+  messageId: string | null;
+  address: string | null;
+  status: string | null;
+  receivedAt: string | null;
+}
+
+const LOG_STATUS_STYLES: Record<string, string> = {
+  DELIVERED: 'border-emerald-400/40 bg-emerald-400/10 text-emerald-600 dark:text-emerald-400',
+  SENT: 'border-cyan-400/40 bg-cyan-400/10 text-cyan-600 dark:text-cyan-300',
+  DELAYED: 'border-amber-400/40 bg-amber-400/10 text-amber-600 dark:text-amber-300',
+  BOUNCED: 'border-red-500/40 bg-red-500/10 text-red-500',
+  FAILED: 'border-red-500/40 bg-red-500/10 text-red-500',
+  SKIPPED: 'border-white/20 bg-white/5 text-muted-foreground',
+  SENDING: 'border-white/20 bg-white/5 text-muted-foreground',
+  QUEUED: 'border-white/20 bg-white/5 text-muted-foreground',
+};
+
+const LOG_PAGE_SIZE = 10;
+const LOG_FILTERS = ['', 'DELIVERED', 'SENT', 'DELAYED', 'BOUNCED', 'FAILED', 'SKIPPED'];
+
 export default function AdminEmailSettingsPage() {
   const { toast } = useToast();
   const { user } = useUser();
@@ -40,6 +85,12 @@ export default function AdminEmailSettingsPage() {
   const [loading, setLoading] = React.useState(true);
   const [recipient, setRecipient] = React.useState('');
   const [sending, setSending] = React.useState(false);
+  const [logs, setLogs] = React.useState<EmailLogRow[]>([]);
+  const [logPage, setLogPage] = React.useState(0);
+  const [logStatus, setLogStatus] = React.useState('');
+  const [logLoading, setLogLoading] = React.useState(false);
+  const [suppressions, setSuppressions] = React.useState<SuppressionRow[]>([]);
+  const [webhookEvents, setWebhookEvents] = React.useState<WebhookEventRow[]>([]);
 
   // The API is admin-gated on a Bearer token — without it the request gets a
   // 403 and the page reported "status unavailable" no matter what env keys
@@ -94,6 +145,77 @@ export default function AdminEmailSettingsPage() {
       setSending(false);
     }
   };
+
+  const authHeaders = React.useCallback(async (): Promise<Record<string, string>> => {
+    const token = await user!.getIdToken();
+    return { Authorization: `Bearer ${token}` };
+  }, [user]);
+
+  const loadLogs = React.useCallback(
+    async (page: number, statusFilter: string) => {
+      if (!user) return;
+      setLogLoading(true);
+      try {
+        const params = new URLSearchParams({
+          box: 'email-logs',
+          limit: String(LOG_PAGE_SIZE),
+          page: String(page),
+        });
+        if (statusFilter) params.set('status', statusFilter);
+        const res = await fetch(`/api/admin/communication?${params.toString()}`, {
+          headers: await authHeaders(),
+        });
+        if (!res.ok) throw new Error('bad status');
+        const data = (await res.json()) as { logs?: EmailLogRow[] };
+        setLogs(Array.isArray(data.logs) ? data.logs : []);
+        setLogPage(page);
+        setLogStatus(statusFilter);
+      } catch {
+        setLogs([]);
+      } finally {
+        setLogLoading(false);
+      }
+    },
+    [user, authHeaders],
+  );
+
+  const loadReliability = React.useCallback(async () => {
+    if (!user) return;
+    try {
+      const headers = await authHeaders();
+      const [sup, ev] = await Promise.all([
+        fetch('/api/admin/communication?box=suppressions&limit=25', { headers }).then(r => r.json()),
+        fetch('/api/admin/communication?box=webhook-events&limit=15', { headers }).then(r => r.json()),
+      ]);
+      setSuppressions(Array.isArray(sup?.suppressions) ? sup.suppressions : []);
+      setWebhookEvents(Array.isArray(ev?.events) ? ev.events : []);
+    } catch {
+      /* both sections simply stay empty */
+    }
+  }, [user, authHeaders]);
+
+  const unsuppress = async (address: string) => {
+    try {
+      const res = await fetch('/api/admin/communication', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
+        body: JSON.stringify({ action: 'unsuppress', address }),
+      });
+      if (res.ok) {
+        toast({ title: 'Suppression removed', description: address });
+        void loadReliability();
+      } else {
+        toast({ variant: 'destructive', title: 'Could not update the suppression list.' });
+      }
+    } catch {
+      toast({ variant: 'destructive', title: 'Network error' });
+    }
+  };
+
+  React.useEffect(() => {
+    void loadLogs(0, '');
+    void loadReliability();
+  }, [loadLogs, loadReliability]);
 
   return (
     <AdminLayout>
@@ -255,6 +377,177 @@ export default function AdminEmailSettingsPage() {
                 </CardContent>
               </Card>
             )}
+
+            {/* Delivery log — webhook-confirmed provider statuses */}
+            <Card>
+              <CardHeader className="flex flex-row items-start justify-between space-y-0">
+                <div>
+                  <CardTitle className="text-base">Delivery log</CardTitle>
+                  <CardDescription>
+                    Every send with its provider message id and confirmed status. “Delivered” only
+                    appears when the provider's webhook proves it — API acceptance alone never counts.
+                  </CardDescription>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => void loadLogs(logPage, logStatus)} disabled={logLoading}>
+                  <RefreshCw className={logLoading ? 'h-4 w-4 animate-spin' : 'h-4 w-4'} />
+                </Button>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex flex-wrap gap-1.5">
+                  {LOG_FILTERS.map(s => (
+                    <button
+                      key={s || 'all'}
+                      type="button"
+                      onClick={() => void loadLogs(0, s)}
+                      className={
+                        logStatus === s
+                          ? 'rounded-full border border-primary bg-primary px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-white'
+                          : 'rounded-full border border-border px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-muted-foreground transition hover:text-foreground'
+                      }
+                    >
+                      {s || 'all'}
+                    </button>
+                  ))}
+                </div>
+
+                {logLoading && logs.length === 0 ? (
+                  <p className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" /> Loading delivery log…
+                  </p>
+                ) : logs.length === 0 ? (
+                  <p className="py-6 text-center text-sm text-muted-foreground">
+                    No delivery records on this page.
+                  </p>
+                ) : (
+                  <div className="divide-y divide-border">
+                    {logs.map(row => (
+                      <div key={row.id} className="flex flex-wrap items-start justify-between gap-2 py-2.5">
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-medium">{row.subject}</p>
+                          <p className="truncate font-mono text-[11px] text-muted-foreground">
+                            {row.to} · {row.template}
+                            {row.devMode ? ' · dev capture' : ''}
+                          </p>
+                          {row.failureReason && (
+                            <p className="mt-0.5 truncate text-[11px] text-destructive/80">
+                              {row.errorClass ? `[${row.errorClass}] ` : ''}
+                              {row.failureReason}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex shrink-0 flex-col items-end gap-1">
+                          <span
+                            className={`rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                              LOG_STATUS_STYLES[row.status] ?? 'border-border text-muted-foreground'
+                            }`}
+                          >
+                            {row.status}
+                          </span>
+                          <span className="max-w-[14rem] truncate font-mono text-[10px] text-muted-foreground">
+                            {row.providerId ? `${row.providerId.slice(0, 12)}…` : row.provider}
+                            {row.createdAt ? ` · ${new Date(row.createdAt).toLocaleString()}` : ''}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={logLoading || logPage === 0}
+                    onClick={() => void loadLogs(logPage - 1, logStatus)}
+                  >
+                    ← Previous
+                  </Button>
+                  <span className="text-xs text-muted-foreground">Page {logPage + 1}</span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={logLoading || logs.length < LOG_PAGE_SIZE}
+                    onClick={() => void loadLogs(logPage + 1, logStatus)}
+                  >
+                    Next →
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Reliability: suppressions + webhook events */}
+            <div className="grid gap-6 lg:grid-cols-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Suppressed recipients ({suppressions.length})</CardTitle>
+                  <CardDescription>
+                    Hard bounces and spam complaints block all further email to these addresses — the
+                    provider will not accept them anyway.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {suppressions.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      Nothing suppressed — every address is mailable.
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {suppressions.map(s => (
+                        <div
+                          key={s.address}
+                          className="flex items-center justify-between gap-2 rounded-lg border border-border px-3 py-2"
+                        >
+                          <div className="min-w-0">
+                            <p className="truncate text-xs font-semibold">{s.address}</p>
+                            <p className="truncate text-[11px] text-muted-foreground">
+                              {s.reason} · {s.source}
+                              {s.createdAt ? ` · ${new Date(s.createdAt).toLocaleDateString()}` : ''}
+                            </p>
+                          </div>
+                          <Button variant="outline" size="sm" onClick={() => void unsuppress(s.address)}>
+                            Allow again
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Delivery webhooks ({webhookEvents.length})</CardTitle>
+                  <CardDescription>
+                    Confirmed provider events — the only source of Delivered, Delayed and Bounced.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {!status.requiredKeys.find(k => k.key === 'EMAIL_WEBHOOK_SECRET')?.set && (
+                    <div className="rounded-lg bg-amber-500/10 p-3 text-[12px] leading-relaxed text-amber-600 dark:text-amber-300">
+                      <b>EMAIL_WEBHOOK_SECRET is missing.</b> Deliveries can never be confirmed, so nothing
+                      will ever show as Delivered. Create a webhook endpoint in your provider dashboard
+                      pointing at <span className="font-mono">/api/webhooks/email</span> and set the
+                      matching secret in Settings → Environment.
+                    </div>
+                  )}
+                  {webhookEvents.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No webhook events received yet.</p>
+                  ) : (
+                    <div className="divide-y divide-border">
+                      {webhookEvents.map(e => (
+                        <div key={e.id} className="flex items-center justify-between gap-2 py-2 text-xs">
+                          <span className="truncate font-semibold">{e.type}</span>
+                          <span className="shrink-0 text-muted-foreground">
+                            {e.status ?? ''}
+                            {e.address ? ` · ${e.address}` : ''}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
 
             {/* Templates */}
             <Card>

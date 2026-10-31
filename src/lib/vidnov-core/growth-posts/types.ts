@@ -66,10 +66,18 @@ export function canTransitionGrowthPost(from: GrowthPostState, to: GrowthPostSta
  * Publish paths that exist TODAY, in the order the queue offers them.
  *
  * Phase 2A added the four channels that are genuinely free AND need no
- * platform approval (see `social.ts`). Deliberately NOT here: X (paid per
- * post), WhatsApp Channels (no official publish API), Facebook/Instagram
- * and Threads (Phase 2B — one Meta app, app review), Pinterest (feed, not
- * an API), Reddit (self-promotion rules make automation a ban risk).
+ * platform approval (see `social.ts`). Phase 2C added **Pinterest** and
+ * **Reddit** — both official APIs, both free, both gated on credentials the
+ * admin supplies:
+ *   • Pinterest — `POST /v5/pins` (image pins only; business account, and
+ *     pins stay hidden until the app's Standard-access review).
+ *   • Reddit    — script-app OAuth + `POST /api/submit` to the brand's OWN
+ *     subreddit (self-promotion rules make posting to other communities a
+ *     human decision, never an automated one).
+ *
+ * Deliberately NOT here: X (charged per post), WhatsApp Channels (no
+ * official publish API), Facebook/Instagram and Threads (Phase 2B — one
+ * Meta app, app review).
  */
 export const GROWTH_PUBLISH_CHANNELS = [
   'copy',
@@ -78,11 +86,20 @@ export const GROWTH_PUBLISH_CHANNELS = [
   'mastodon',
   'telegram',
   'discord',
+  'pinterest',
+  'reddit',
 ] as const;
 export type GrowthPublishChannel = (typeof GROWTH_PUBLISH_CHANNELS)[number];
 
-/** The four social networks — the subset that goes through `social.ts`. */
-export const SOCIAL_CHANNELS = ['bluesky', 'mastodon', 'telegram', 'discord'] as const;
+/** The social networks — the subset that goes through `social.ts`. */
+export const SOCIAL_CHANNELS = [
+  'bluesky',
+  'mastodon',
+  'telegram',
+  'discord',
+  'pinterest',
+  'reddit',
+] as const;
 export type SocialChannel = (typeof SOCIAL_CHANNELS)[number];
 
 export function isSocialChannel(channel: string): channel is SocialChannel {
@@ -130,6 +147,17 @@ export interface GrowthPost {
   results?: Record<string, GrowthPublishResult>;
   /** Rejection/failure note — sanitized, never an upstream error body. */
   reason?: string;
+  /**
+   * Scheduling — the in-house Postiz layer. NOT a status: a post keeps its
+   * queue state (approved, published, …) and carries a pending action on the
+   * side. The scheduler tick publishes when this instant passes and clears
+   * the fields afterwards; a post with no `scheduledAt` is never touched.
+   */
+  scheduledAt?: string;
+  /** Social channels the tick will publish to — `copy`/`email` stay manual. */
+  scheduledChannels?: SocialChannel[];
+  /** Who scheduled it: an admin uid or `system:growth-scheduler`. */
+  scheduledBy?: string;
 }
 
 /**
@@ -148,6 +176,14 @@ export const GROWTH_POST_LIMITS = {
   scanLimit: 80,
   /** Posts returned by the admin list. */
   listLimit: 50,
+  /** Scheduler: earliest a post may be scheduled (ms from now). */
+  scheduleMinAheadMs: 60_000,
+  /** Scheduler: furthest a post may be scheduled (days from now). */
+  scheduleMaxAheadDays: 90,
+  /** Scheduler: posts ONE tick may publish (bounded outbound spend). */
+  schedulerPerRun: 5,
+  /** Scheduler: channels one post may fan out to. */
+  schedulerChannelsMax: 4,
 } as const;
 
 /** Clamp a requested run size into the safe range. */

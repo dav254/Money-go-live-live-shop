@@ -17,7 +17,14 @@ import { sanitizeErrorMessage } from './job-utils';
 
 export const DISTRIBUTION_AUDIT_COLLECTION = 'distributionAudit';
 
-/** The closed set of auditable actions. */
+/**
+ * The closed set of auditable actions.
+ *
+ * `url_submitted` covers the Search Engine Center's manual submissions
+ * (IndexNow batch, Bing single-URL) — the same official adapters the engine
+ * itself uses, recorded here so BOTH submission paths share one log instead
+ * of this console growing a second one.
+ */
 export const AUDIT_ACTIONS = [
   'config_updated',
   'pause_toggled',
@@ -26,6 +33,7 @@ export const AUDIT_ACTIONS = [
   'sitemap_submitted',
   'job_stopped',
   'admin_requeue',
+  'url_submitted',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
