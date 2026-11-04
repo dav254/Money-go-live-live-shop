@@ -54,12 +54,18 @@ export function orbitErrorResponse(error: unknown): NextResponse {
       status: STATUS_BY_CODE[error.code] ?? 400,
     });
   }
-  // ProposalError is structurally identical; duck-typed to avoid a cycle.
+  // ProposalError / TaskError are structurally identical; duck-typed to avoid
+  // import cycles, and accepted only when the code is one this layer knows.
   const candidate = error as { name?: string; code?: string; message?: string };
-  if (candidate?.name === 'ProposalError' && typeof candidate.code === 'string') {
+  if (
+    typeof candidate?.name === 'string' &&
+    candidate.name.endsWith('Error') &&
+    typeof candidate.code === 'string' &&
+    candidate.code in STATUS_BY_CODE
+  ) {
     return NextResponse.json(
       { error: candidate.code, message: candidate.message },
-      { status: STATUS_BY_CODE[candidate.code] ?? 400 },
+      { status: STATUS_BY_CODE[candidate.code] },
     );
   }
   console.error('[orbit] request failed');

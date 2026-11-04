@@ -62,12 +62,46 @@ interface Proposal {
   decisionNote?: string;
 }
 
+/** One execution of one task, as reported by the worker through Orbit. */
+interface TaskRun {
+  id: string;
+  taskKey: string;
+  attempt: number;
+  agentName: string;
+  department: string;
+  title: string;
+  status: 'running' | 'completed' | 'failed' | 'delayed' | 'cancelled';
+  summary?: string;
+  error?: { code: string; message: string };
+  startedAt: string;
+  endedAt?: string;
+  durationMs?: number;
+  model?: { provider: string; name: string; tokensIn?: number; tokensOut?: number; costUsd?: number };
+  mock: boolean;
+  createdAt: string;
+}
+
+interface TaskSummary {
+  total: number;
+  running: number;
+  completed: number;
+  failed: number;
+  delayed: number;
+  cancelled: number;
+  mockRuns: number;
+  tokensIn: number | null;
+  tokensOut: number | null;
+  costUsd: number | null;
+}
+
 interface Overview {
   model: { state: string; configured: boolean; provider?: string; model?: string; missing: string[]; note: string };
   departments: { id: string; label: string; responsibility: string; reportsTo: string }[];
   scopes: { id: string; label: string }[];
   agents: Agent[];
   proposals: Proposal[];
+  runs: TaskRun[];
+  tasks: TaskSummary;
   audit: { action: string; actor: string; at: string; outcome: string; note?: string }[];
 }
 
@@ -77,6 +111,21 @@ const KIND_LABEL: Record<string, string> = {
   investigation: 'Investigation',
   publish: 'Publishing',
 };
+
+const RUN_STATUS_CLASS: Record<TaskRun['status'], string> = {
+  completed: 'bg-emerald-500/15 text-emerald-600',
+  running: 'bg-sky-500/15 text-sky-600',
+  failed: 'bg-destructive/15 text-destructive',
+  delayed: 'bg-amber-500/15 text-amber-600',
+  cancelled: 'bg-muted text-muted-foreground',
+};
+
+function formatDuration(ms?: number): string | null {
+  if (typeof ms !== 'number' || !Number.isFinite(ms) || ms < 0) return null;
+  if (ms < 1000) return `${Math.round(ms)} ms`;
+  if (ms < 60_000) return `${(ms / 1000).toFixed(1)} s`;
+  return `${Math.round(ms / 60_000)} min`;
+}
 
 export default function AiHeadquartersPage() {
   const { user } = useUser();
@@ -474,6 +523,69 @@ export default function AiHeadquartersPage() {
                   </div>
                 </div>
               ))
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Worker runs — what actually executed */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Bot className="h-4 w-4 text-primary" /> Worker runs
+            </CardTitle>
+            <CardDescription>
+              Reported by the worker through Orbit for each task Paperclip assigned. A run marked
+              mock was produced without a real model and is never counted as AI reasoning.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              <Badge variant="outline">{data?.tasks?.total ?? 0} runs</Badge>
+              <Badge className={RUN_STATUS_CLASS.completed}>{data?.tasks?.completed ?? 0} completed</Badge>
+              <Badge className={RUN_STATUS_CLASS.running}>{data?.tasks?.running ?? 0} running</Badge>
+              <Badge className={RUN_STATUS_CLASS.failed}>{data?.tasks?.failed ?? 0} failed</Badge>
+              <Badge className={RUN_STATUS_CLASS.delayed}>{data?.tasks?.delayed ?? 0} delayed</Badge>
+              <Badge className={RUN_STATUS_CLASS.cancelled}>{data?.tasks?.cancelled ?? 0} cancelled</Badge>
+              <Badge variant="outline">{data?.tasks?.mockRuns ?? 0} mock</Badge>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {data?.tasks && (data.tasks.tokensIn !== null || data.tasks.costUsd !== null)
+                ? `Measured usage: ${data.tasks.tokensIn ?? 0} in / ${data.tasks.tokensOut ?? 0} out tokens · $${(data.tasks.costUsd ?? 0).toFixed(4)}`
+                : 'No model usage measured — runs were mock, or no provider has reported token counts yet.'}
+            </p>
+
+            {(data?.runs ?? []).length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No runs yet. A worker reports each execution to{' '}
+                <span className="font-mono text-xs">POST /api/orbit/tasks</span> with its Orbit
+                credential.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {(data?.runs ?? []).slice(0, 12).map((run) => (
+                  <div key={run.id} className="space-y-1 rounded-lg border p-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge className={RUN_STATUS_CLASS[run.status]}>{run.status}</Badge>
+                      {run.mock ? <Badge variant="outline">mock</Badge> : null}
+                      <span className="text-sm font-medium">{run.title}</span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      {run.agentName} · {run.department} · task{' '}
+                      <span className="font-mono">{run.taskKey}</span> · attempt {run.attempt}
+                      {formatDuration(run.durationMs) ? ` · ${formatDuration(run.durationMs)}` : ''}
+                      {run.model ? ` · ${run.model.provider}/${run.model.name}` : ''}
+                    </p>
+                    {run.summary ? (
+                      <p className="text-xs text-muted-foreground">{run.summary}</p>
+                    ) : null}
+                    {run.error ? (
+                      <p className="text-xs text-destructive">
+                        {run.error.code}: {run.error.message}
+                      </p>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
             )}
           </CardContent>
         </Card>

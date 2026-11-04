@@ -26,9 +26,21 @@ import {
   requireScope,
   setAgentEnabled,
 } from '../lib/ai-headquarters/agents';
-import { createProposal, decideProposal, ProposalError } from '../lib/ai-headquarters/proposals';
+import {
+  createProposal,
+  decideProposal,
+  listProposals,
+  ProposalError,
+} from '../lib/ai-headquarters/proposals';
 import { digestAction, hashSecret, issueToken, parseToken } from '../lib/ai-headquarters/tokens';
 import { modelStatus } from '../lib/ai-headquarters/model';
+import {
+  TaskError,
+  listAllTaskRuns,
+  listTaskRuns,
+  reportTaskRun,
+  summarizeRuns,
+} from '../lib/ai-headquarters/tasks';
 
 /* ── In-memory Firestore (only what Orbit uses) ─────────────────────────── */
 
@@ -110,8 +122,8 @@ class FakeCollection extends FakeQuery {
   }
 }
 
-function fakeDb() {
-  const cols = new Map<string, Map<string, Doc>>();
+function fakeDb(existing?: Map<string, Map<string, Doc>>) {
+  const cols = existing ?? new Map<string, Map<string, Doc>>();
   const db = {
     collection(name: string) {
       if (!cols.has(name)) cols.set(name, new Map());
@@ -427,6 +439,7 @@ describe('Orbit — no route bypasses the guard', () => {
     '../app/api/orbit/marketplace/route.ts',
     '../app/api/orbit/social/route.ts',
     '../app/api/orbit/proposals/route.ts',
+    '../app/api/orbit/tasks/route.ts',
   ];
 
   for (const path of routes) {
@@ -446,6 +459,321 @@ describe('Orbit — no route bypasses the guard', () => {
     );
     assert.match(source, /verifyAdminUid/);
     assert.equal(/tokenHash: ?agent\.tokenHash/.test(source), false, 'no hash may be returned');
+  });
+});
+
+/* ── Worker run ledger (task §9 D–F) ───────────────────────────────────── */
+
+async function agentWith(
+  db: ReturnType<typeof fakeDb>,
+  scopes: string[],
+  name = 'Growth Agent',
+  department = 'growth',
+) {
+  const { agent } = await createAgent(db, {
+    name,
+    department,
+    role: 'worker',
+    scopes,
+    actorUid: 'founder-1',
+  });
+  return agent;
+}
+
+describe('Orbit — worker run ledger', () => {
+  it('records a completed mock run with its structured result', async () => {
+    const db = fakeDb();
+    const agent = await agentWith(db, ['tasks:report', 'tasks:read']);
+
+    const { run, duplicate } = await reportTaskRun(db, agent, {
+      taskKey: 'PC-1042',
+      title: 'Prepare seller outreach for category: furniture',
+      status: 'completed',
+      summary: 'Produced 3 outreach drafts and a 14-day plan.',
+      result: { drafts: 3, channel: 'instagram', campaignSlug: 'furniture-sellers-01' },
+      startedAt: '2026-11-04T09:00:00.000Z',
+      endedAt: '2026-11-04T09:02:30.000Z',
+      mock: true,
+    });
+
+    assert.equal(duplicate, false);
+    assert.equal(run.status, 'completed');
+    assert.equal(run.attempt, 1);
+    assert.equal(run.mock, true, 'a run without a model must be labelled mock');
+    assert.equal(run.durationMs, 150_000, 'duration is derived from start/end');
+    assert.deepEqual(run.result, { drafts: 3, channel: 'instagram', campaignSlug: 'furniture-sellers-01' });
+
+    const listed = await listTaskRuns(db, { agentId: agent.id });
+    assert.equal(listed.length, 1);
+    assert.equal(listed[0].title, 'Prepare seller outreach for category: furniture');
+  });
+
+  it('is idempotent per (taskKey, attempt) and keeps resumed attempts separate', async () => {
+    const db = fakeDb();
+    const agent = await agentWith(db, ['tasks:report']);
+    const base = {
+      taskKey: 'PC-2001',
+      title: 'Investigate a failed publish',
+      summary: 'first pass',
+      status: 'failed' as const,
+      error: { code: 'timeout', message: 'Upstream timed out.' },
+    };
+
+    const first = await reportTaskRun(db, agent, base);
+    const replay = await reportTaskRun(db, agent, base);
+    assert.equal(first.duplicate, false);
+    assert.equal(replay.duplicate, true, 'a retried attempt must not duplicate history');
+    assert.equal(replay.run.id, first.run.id);
+
+    const resumed = await reportTaskRun(db, agent, {
+      ...base,
+      attempt: 2,
+      status: 'completed',
+      summary: 'second pass',
+      error: undefined,
+    });
+    assert.equal(resumed.duplicate, false);
+    assert.equal(resumed.run.attempt, 2);
+
+    const all = await listTaskRuns(db, { agentId: agent.id });
+    assert.equal(all.length, 2, 'resume appends a run instead of overwriting the failure');
+    assert.deepEqual(all.map((r) => r.attempt).sort(), [1, 2]);
+  });
+
+  it('refuses reporting without the tasks:report scope', async () => {
+    const db = fakeDb();
+    const agent = await agentWith(db, ['status:read']);
+    await assert.rejects(
+      () => reportTaskRun(db, agent, { taskKey: 'PC-1', title: 'Nope', status: 'running' }),
+      (error: unknown) => {
+        assert.ok(error instanceof AgentError);
+        assert.equal(error.code, 'forbidden');
+        return true;
+      },
+    );
+  });
+
+  it('requires an error for a failed run and accepts delayed work', async () => {
+    const db = fakeDb();
+    const agent = await agentWith(db, ['tasks:report']);
+
+    await assert.rejects(
+      () => reportTaskRun(db, agent, { taskKey: 'PC-3', title: 'Failed silently', status: 'failed' }),
+      (error: unknown) => {
+        assert.ok(error instanceof TaskError);
+        assert.equal(error.code, 'invalid_input');
+        return true;
+      },
+    );
+
+    const delayed = await reportTaskRun(db, agent, {
+      taskKey: 'PC-4',
+      title: 'Overdue review',
+      status: 'delayed',
+    });
+    assert.equal(delayed.run.status, 'delayed');
+  });
+
+  it('refuses credentials and oversized payloads in a result', async () => {
+    const db = fakeDb();
+    const agent = await agentWith(db, ['tasks:report']);
+
+    await assert.rejects(
+      () =>
+        reportTaskRun(db, agent, {
+          taskKey: 'PC-5',
+          title: 'Leak attempt',
+          status: 'completed',
+          result: { nested: { apiKey: 'sk-live-xxx' } },
+        }),
+      (error: unknown) => {
+        assert.ok(error instanceof TaskError);
+        assert.equal(error.code, 'invalid_input');
+        return true;
+      },
+    );
+
+    await assert.rejects(
+      () =>
+        reportTaskRun(db, agent, {
+          taskKey: 'PC-6',
+          title: 'Payload drop',
+          status: 'completed',
+          result: { blob: 'x'.repeat(4_200) },
+        }),
+      (error: unknown) => {
+        assert.ok(error instanceof TaskError);
+        return true;
+      },
+    );
+  });
+
+  it('sums measured usage and reports null when nothing was measured', async () => {
+    const db = fakeDb();
+    const agent = await agentWith(db, ['tasks:report']);
+
+    await reportTaskRun(db, agent, {
+      taskKey: 'PC-7',
+      title: 'Draft campaign copy',
+      status: 'completed',
+      mock: false,
+      model: { provider: 'gemini', name: 'gemini-2.5-pro', tokensIn: 100, tokensOut: 20, costUsd: 0.01 },
+    });
+    await reportTaskRun(db, agent, {
+      taskKey: 'PC-8',
+      title: 'Draft follow-up copy',
+      status: 'completed',
+      mock: false,
+      model: { provider: 'gemini', name: 'gemini-2.5-pro', tokensIn: 50, tokensOut: 10, costUsd: 0.02 },
+    });
+
+    const runs = await listAllTaskRuns(db);
+    const summary = summarizeRuns(runs);
+    assert.equal(summary.total, 2);
+    assert.equal(summary.completed, 2);
+    assert.equal(summary.tokensIn, 150);
+    assert.equal(summary.tokensOut, 30);
+    assert.equal(summary.costUsd, 0.03);
+
+    const empty = summarizeRuns([]);
+    assert.equal(empty.tokensIn, null, 'unmeasured usage is null, never a fabricated zero');
+    assert.equal(empty.costUsd, null);
+  });
+
+  it('lists only the caller\u2019s own runs', async () => {
+    const db = fakeDb();
+    const growth = await agentWith(db, ['tasks:report'], 'Growth Agent', 'growth');
+    const support = await agentWith(db, ['tasks:report'], 'Support Agent', 'experience');
+
+    await reportTaskRun(db, growth, { taskKey: 'PC-10', title: 'Growth task', status: 'completed' });
+    await reportTaskRun(db, support, { taskKey: 'PC-11', title: 'Support task', status: 'completed' });
+
+    const growthRuns = await listTaskRuns(db, { agentId: growth.id });
+    assert.equal(growthRuns.length, 1);
+    assert.equal(growthRuns[0].agentId, growth.id);
+    assert.equal(growthRuns.some((run) => run.agentId === support.id), false);
+  });
+});
+
+/* ── End-to-end, mock mode (task §9 A–J) ───────────────────────────────── */
+
+describe('Orbit — end-to-end mock workflow', () => {
+  it('carries a Paperclip task through Hermes, Orbit, approval and a restart', async () => {
+    const db = fakeDb();
+    const { agent, token } = await createAgent(db, {
+      name: 'Growth Manager',
+      department: 'growth',
+      role: 'seller acquisition',
+      scopes: [
+        'status:read',
+        'marketplace:read',
+        'social:read',
+        'campaign:prepare',
+        'content:prepare',
+        'publish:propose',
+        'tasks:read',
+        'tasks:report',
+      ],
+      actorUid: 'founder-1',
+    });
+
+    // A + B — Paperclip creates PC-5001 and assigns it to the Growth Manager.
+    const taskKey = 'PC-5001';
+
+    // C — Hermes picks it up and says so (mock mode: no model key exists).
+    const started = await reportTaskRun(db, agent, {
+      taskKey,
+      title: 'Prepare 20 seller invitations for Lagos furniture stores',
+      status: 'running',
+      mock: true,
+    });
+    assert.equal(started.run.status, 'running');
+
+    // D + E — the worker returns a structured result.
+    const finished = await reportTaskRun(db, agent, {
+      taskKey,
+      title: 'Prepare 20 seller invitations for Lagos furniture stores',
+      status: 'completed',
+      summary: 'Drafted 20 personalised invitations and 3 campaign links. Nothing was sent.',
+      result: { drafts: 20, links: 3, sent: 0 },
+      startedAt: started.run.startedAt,
+      endedAt: new Date(Date.parse(started.run.startedAt) + 90_000).toISOString(),
+      mock: true,
+    });
+    assert.equal(finished.run.status, 'completed');
+    assert.equal(finished.run.result?.sent, 0, 'a prepared draft is not an outreach');
+
+    // F — Orbit recorded it, owns the row, and refuses a second agent\u2019s claim.
+    const recorded = await listTaskRuns(db, { agentId: agent.id });
+    assert.equal(recorded.length, 1, 'one task, one attempt, one run row');
+    assert.equal(recorded[0].status, 'completed');
+    const outsider = await agentWith(db, ['tasks:read'], 'Support Agent', 'experience');
+    assert.equal((await listTaskRuns(db, { agentId: outsider.id })).length, 0);
+
+    // G — the agent prepares a publishing proposal.
+    const proposal = await createProposal(db, agent, {
+      kind: 'publish',
+      title: 'Publish furniture-seller campaign to Instagram',
+      summary: 'Three posts, tracked links, no spend.',
+      action: {
+        type: 'social_publish_test',
+        params: { module: 'instagram', campaignSlug: 'furniture-sellers-01', postCount: 3 },
+      },
+    });
+    assert.equal(proposal.status, 'pending');
+
+    // H — it is waiting in the founder queue, with the exact digest.
+    const queue = await listProposals(db, { limit: 10 });
+    assert.equal(queue.filter((p) => p.status === 'pending').length, 1);
+    assert.equal(queue[0].actionDigest, proposal.actionDigest);
+
+    // I — approval needs the exact digest; nothing is published by approving.
+    await assert.rejects(
+      () =>
+        decideProposal(db, {
+          id: proposal.id,
+          decision: 'approve',
+          actorUid: 'founder-1',
+          digest: 'f'.repeat(64),
+        }),
+      (error: unknown) => {
+        assert.ok(error instanceof ProposalError);
+        assert.equal(error.code, 'conflict');
+        return true;
+      },
+    );
+
+    const runsBeforeApproval = (await listAllTaskRuns(db)).length;
+    const approved = await decideProposal(db, {
+      id: proposal.id,
+      decision: 'approve',
+      actorUid: 'founder-1',
+      digest: proposal.actionDigest,
+      note: 'Approved for manual publish by an admin.',
+    });
+    assert.equal(approved.status, 'approved');
+    assert.equal(approved.approvedDigest, proposal.actionDigest);
+    assert.equal(
+      (await listAllTaskRuns(db)).length,
+      runsBeforeApproval,
+      'approval must not execute anything',
+    );
+
+    // J — a restart (new client over the same data) keeps history and access.
+    const restarted = fakeDb(db._cols);
+    const reread = await authenticateAgent(restarted, token);
+    assert.equal(reread.id, agent.id, 'the credential survives a restart');
+    const history = await listTaskRuns(restarted, { agentId: agent.id });
+    assert.equal(history.length, 1, 'task history survives a restart');
+    assert.equal(history[0].status, 'completed');
+    const replay = await reportTaskRun(restarted, reread, {
+      taskKey,
+      title: 'Prepare 20 seller invitations for Lagos furniture stores',
+      status: 'completed',
+      mock: true,
+    });
+    assert.equal(replay.duplicate, true, 'a post-restart retry must not duplicate the run');
+    assert.equal((await listTaskRuns(restarted, { agentId: agent.id })).length, 1);
   });
 });
 

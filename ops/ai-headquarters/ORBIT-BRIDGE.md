@@ -37,10 +37,69 @@ All agent routes take `Authorization: Bearer orb_<agentId>_<secret>`.
 | GET | `/api/orbit/social` | `social:read` | per-platform readiness, missing env **names**, approval state |
 | GET | `/api/orbit/proposals` | any valid token | the caller's own proposals only |
 | POST | `/api/orbit/proposals` | scope per kind | files a pending proposal |
+| GET | `/api/orbit/tasks` | `tasks:read` | the caller's own runs + a status/usage roll-up |
+| POST | `/api/orbit/tasks` | `tasks:report` | records one execution of one task |
 | GET/POST | `/api/admin/ai-headquarters` | admin session | console: overview; create agent, enable/disable, decide |
 
 Scope per proposal kind: `campaign:prepare`, `content:prepare`,
 `investigation:prepare`, `publish:propose`.
+
+---
+
+## 2b. The worker ledger — how a run becomes evidence
+
+Paperclip assigns a task; Hermes executes it; Hermes reports the run here.
+A run is keyed by `(taskKey, attempt)`:
+
+```bash
+# 1. picked up (visible while it runs)
+curl -sS -X POST https://vidnov.com/api/orbit/tasks \
+  -H "Authorization: Bearer $VIDNOV_ORBIT_TOKEN" -H 'Content-Type: application/json' \
+  -d '{"taskKey":"PC-1042","title":"Prepare seller invitations","status":"running","mock":true}'
+
+# 2. finished, with a bounded structured result
+curl -sS -X POST https://vidnov.com/api/orbit/tasks \
+  -H "Authorization: Bearer $VIDNOV_ORBIT_TOKEN" -H 'Content-Type: application/json' \
+  -d '{"taskKey":"PC-1042","title":"Prepare seller invitations","status":"completed",
+       "summary":"20 drafts, 3 campaign links, nothing sent",
+       "result":{"drafts":20,"links":3,"sent":0},"mock":true,
+       "model":{"provider":"gemini","name":"gemini-2.5-pro","tokensIn":1200,"tokensOut":420,"costUsd":0.0031}}'
+```
+
+Rules that make this trustworthy:
+
+- **An attempt may progress, never rewrite.** `running` → `completed` updates
+the same row; once terminal (`completed`/`failed`/`cancelled`) a retry gets the
+stored row back with `duplicate: true`. After a crash, a resume is `attempt: 2`
+— history is appended, never overwritten.
+- **Own rows only.** There is no parameter for whose run it is: the agent comes
+from the credential.
+- **No credentials in results.** Keys matching token/secret/password/api-key are
+rejected, and results are capped at 4 KB.
+- **`mock` is declared, not inferred.** Nothing in the console turns a mock run
+into AI output; usage totals stay `null` until a run reports real token counts.
+- **Daily cap** of 400 reported runs per agent, so a crash loop cannot fill the
+ledger.
+
+The console shows the runs, their status, their duration and whether each was
+mock, which is what makes requirement "report failed, delayed and completed
+tasks" true rather than asserted.
+
+---
+
+## 2c. Proving the integration (do not trust two running processes)
+
+```bash
+COMPANY_ID=<paperclip-company-id> ORBIT_TOKEN=orb_… ORBIT_BASE=https://vidnov.com \
+  bash ops/ai-headquarters/verify-integration.sh
+```
+
+It checks the Paperclip health endpoint, `hermes doctor`, **the approved
+`hermes_gateway` join** (the actual adapter link), Orbit credential acceptance,
+anonymous and forged-secret rejection, a real worker report + idempotent replay,
+secret-parameter rejection, the approval queue, and finally restarts Hermes and
+re-reads history and the credential. It prints PASS/FAIL and exits non-zero on
+any failure.
 
 ---
 
@@ -167,7 +226,11 @@ Verified in this repository (tests + build):
 - proposal cooldown and daily cap,
 - model state honesty,
 - every `/api/orbit/*` route passes through the guard,
-- Firestore rules deny all four headquarters collections.
+- Firestore rules deny all five headquarters collections,
+- the worker ledger: idempotent attempts, resume-appends, own-rows-only,
+  secret and size rejection, usage summed or `null`, and a full mock chain
+  (task → run → proposal → founder queue → approval → restart) in
+  `src/tests/ai-headquarters.test.ts`.
 
 Not verified here, because it needs the server:
 

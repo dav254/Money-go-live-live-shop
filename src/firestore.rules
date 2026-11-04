@@ -106,6 +106,13 @@ service cloud.firestore {
     match /ai_hq_meta/{docId} {
       allow read, write: if false;
     }
+    // Worker run ledger (`ai_hq_tasks`): which agent executed which task, the
+    // result it returned and the usage it measured. Written only by
+    // `/api/orbit/tasks` under a `tasks:report` scope, for the authenticated
+    // agent itself, and read only by that agent or the founder API.
+    match /ai_hq_tasks/{runId} {
+      allow read, write: if false;
+    }
 
     // =========================
     // GROWTH EVENTS (Growth Engine Phase 1)

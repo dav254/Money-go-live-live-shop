@@ -89,6 +89,14 @@ export const SCOPES = [
   'content:prepare',
   'investigation:prepare',
   'publish:propose',
+  /** Read back the execution runs this agent reported. */
+  'tasks:read',
+  /**
+   * Report task execution (start, result, failure, delay). This is the only
+   * scope whose write target is Vidnov's own ledger, and it can write nothing
+   * but the agent's own run rows.
+   */
+  'tasks:report',
 ] as const;
 
 export type Scope = (typeof SCOPES)[number];
@@ -106,6 +114,8 @@ export const SCOPE_LABELS: Record<Scope, string> = {
   'content:prepare': 'Prepare social content',
   'investigation:prepare': 'Prepare technical investigations',
   'publish:propose': 'Propose publishing for approval',
+  'tasks:read': 'Read own task runs',
+  'tasks:report': 'Report task runs and results',
 };
 
 /**
@@ -114,7 +124,7 @@ export const SCOPE_LABELS: Record<Scope, string> = {
  * aggregates" — publishing, spending, deploying and deleting are absent by
  * construction, not hidden behind a flag.
  */
-export const SCOPE_KINDS: Record<Scope, 'read' | 'prepare'> = {
+export const SCOPE_KINDS: Record<Scope, 'read' | 'prepare' | 'report'> = {
   'status:read': 'read',
   'marketplace:read': 'read',
   'social:read': 'read',
@@ -122,6 +132,8 @@ export const SCOPE_KINDS: Record<Scope, 'read' | 'prepare'> = {
   'content:prepare': 'prepare',
   'investigation:prepare': 'prepare',
   'publish:propose': 'prepare',
+  'tasks:read': 'read',
+  'tasks:report': 'report',
 };
 
 /* ── Proposals (task §G) ─────────────────────────────────────────────────── */
@@ -183,6 +195,12 @@ export const HQ_LIMITS = {
   /** Max title/summary lengths. */
   titleMax: 160,
   summaryMax: 2_000,
+  /** Task runs one agent may report per rolling day (a runaway worker cap). */
+  taskRunsPerAgentPerDay: 400,
+  /** Max serialized result size for one run. */
+  resultBytesMax: 4_000,
+  /** Bounded scan for a task-run list. */
+  taskListLimit: 50,
 } as const;
 
 /* ── Records ─────────────────────────────────────────────────────────────── */
@@ -233,12 +251,90 @@ export interface ProposalRecord {
   approvedDigest?: string;
 }
 
+/* ── Task runs — the worker ledger (task §9 F) ───────────────────────────── */
+
+/**
+ * How a run ended. `delayed` exists because "it is late" is information the
+ * founder needs before it becomes a failure, and `running` because a long task
+ * must be visible while it is still in flight.
+ */
+export const TASK_STATUSES = ['running', 'completed', 'failed', 'delayed', 'cancelled'] as const;
+export type TaskStatus = (typeof TASK_STATUSES)[number];
+
+export function isTaskStatus(value: unknown): value is TaskStatus {
+  return typeof value === 'string' && (TASK_STATUSES as readonly string[]).includes(value);
+}
+
+/**
+ * One execution of one task, as reported by the worker.
+ *
+ * Deliberately NOT a task manager: Paperclip owns assignment, priority and
+ * deadlines. This ledger exists so Vidnov can answer "which machine identity
+ * did what, with which result, under whose permission, and did it survive a
+ * restart" — and so a founder dashboard can exist without reading Paperclip's
+ * database directly.
+ */
+export interface TaskRunRecord {
+  id: string;
+  /** Paperclip's task identifier. The pair (taskKey, attempt) is unique. */
+  taskKey: string;
+  /** 1 for the first execution; a resume after a crash is attempt + 1. */
+  attempt: number;
+  agentId: string;
+  agentName: string;
+  department: DepartmentId;
+  title: string;
+  status: TaskStatus;
+  /** Human-readable outcome. Never a place for secrets. */
+  summary?: string;
+  /** Small structured result (ids, counts, links) — bounded and key-filtered. */
+  result?: Record<string, unknown>;
+  error?: { code: string; message: string };
+  startedAt: string;
+  endedAt?: string;
+  durationMs?: number;
+  /** Token/cost accounting when a real model produced the run. */
+  model?: {
+    provider: string;
+    name: string;
+    tokensIn?: number;
+    tokensOut?: number;
+    costUsd?: number;
+  };
+  /** Declared by the worker: true when no real model produced this run. */
+  mock: boolean;
+  createdAt: string;
+}
+
+/** Roll-up used by the founder dashboard. `null` means "not measurable". */
+export interface TaskSummary {
+  total: number;
+  running: number;
+  completed: number;
+  failed: number;
+  delayed: number;
+  cancelled: number;
+  /** Runs produced without a real model — shown so mock is never mistaken for AI. */
+  mockRuns: number;
+  tokensIn: number | null;
+  tokensOut: number | null;
+  costUsd: number | null;
+}
+
 /** One line of the headquarters audit trail. */
 export interface HqAuditEntry {
-  action: 'agent_created' | 'agent_disabled' | 'agent_enabled' | 'proposal_created' | 'proposal_decided' | 'request_denied';
+  action:
+    | 'agent_created'
+    | 'agent_disabled'
+    | 'agent_enabled'
+    | 'proposal_created'
+    | 'proposal_decided'
+    | 'task_reported'
+    | 'request_denied';
   actor: string;
   agentId?: string;
   proposalId?: string;
+  taskKey?: string;
   outcome: 'ok' | 'refused' | 'failed';
   note?: string;
   at: string;

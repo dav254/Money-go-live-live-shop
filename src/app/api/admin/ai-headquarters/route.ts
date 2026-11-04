@@ -16,6 +16,7 @@ import { verifyAdminUid } from '@/lib/notifications/server-utils';
 import { createAgent, listAgents, setAgentEnabled } from '@/lib/ai-headquarters/agents';
 import { decideProposal, listProposals } from '@/lib/ai-headquarters/proposals';
 import { listAudit } from '@/lib/ai-headquarters/audit';
+import { listAllTaskRuns, summarizeRuns } from '@/lib/ai-headquarters/tasks';
 import { modelStatus } from '@/lib/ai-headquarters/model';
 import { DEPARTMENTS, HQ_LIMITS, SCOPE_LABELS, SCOPES } from '@/lib/ai-headquarters/types';
 
@@ -33,10 +34,11 @@ export async function GET(request: NextRequest) {
   if (!adminUid) return NextResponse.json({ error: 'Admin access required.' }, { status: 403 });
 
   try {
-    const [agents, proposals, audit] = await Promise.all([
+    const [agents, proposals, audit, runs] = await Promise.all([
       listAgents(db),
       listProposals(db, { limit: HQ_LIMITS.listLimit }),
       listAudit(db, 25),
+      listAllTaskRuns(db, HQ_LIMITS.taskListLimit),
     ]);
 
     return NextResponse.json({
@@ -46,6 +48,10 @@ export async function GET(request: NextRequest) {
       agents: agents.map(publicAgent),
       proposals,
       audit,
+      // Worker ledger: what actually ran, what failed, and what was produced
+      // without a real model. Read from one bounded scan, not a query per agent.
+      runs,
+      tasks: summarizeRuns(runs),
       limits: HQ_LIMITS,
       generatedAt: new Date().toISOString(),
     });
