@@ -56,6 +56,58 @@ service cloud.firestore {
     }
 
     // =========================
+    // SOCIAL ENGINE (server-only)
+    // =========================
+    // Encrypted OAuth tokens (`social_connections`), recorded test outcomes
+    // (`social_engine_tests`), approval attestations + rate-limit stamps
+    // (`social_engine_meta`) and the append-only audit trail
+    // (`social_engine_audit`).
+    //
+    // Default-deny is the rule everywhere below anyway; these four blocks are
+    // stated explicitly because a new sensitive collection must not depend on
+    // a wildcard at the end of the file for its protection. Every write goes
+    // through the Firebase Admin SDK in `/api/social-engine/*`, and no client
+    // may read a token, a test note or an approval record — the dashboard is
+    // fed by the admin API, never by direct Firestore reads.
+    match /social_connections/{connectionId} {
+      allow read, write: if false;
+    }
+    match /social_engine_tests/{moduleId} {
+      allow read, write: if false;
+    }
+    match /social_engine_meta/{docId} {
+      allow read, write: if false;
+    }
+    match /social_engine_audit/{entryId} {
+      allow read, write: if false;
+    }
+
+    // =========================
+    // AI HEADQUARTERS / ORBIT (server-only)
+    // =========================
+    // Agent identities and credential hashes (`ai_hq_agents`), agent proposals
+    // and founder decisions (`ai_hq_proposals`), the append-only audit trail
+    // (`ai_hq_audit`) and per-agent rate-limit stamps (`ai_hq_meta`).
+    //
+    // Every read and write goes through `/api/orbit/*` (agent credential) or
+    // `/api/admin/ai-headquarters` (admin session) using the Admin SDK. A
+    // client that could read `ai_hq_agents` would learn credential prefixes; a
+    // client that could write `ai_hq_proposals` could approve itself. Denied
+    // explicitly as well as by the default-deny below.
+    match /ai_hq_agents/{agentId} {
+      allow read, write: if false;
+    }
+    match /ai_hq_proposals/{proposalId} {
+      allow read, write: if false;
+    }
+    match /ai_hq_audit/{entryId} {
+      allow read, write: if false;
+    }
+    match /ai_hq_meta/{docId} {
+      allow read, write: if false;
+    }
+
+    // =========================
     // GROWTH EVENTS (Growth Engine Phase 1)
     // =========================
     // Server-only event stream written by POST /api/events through the Admin
