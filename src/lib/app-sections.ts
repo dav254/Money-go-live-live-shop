@@ -219,8 +219,10 @@ export const APP_SECTIONS: AppSection[] = [
     roles: ['seller'],
     // Its own section (longest-prefix wins over `/dashboard/seller`) so an
     // admin can switch the studio off without disabling the whole seller
-    // dashboard, and the sidebar entry disappears with it.
-    prefixes: ['/dashboard/seller/video-studio'],
+    // dashboard, and the sidebar entry disappears with it. The application
+    // surface has its own copy of the editor under `/app/seller/video-studio`
+    // — one prefix each, or the toggle would govern only one surface.
+    prefixes: ['/dashboard/seller/video-studio', '/app/seller/video-studio'],
   },
   {
     id: 'seller-earnings',

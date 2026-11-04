@@ -429,7 +429,9 @@ describe('studio wiring (nav, registry, public surfaces)', () => {
     assert.ok(sidebar.includes('/dashboard/seller/video-studio'));
     assert.ok(sidebar.includes('SectionNavItem'), 'entry must respect admin toggles');
     const sections = read('src/lib/app-sections.ts');
-    assert.ok(sections.includes("prefixes: ['/dashboard/seller/video-studio']"));
+    // Membership, not an exact literal: the same section now also governs
+    // the application surface's copy of the editor.
+    assert.ok(sections.includes("'/dashboard/seller/video-studio'"), 'registry must govern the studio route');
     assert.ok(existsSync(join(ROOT, 'src/app/dashboard/seller/video-studio/page.tsx')));
   });
 

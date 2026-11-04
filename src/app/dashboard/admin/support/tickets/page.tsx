@@ -31,7 +31,7 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { AdminLayout } from '@/components/layout/admin-layout';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { useCollection, useFirestore, useMemoFirebase, useDoc } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase, useDoc, useUser } from '@/firebase';
 import { collection, query, doc, updateDoc, orderBy } from 'firebase/firestore';
 import type { SupportTicket, UserProfile } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -119,6 +119,7 @@ const TicketDetailsDialog = ({ ticket }: { ticket: SupportTicket | null }) => {
 
 export default function AdminSupportTicketsPage() {
   const firestore = useFirestore();
+  const { user } = useUser();
   const { toast } = useToast();
   const [sorting, setSorting] = React.useState<SortingState>([{ id: 'createdAt', desc: true }]);
   const [selectedTicket, setSelectedTicket] = React.useState<SupportTicket | null>(null);
@@ -135,6 +136,20 @@ export default function AdminSupportTicketsPage() {
     const ticketRef = doc(firestore, 'supportTickets', ticketId);
     try {
       await updateDoc(ticketRef, { status });
+      // Best-effort: mirror the transition to the VPS store — only the id
+      // travels; the server reads the authoritative document itself.
+      if (user) {
+        void user
+          .getIdToken()
+          .then(token =>
+            fetch('/api/support/sync', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+              body: JSON.stringify({ id: ticketId }),
+            }),
+          )
+          .catch(() => undefined);
+      }
       toast({ title: 'Success', description: `Ticket status updated to ${status}.` });
     } catch (error) {
       toast({ variant: 'destructive', title: 'Error', description: 'Failed to update ticket status.' });

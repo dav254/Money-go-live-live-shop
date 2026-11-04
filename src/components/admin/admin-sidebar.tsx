@@ -358,6 +358,11 @@ export function AdminSidebar() {
             // job queues, per-destination publication confirmation, errors,
             // analytics, safe limits/global pause and the audit trail.
             { href: 'distribution', label: 'Distribution' },
+            { href: 'social-engine', label: 'Social Engine' },
+            // AI Headquarters / Orbit: agent registry, department map, the
+            // proposal queue waiting for a founder decision and the honest
+            // model state (MODEL_NOT_CONFIGURED until a real key exists).
+            { href: 'ai-headquarters', label: 'AI Headquarters' },
             // Search Engine Center: Bing/Yandex/Google verification probes,
             // sitemap + IndexNow/Bing submission controls, page SEO checks
             // and the shared submission/audit history. Read-only unless an

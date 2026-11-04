@@ -119,6 +119,50 @@ export function waitForInstallPrompt(timeoutMs = 4000): Promise<BeforeInstallPro
 }
 
 /**
+ * Why a one-tap install cannot work in THIS browsing context — checked
+ * before any waiting, so the download section never spins for seconds in a
+ * frame where the browser will never offer a prompt.
+ *
+ *   • EMBEDDED IFRAME — Chrome never fires `beforeinstallprompt` for a
+ *     cross-origin frame (a site preview pane is exactly that), so a tap in
+ *     there can only dead-end. The honest fix is to leave the frame and try
+ *     again in a real tab, which the button does for the user.
+ *   • NO SERVICE WORKER / INSECURE — installability requires a secure (https)
+ *     origin; on plain http the install API does not exist at all, so the
+ *     section must say why instead of pretending.
+ *
+ * iOS is deliberately NOT a blocker: there is no install API, but Share →
+ * Add to Home Screen genuinely installs, so the button offers that route.
+ */
+export type InstallBlocker = {
+  kind: 'iframe' | 'insecure';
+  message: string;
+};
+
+export function installBlocker(): InstallBlocker | null {
+  if (typeof window === 'undefined') return null;
+  if (window.self !== window.top) {
+    return {
+      kind: 'iframe',
+      message:
+        'This page is showing inside another site, so the browser will not offer an install here. Open Vidnov in a full browser tab — the Install button works there.',
+    };
+  }
+  if (
+    typeof navigator === 'undefined' ||
+    !window.isSecureContext ||
+    !('serviceWorker' in navigator)
+  ) {
+    return {
+      kind: 'insecure',
+      message:
+        'This address is not a secure (https) connection, so the browser cannot install the app here. Open Vidnov over https and install it from the sidebar button.',
+    };
+  }
+  return null;
+}
+
+/**
  * Shows the browser's native install dialog if a prompt is available.
  * Returns the user's choice, or null when no prompt was available.
  */

@@ -187,7 +187,14 @@ function SellerTabBar() {
 // `live` is immersive so the broadcast stage runs edge-to-edge: without it
 // the tab bar sat under the preview (two navigation surfaces on one screen)
 // and the preview could only ever be as tall as the leftover content box.
-const IMMERSIVE_ROUTES = ['/app/seller/messages', '/app/seller/discovery', '/app/seller/live'];
+// The CapCut-style video editor joins them for the same reason: its timeline
+// and bottom toolbars need the whole screen, not a box over the tab bar.
+const IMMERSIVE_ROUTES = [
+  '/app/seller/messages',
+  '/app/seller/discovery',
+  '/app/seller/live',
+  '/app/seller/video-studio',
+];
 
 function useImmersiveRoute(): boolean {
   const pathname = usePathname();

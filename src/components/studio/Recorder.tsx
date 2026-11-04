@@ -79,7 +79,7 @@ export default function Recorder() {
       const blob = new Blob(chunksRef.current, { type: 'video/webm' });
       try {
         await idbSet('videoStudioDB', 'videoClips', 'latestVideo', blob);
-        router.push('/seller/studio/edit');
+        router.push('/seller/studio/editor');
       } catch (error) {
         console.error("Failed to save video to IndexedDB:", error);
         toast({

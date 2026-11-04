@@ -12,6 +12,7 @@ import {
   Coins,
   Compass,
   CreditCard,
+  Film,
   Gift,
   Headphones,
   Home,
@@ -138,6 +139,17 @@ const GROUPS: DrawerGroup[] = [
         label: 'Classic Studio',
         href: '/app/seller/studio',
         icon: Palette,
+        tone: 'ai',
+      },
+      // CapCut-style video editor — the same tool the website's studio
+      // runs, mounted full-viewport inside this shell (immersive route).
+      // Sits beside Classic Studio: one edits photos, one edits video, both
+      // end in the same media pipeline.
+      {
+        key: 'video-studio',
+        label: 'Video Studio',
+        href: '/app/seller/video-studio',
+        icon: Film,
         tone: 'ai',
       },
       // Living Pictures — a still photo published with optional licensed music.

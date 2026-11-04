@@ -23,6 +23,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
 import { RecentOrdersWidget } from '@/components/buyer/recent-orders-widget';
 import { RequestMarketplaceCard } from '@/components/buyer/request-marketplace-card';
+import { BuyerAppHub } from '@/components/buyer/buyer-app-hub';
 import { getLocationFromStorage, type UserLocation } from '@/lib/location-detection';
 import { doc } from 'firebase/firestore';
 import type { UserProfile } from '@/lib/types';
@@ -336,6 +337,11 @@ export default function BuyerDashboardPage() {
 
         {/* Recent orders + delivery tracking */}
         <RecentOrdersWidget />
+
+        {/* Get the app — the buyer's application section. Rendered live so
+            the download affordance is reachable from the dashboard itself,
+            not only from the sidebar footer. */}
+        <BuyerAppHub />
 
         {/* Mobile quick links (bottom-nav complement) */}
         <section className="lg:hidden">

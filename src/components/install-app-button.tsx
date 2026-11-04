@@ -4,9 +4,12 @@ import { useEffect, useState } from 'react';
 import { Loader2, Smartphone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
+  installBlocker,
   isRunningStandalone,
   promptInstall,
+  subscribeInstallPrompt,
   waitForInstallPrompt,
+  type InstallBlocker,
 } from '@/lib/pwa-install';
 
 /**
@@ -36,6 +39,14 @@ import {
  * activated and taken control, so the tap waits for that rather than failing
  * on the first miss.
  *
+ *   3. CONTEXTS THAT CAN NEVER INSTALL ANSWER IMMEDIATELY. An embedded
+ *      iframe (a site preview pane — Chrome will not fire the install event
+ *      inside one) and a non-https address (no install API at all) are
+ *      detected up front by `installBlocker()` and get their reason on
+ *      screen the moment the section renders, plus a real way out: in a
+ *      frame, the tap opens the same page in a full tab where install *      actually works. iOS never fires the event either, so it gets its
+ *      Share → Add to Home Screen route up front instead of after a wait.
+ *
  * Nothing here can override a browser that has decided against installing on
  * its own. The fallback covers what a button genuinely cannot trigger.
  */
@@ -54,9 +65,25 @@ export function InstallAppButton({
   const [isStandalone, setIsStandalone] = useState(false);
   const [isInstalling, setIsInstalling] = useState(false);
   const [hint, setHint] = useState<string | null>(null);
+  const [blocker, setBlocker] = useState<InstallBlocker | null>(null);
 
   useEffect(() => {
     setIsStandalone(isRunningStandalone());
+    const found = installBlocker();
+    setBlocker(found);
+    if (found) {
+      // Certainty, not a tap outcome: say why right away.
+      setHint(found.message);
+    } else if (isAppleMobile()) {
+      // iOS never fires the install event — offer the gesture that works now
+      // rather than waiting four seconds for a prompt that cannot exist.
+      setHint(noPromptHint());
+    }
+    // A prompt that arrives AFTER a failed tap clears the hint, re-arming the
+    // one-tap install (the behaviour this component's doc comment promises).
+    return subscribeInstallPrompt((event) => {
+      if (event) setHint(null);
+    });
   }, []);
 
   // Already installed: nothing to offer.
@@ -64,6 +91,16 @@ export function InstallAppButton({
 
   const handleInstall = async () => {
     if (isInstalling) return;
+    if (blocker?.kind === 'iframe') {
+      // This frame can never install; a real tab can. Hand the user one.
+      window.open(window.location.href, '_blank', 'noopener');
+      return;
+    }
+    if (blocker) return; // insecure — the on-screen reason already explains it
+    if (isAppleMobile()) {
+      setHint(noPromptHint());
+      return;
+    }
     setIsInstalling(true);
     try {
       await waitForInstallPrompt();

@@ -55,6 +55,26 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <head>
         {/*
+          GOOGLE TAG (gtag.js) — Google Ads tag AW-18520240461, installed
+          manually exactly as Google's snippet specifies and placed as high
+          in <head> as possible. This is the ONE place it lives: the root
+          layout renders it on every page, so the snippet must never be
+          duplicated into a page or a component. The inline loader only
+          queues commands (dataLayer) — it never carries a credential, and
+          the library itself is served from googletagmanager.com, which the
+          CSP in next.config.js already allows.
+        */}
+        <script async src="https://www.googletagmanager.com/gtag/js?id=AW-18520240461" />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+
+gtag('config', 'AW-18520240461');`,
+          }}
+        />
+        {/*
           GOOGLE TAG MANAGER — the loader, as high in <head> as Google's
           install instructions require. This is the ONE place GTM lives for
           every page (the root layout covers the whole app); there is no

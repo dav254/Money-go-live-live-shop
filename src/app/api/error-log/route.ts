@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/firebase/server';
 import { FieldValue } from 'firebase-admin/firestore';
 import { publicUrl } from '@/lib/site-url';
+import { pbMirrorErrorLog } from '@/lib/pocketbase/logs';
 
 type LogEntry = {
   errorMessage?: string;
@@ -85,6 +86,7 @@ export async function POST(request: NextRequest) {
   }));
 
   let lastReportId = '';
+  const created: Array<{ id: string; entry: Record<string, unknown> }> = [];
 
   try {
     for (const document of documents) {
@@ -95,11 +97,19 @@ export async function POST(request: NextRequest) {
         createdAt: FieldValue.serverTimestamp(),
         status: 'new',
       });
+      created.push({ id: ref.id, entry: { ...document, status: 'new' } });
     }
   } catch {
     // If the server-side write fails, the client already shipped the payload
     // with sendBeacon/keepalive, so dropping the response body is acceptable
     // and does not re-introduce any client-side error handling.
+  }
+
+  // VPS mirror — fire-and-forget for what actually landed in Firestore. An
+  // error capture must never wait on the VPS, and a mirror failure must
+  // never turn into a second error.
+  for (const { id, entry } of created) {
+    void pbMirrorErrorLog(id, entry);
   }
 
   const reportId = lastReportId || randomDocId();

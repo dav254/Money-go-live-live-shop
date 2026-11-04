@@ -19,6 +19,7 @@ import { REQUESTS_COLLECTION, OFFERS_COLLECTION } from '@/lib/media/config';
 import type { MarketplaceRequest, MarketplaceOffer } from '@/lib/requests/types';
 import { isExpired, expiryFor } from '@/lib/requests/request-service';
 import { pbPatchOffer } from '@/lib/pocketbase/requests';
+import { pbMirrorActivityLog } from '@/lib/pocketbase/logs';
 import { FieldValue } from 'firebase-admin/firestore';
 
 export const runtime = 'nodejs';
@@ -272,7 +273,7 @@ async function writeAudit(
   targetId: string,
   detail: string,
 ): Promise<void> {
-  await db.collection('activityLogs').add({
+  const entry = {
     category: 'REQUEST_ENGINE',
     action,
     targetType: target,
@@ -281,7 +282,12 @@ async function writeAudit(
     detail: detail.slice(0, 300),
     at: new Date().toISOString(),
     createdAt: FieldValue.serverTimestamp(),
-  });
+  };
+  const ref = await db.collection('activityLogs').add(entry);
+  // VPS mirror — fire-and-forget, and scrubbed of the serverTimestamp
+  // sentinel on the way out. The audit write itself never waits on it and
+  // never fails because of it.
+  void pbMirrorActivityLog(ref.id, entry);
 }
 
 export async function PATCH(request: NextRequest) {

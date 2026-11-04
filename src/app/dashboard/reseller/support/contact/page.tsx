@@ -69,17 +69,25 @@ function ContactSupportForm() {
             // address from the verified token — never from this form).
             void user
                 .getIdToken()
-                .then(token =>
-                    fetch('/api/support/notify', {
+                .then(token => {
+                    const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
+                    void fetch('/api/support/notify', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                        headers,
                         body: JSON.stringify({
                             issueType: values.issueType,
                             description: values.description,
                             ticketRef: ticket.id.slice(0, 40),
                         }),
-                    }),
-                )
+                    }).catch(() => undefined);
+                    // Best-effort: mirror the new ticket to the VPS store —
+                    // only the id travels; the server reads the document.
+                    void fetch('/api/support/sync', {
+                        method: 'POST',
+                        headers,
+                        body: JSON.stringify({ id: ticket.id }),
+                    }).catch(() => undefined);
+                })
                 .catch(() => undefined);
             toast({ title: 'Ticket Submitted', description: 'Our support team will get back to you shortly.' });
             form.reset();

@@ -109,6 +109,19 @@ async function download(url: string): Promise<Buffer> {
   return Buffer.from(await res.arrayBuffer());
 }
 
+/**
+ * Generic queue access for models the adapter does not own end-to-end
+ * (currently the editor's UHD/Enhance workspace: `fal-ai/esrgan` and
+ * `fal-ai/video-upscaler`). Reuses the same auth, balance-error wording and
+ * polling loop as every other fal call so the key never leaves the server.
+ */
+export const falQueue = {
+  submit,
+  result: waitForResult,
+  download,
+  fetchJson: falFetch,
+};
+
 /** FLUX results look like { images: [{ url, content_type }] }. */
 function firstImageUrl(result: Record<string, unknown>): { url: string; mimeType: string } | null {
   const images = result.images as { url?: string; content_type?: string }[] | undefined;
