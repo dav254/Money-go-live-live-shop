@@ -12,17 +12,30 @@
  *       state-changing action (diagnostic / publish_test / connect /
  *       disconnect / status_view / handoff / approval).
  *
- * These collections are written ONLY through the Firebase Admin SDK and are
- * deliberately absent from `firestore.rules`, so the default-deny at the end
- * of the rules file keeps every browser out of them. No token, env value or
- * upstream error body is ever written to any of them: notes are produced by
- * diagnostics/publishing (static text, status codes, account labels) and
- * sanitized once more here.
+ * These collections are PRIMARY on PocketBase (VPS) via
+ * `lib/pocketbase/social-engine.ts`; Firestore is a best-effort mirror and is
+ * used directly only when PocketBase is not configured (development/tests).
+ * Neither store is reachable from a browser: PocketBase collections are
+ * admin-API-only and these Firestore names stay absent from
+ * `firestore.rules`, so the default-deny keeps every client out. No token,
+ * env value or upstream error body is ever written to any of them: notes are
+ * produced by diagnostics/publishing (static text, status codes, account
+ * labels) and sanitized once more here.
+ *
+ * `scripts/migrate-social-engine.ts` copies existing Firestore rows once.
  *
  * READY is never inferred from configuration: `computeReadiness()` promotes a
  * module only after a recorded publish-level (or diagnostic) test succeeded.
  */
+import { randomUUID } from 'node:crypto';
 import { db } from '@/firebase/server';
+import {
+  pbSocialAppend,
+  pbSocialGet,
+  pbSocialWrite,
+  SOCIAL_ENGINE_PB_COLLECTIONS,
+  socialEnginePbEnabled,
+} from '@/lib/pocketbase/social-engine';
 import { sanitizeErrorMessage } from '@/lib/vidnov-core/distribution/job-utils';
 import {
   MODULE_IDS,
@@ -74,6 +87,19 @@ function nowIso(): string {
   return new Date().toISOString();
 }
 
+/** Firestore mirror — best-effort; never fails a committed VPS write. */
+async function fsMirrorDoc(
+  collection: string,
+  id: string,
+  patch: Record<string, unknown>,
+): Promise<void> {
+  try {
+    await db.collection(collection).doc(id).set({ ...patch }, { merge: true });
+  } catch {
+    // Primary write already succeeded.
+  }
+}
+
 function platformDocId(module: ModuleId): string {
   // `connectionId` is the single id builder in this feature (and sanitizes
   // the owner segment). 'platform' marks engine-wide test records.
@@ -112,9 +138,17 @@ function asTestRecord(value: unknown): TestRecord | undefined {
  */
 export async function readTestDoc(module: ModuleId): Promise<ModuleTestDoc> {
   try {
-    const snap = await db.collection(TESTS_COLLECTION).doc(platformDocId(module)).get();
-    if (!snap.exists) return { updatedAt: '' };
-    const data = (snap.data() ?? {}) as Record<string, unknown>;
+    const id = platformDocId(module);
+    let data: Record<string, unknown>;
+    if (socialEnginePbEnabled()) {
+      const doc = await pbSocialGet(SOCIAL_ENGINE_PB_COLLECTIONS.tests, id);
+      if (!doc) return { updatedAt: '' };
+      data = doc;
+    } else {
+      const snap = await db.collection(TESTS_COLLECTION).doc(id).get();
+      if (!snap.exists) return { updatedAt: '' };
+      data = (snap.data() ?? {}) as Record<string, unknown>;
+    }
     const doc: ModuleTestDoc = { updatedAt: typeof data.updatedAt === 'string' ? data.updatedAt : '' };
     for (const kind of TEST_KINDS) {
       const record = asTestRecord(data[kind]);
@@ -148,25 +182,30 @@ export async function recordTest(module: ModuleId, kind: TestKind, record: TestR
     safe.permissions = { granted: record.permissions.granted === true, note: sanitizeErrorMessage(record.permissions.note) };
   }
 
-  await db
-    .collection(TESTS_COLLECTION)
-    .doc(platformDocId(module))
-    .set({ [kind]: safe, updatedAt: nowIso() }, { merge: true });
+  const id = platformDocId(module);
+  const patch = { [kind]: safe, updatedAt: nowIso() };
+  if (socialEnginePbEnabled()) {
+    await pbSocialWrite(SOCIAL_ENGINE_PB_COLLECTIONS.tests, id, patch);
+    await fsMirrorDoc(TESTS_COLLECTION, id, patch);
+    return;
+  }
+  await db.collection(TESTS_COLLECTION).doc(id).set(patch, { merge: true });
 }
 
 /** Records a handoff that was prepared but never published. */
 export async function recordHandoff(module: ModuleId, note: string): Promise<void> {
-  await db
-    .collection(TESTS_COLLECTION)
-    .doc(platformDocId(module))
-    .set(
-      {
-        handoffAt: nowIso(),
-        handoffNote: sanitizeErrorMessage(note),
-        updatedAt: nowIso(),
-      },
-      { merge: true },
-    );
+  const id = platformDocId(module);
+  const patch = {
+    handoffAt: nowIso(),
+    handoffNote: sanitizeErrorMessage(note),
+    updatedAt: nowIso(),
+  };
+  if (socialEnginePbEnabled()) {
+    await pbSocialWrite(SOCIAL_ENGINE_PB_COLLECTIONS.tests, id, patch);
+    await fsMirrorDoc(TESTS_COLLECTION, id, patch);
+    return;
+  }
+  await db.collection(TESTS_COLLECTION).doc(id).set(patch, { merge: true });
 }
 
 /** Appends one audit entry (server-side only, append-only). */
@@ -187,11 +226,17 @@ export async function recordAudit(entry: {
   };
   if (entry.note) doc.note = sanitizeErrorMessage(entry.note);
   if (entry.event) doc.event = entry.event;
+  const id = randomUUID();
   try {
-    await db.collection(AUDIT_COLLECTION).add(doc);
+    if (socialEnginePbEnabled()) {
+      await pbSocialAppend(SOCIAL_ENGINE_PB_COLLECTIONS.audit, id, doc);
+      await fsMirrorDoc(AUDIT_COLLECTION, id, doc);
+      return;
+    }
+    await db.collection(AUDIT_COLLECTION).doc(id).set(doc);
   } catch {
     // Auditing must never break the operation it describes; the admin error
-    // log already captures Firestore failures.
+    // log already captures store failures.
   }
 }
 
@@ -203,9 +248,15 @@ export async function getApproval(module: ModuleId, ownerId: string): Promise<Ap
 
   const note = spec.approval?.note ?? 'Provider approval is required.';
   try {
-    const snap = await db.collection(META_COLLECTION).doc(connectionId(module, ownerId)).get();
-    const granted = snap.exists && (snap.data() as { granted?: unknown } | undefined)?.granted === true;
-    return { required: true, granted, note };
+    const id = connectionId(module, ownerId);
+    let data: Record<string, unknown> | null = null;
+    if (socialEnginePbEnabled()) {
+      data = await pbSocialGet(SOCIAL_ENGINE_PB_COLLECTIONS.meta, id);
+    } else {
+      const snap = await db.collection(META_COLLECTION).doc(id).get();
+      data = snap.exists ? ((snap.data() ?? {}) as Record<string, unknown>) : null;
+    }
+    return { required: true, granted: data?.granted === true, note };
   } catch {
     return { required: true, granted: false, note };
   }
@@ -223,20 +274,21 @@ export async function setApproval(params: {
   if (spec.approval?.required !== true) {
     return { required: false, granted: true, note: '' };
   }
-  await db
-    .collection(META_COLLECTION)
-    .doc(connectionId(params.module, params.ownerId))
-    .set(
-      {
-        module: params.module,
-        ownerId: params.ownerId,
-        granted: params.granted,
-        note: params.granted ? sanitizeErrorMessage(params.note || 'Provider approval attested by admin.') : '',
-        attestedBy: params.actorUid,
-        updatedAt: nowIso(),
-      },
-      { merge: true },
-    );
+  const id = connectionId(params.module, params.ownerId);
+  const patch = {
+    module: params.module,
+    ownerId: params.ownerId,
+    granted: params.granted,
+    note: params.granted ? sanitizeErrorMessage(params.note || 'Provider approval attested by admin.') : '',
+    attestedBy: params.actorUid,
+    updatedAt: nowIso(),
+  };
+  if (socialEnginePbEnabled()) {
+    await pbSocialWrite(SOCIAL_ENGINE_PB_COLLECTIONS.meta, id, patch);
+    await fsMirrorDoc(META_COLLECTION, id, patch);
+  } else {
+    await db.collection(META_COLLECTION).doc(id).set(patch, { merge: true });
+  }
   return getApproval(params.module, params.ownerId);
 }
 
@@ -257,13 +309,25 @@ export async function actionCooldownSeconds(
 ): Promise<number> {
   const field = `${action}At`;
   try {
-    const ref = db.collection(META_COLLECTION).doc(`${connectionId(module, uid)}__rate`);
-    const snap = await ref.get();
-    const last = snap.exists ? (snap.data() as Record<string, unknown> | undefined)?.[field] : undefined;
+    const id = `${connectionId(module, uid)}__rate`;
+    let data: Record<string, unknown> | null = null;
+    if (socialEnginePbEnabled()) {
+      data = await pbSocialGet(SOCIAL_ENGINE_PB_COLLECTIONS.meta, id);
+    } else {
+      const snap = await db.collection(META_COLLECTION).doc(id).get();
+      data = snap.exists ? ((snap.data() ?? {}) as Record<string, unknown>) : null;
+    }
+    const last = data?.[field];
     const lastMs = typeof last === 'string' ? Date.parse(last) : NaN;
     const remaining = Number.isFinite(lastMs) ? lastMs + windowMs - Date.now() : 0;
     if (remaining > 0) return Math.ceil(remaining / 1000);
-    await ref.set({ [field]: nowIso(), updatedAt: nowIso() }, { merge: true });
+    const patch = { [field]: nowIso(), updatedAt: nowIso() };
+    if (socialEnginePbEnabled()) {
+      await pbSocialWrite(SOCIAL_ENGINE_PB_COLLECTIONS.meta, id, patch);
+      await fsMirrorDoc(META_COLLECTION, id, patch);
+    } else {
+      await db.collection(META_COLLECTION).doc(id).set(patch, { merge: true });
+    }
     return 0;
   } catch {
     // If the stamp cannot be read/written, prefer the operation over an

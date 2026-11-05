@@ -5,11 +5,12 @@
  * `@/firebase/server`, tests pass a fake), so the module never pulls Firebase
  * Admin into a test process and needs no credentials to be imported.
  *
- * Store contract: Firestore is the source of truth for the queue; every
- * write is ALSO mirrored to the VPS PocketBase store, and every read falls
- * back to that mirror when Firestore cannot answer — the same dual-store
- * pattern the distribution jobs use, so a blocked project still shows the
- * admin their queue.
+ * Store contract: PocketBase on the VPS is the SOURCE OF TRUTH for the
+ * queue. Every write goes there first and is then mirrored to Firestore
+ * best-effort; every read comes from PocketBase. Firestore answers only when
+ * PocketBase is not configured at all (development/tests) — the inverse of
+ * the previous mirror. Existing rows are copied once by
+ * `scripts/migrate-social-engine.ts`.
  *
  * Honesty invariants:
  *   • a draft is created ONLY from a real, eligible product document and an
@@ -23,10 +24,17 @@
  *     failure or a missing remoteId can never reach that state.
  */
 
+import { randomUUID } from 'node:crypto';
 import { type Firestore } from 'firebase-admin/firestore';
 import { appLink } from '@/lib/notifications/config';
 import { sendTemplateEmail } from '@/lib/notifications/email-service';
-import { pbCountGrowthPosts, pbListGrowthPosts, pbMirrorGrowthPost } from '@/lib/pocketbase/growth-posts';
+import {
+  pbCountGrowthPosts,
+  pbGetGrowthPost,
+  pbListGrowthPosts,
+  pbWriteGrowthPost,
+} from '@/lib/pocketbase/growth-posts';
+import { pocketBaseEnabled } from '@/lib/pocketbase/server';
 import { evaluateProductEligibility } from '../distribution/eligibility';
 import { publishSocial } from './social';
 import {
@@ -152,6 +160,24 @@ function toPost(id: string, raw: Record<string, unknown>): GrowthPost | null {
   };
 }
 
+/* ── Store helpers ──────────────────────────────────────────────────────── */
+
+/**
+ * Firestore is the MIRROR now. Best-effort only: a mirror failure must never
+ * fail a write that PocketBase (the primary store) already accepted.
+ */
+async function fsMirrorGrowthPost(
+  db: Firestore,
+  id: string,
+  body: Record<string, unknown>,
+): Promise<void> {
+  try {
+    await db.collection(GROWTH_POSTS_COLLECTION).doc(id).set({ ...body, id }, { merge: true });
+  } catch {
+    // Nothing to do: the VPS write is authoritative and already committed.
+  }
+}
+
 /* ── Reads ──────────────────────────────────────────────────────────────── */
 
 export interface ListParams {
@@ -159,11 +185,27 @@ export interface ListParams {
   limit?: number;
 }
 
-/** Queue read: Firestore first, VPS mirror when Firestore cannot answer. */
+/**
+ * Queue read. PocketBase is authoritative when configured; Firestore answers
+ * only when PocketBase is not configured at all (development/tests).
+ */
 export async function listGrowthPosts(db: Firestore, params: ListParams = {}): Promise<GrowthPost[]> {
   const limit = Math.min(GROWTH_POST_LIMITS.listLimit, Math.max(1, params.limit ?? GROWTH_POST_LIMITS.listLimit));
-  let rows: GrowthPost[] = [];
 
+  if (pocketBaseEnabled()) {
+    let rows: Array<Record<string, unknown>>;
+    try {
+      rows = await pbListGrowthPosts(limit, params.status);
+    } catch {
+      throw new GrowthPostsError('store_unavailable', 'The VPS growth post store is unavailable right now.');
+    }
+    return rows
+      .map((row) => toPost(String(row.id ?? ''), row))
+      .filter((p): p is GrowthPost => p !== null)
+      .slice(0, limit);
+  }
+
+  const rows: GrowthPost[] = [];
   try {
     const snap = await db.collection(GROWTH_POSTS_COLLECTION).limit(200).get();
     snap.forEach((doc) => {
@@ -171,10 +213,7 @@ export async function listGrowthPosts(db: Firestore, params: ListParams = {}): P
       if (post) rows.push(post);
     });
   } catch {
-    const mirrored = await pbListGrowthPosts(200);
-    rows = mirrored
-      .map((row) => toPost(String(row.id ?? ''), row))
-      .filter((p): p is GrowthPost => p !== null);
+    throw new GrowthPostsError('store_unavailable', 'The growth post store is unavailable right now.');
   }
 
   rows.sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : a.updatedAt > b.updatedAt ? -1 : 0));
@@ -183,16 +222,16 @@ export async function listGrowthPosts(db: Firestore, params: ListParams = {}): P
 }
 
 /** Per-status counts for the queue header (never a fabricated 0). */
-export async function growthCounts(db: Firestore): Promise<Record<GrowthPostState, number> | null> {
-  const rows = await listGrowthPosts(db, { limit: GROWTH_POST_LIMITS.listLimit });
-  if (rows.length === 0) {
-    // Empty from Firestore could mean "no posts" or "blocked store" — ask
-    // the mirror before believing it.
-    const mirrored = await pbCountGrowthPosts();
-    if (mirrored) {
-      return normalizeCounts(mirrored);
+export async function growthCounts(db: Firestore): Promise<Record<GrowthPostState, number>> {
+  if (pocketBaseEnabled()) {
+    try {
+      return normalizeCounts(await pbCountGrowthPosts());
+    } catch {
+      throw new GrowthPostsError('store_unavailable', 'The VPS growth post store is unavailable right now.');
     }
   }
+
+  const rows = await listGrowthPosts(db, { limit: GROWTH_POST_LIMITS.listLimit });
   const counts: Record<GrowthPostState, number> = {
     draft: 0, approved: 0, rejected: 0, copied: 0, emailed: 0, published: 0, failed: 0,
   };
@@ -211,6 +250,19 @@ function normalizeCounts(raw: Record<string, number>): Record<GrowthPostState, n
 }
 
 async function loadPost(db: Firestore, id: string): Promise<{ data: Record<string, unknown>; post: GrowthPost }> {
+  if (pocketBaseEnabled()) {
+    let data: Record<string, unknown> | null;
+    try {
+      data = await pbGetGrowthPost(id);
+    } catch {
+      throw new GrowthPostsError('store_unavailable', 'The VPS growth post store is unavailable right now.');
+    }
+    if (!data) throw new GrowthPostsError('not_found', 'That post no longer exists.');
+    const post = toPost(id, data);
+    if (!post) throw new GrowthPostsError('not_found', 'That post is not readable.');
+    return { data, post };
+  }
+
   try {
     const snap = await db.collection(GROWTH_POSTS_COLLECTION).doc(id).get();
     if (!snap.exists) throw new GrowthPostsError('not_found', 'That post no longer exists.');
@@ -230,13 +282,22 @@ async function savePatch(
   patch: Record<string, unknown>,
 ): Promise<GrowthPost> {
   const body = { ...patch, updatedAt: iso() };
-  try {
-    await db.collection(GROWTH_POSTS_COLLECTION).doc(id).set(body, { merge: true });
-  } catch (error) {
-    if (error instanceof GrowthPostsError) throw error;
-    throw new GrowthPostsError('store_unavailable', 'The growth post store is unavailable right now.');
+
+  if (pocketBaseEnabled()) {
+    try {
+      await pbWriteGrowthPost(id, body);
+    } catch {
+      throw new GrowthPostsError('store_unavailable', 'The VPS growth post store is unavailable right now.');
+    }
+    await fsMirrorGrowthPost(db, id, body);
+  } else {
+    try {
+      await db.collection(GROWTH_POSTS_COLLECTION).doc(id).set(body, { merge: true });
+    } catch {
+      throw new GrowthPostsError('store_unavailable', 'The growth post store is unavailable right now.');
+    }
   }
-  await pbMirrorGrowthPost(id, { id, ...body });
+
   const { post } = await loadPost(db, id);
   return post;
 }
@@ -636,9 +697,21 @@ export async function composeGrowthPost(
     draftedBy: params.actorUid,
   };
 
+  if (pocketBaseEnabled()) {
+    // The VPS store owns the id, so it survives mirror copies and redeploys.
+    const id = randomUUID();
+    try {
+      await pbWriteGrowthPost(id, body);
+    } catch {
+      throw new GrowthPostsError('store_unavailable', 'The VPS growth post store is unavailable right now.');
+    }
+    await fsMirrorGrowthPost(db, id, body);
+    const { post } = await loadPost(db, id);
+    return post;
+  }
+
   try {
     const ref = await db.collection(GROWTH_POSTS_COLLECTION).add(body);
-    await pbMirrorGrowthPost(ref.id, { id: ref.id, ...body });
     const { post } = await loadPost(db, ref.id);
     return post;
   } catch (error) {

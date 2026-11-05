@@ -1,9 +1,11 @@
 /**
  * SOCIAL ENGINE — account connection store (server-only).
  *
- * Follows the pattern proven by `src/lib/tiktok/store.ts`: a dedicated
- * collection only the Firebase Admin SDK touches, tokens encrypted at rest
- * (AES-256-GCM, see crypto.ts), and no token value ever logged.
+ * Store contract: PocketBase on the VPS is PRIMARY (`social_engine_connections`
+ * via `lib/pocketbase/social-engine.ts`); Firestore is a best-effort mirror,
+ * used for real only when PocketBase is not configured (development/tests).
+ * Tokens stay encrypted at rest (AES-256-GCM, see crypto.ts) in both stores,
+ * and no token value is ever logged.
  *
  * ## Tenant isolation (task §10)
  * A document's id embeds its owner: `{module}__{ownerId}`. Every read takes
@@ -17,6 +19,12 @@
  * (this file pulls in firebase-admin through @/firebase/server).
  */
 import { db } from '@/firebase/server';
+import {
+  pbSocialGet,
+  pbSocialWrite,
+  SOCIAL_ENGINE_PB_COLLECTIONS,
+  socialEnginePbEnabled,
+} from '@/lib/pocketbase/social-engine';
 import { openTokens, sealTokens, isSealedToken, TokenKeyMissingError, type SealedToken } from './crypto';
 import type { ConnectionInfo, ModuleId } from './types';
 
@@ -60,17 +68,34 @@ export function connectionId(module: ModuleId, ownerId: string): string {
   return `${module}__${safeOwner}`;
 }
 
-/** Owner-scoped fetch. Returns null for a missing doc OR a foreign one. */
+/** Firestore mirror — best-effort; never fails a committed VPS write. */
+async function fsMirrorConnection(id: string, payload: Record<string, unknown>): Promise<void> {
+  try {
+    await db.collection(CONNECTIONS_COLLECTION).doc(id).set({ ...payload, id }, { merge: true });
+  } catch {
+    // The primary write already succeeded; nothing else to do.
+  }
+}
+
+/**
+ * Owner-scoped fetch. Returns null for a missing doc OR a foreign one.
+ * Throws when PocketBase is configured but unreachable — a primary-store
+ * outage must not be reported as "not connected".
+ */
 export async function getConnection(
   module: ModuleId,
   ownerId: string,
   caller: { uid: string; isAdmin: boolean },
 ): Promise<ConnectionRecord | null> {
   if (!caller.isAdmin && caller.uid !== ownerId) return null; // tenant wall
-  const snap = await db
-    .collection(CONNECTIONS_COLLECTION)
-    .doc(connectionId(module, ownerId))
-    .get();
+  const id = connectionId(module, ownerId);
+
+  if (socialEnginePbEnabled()) {
+    const doc = await pbSocialGet(SOCIAL_ENGINE_PB_COLLECTIONS.connections, id);
+    return doc ? (doc as unknown as ConnectionRecord) : null;
+  }
+
+  const snap = await db.collection(CONNECTIONS_COLLECTION).doc(id).get();
   if (!snap.exists) return null;
   return ({ id: snap.id, ...(snap.data() as object) }) as ConnectionRecord;
 }
@@ -94,23 +119,28 @@ export async function saveConnection(input: {
   // back after a reconnect without a second provider round-trip.
   const sealed = sealTokens({ ...input.tokens, scopes: input.scopes ?? input.tokens.scopes }); // throws TokenKeyMissingError with no key
   const now = new Date().toISOString();
-  const ref = db.collection(CONNECTIONS_COLLECTION).doc(connectionId(input.module, input.ownerId));
-  const existing = await ref.get();
-  // Firestore rejects `undefined` values, so optional metadata is only added
-  // when the provider actually returned it.
+  const id = connectionId(input.module, input.ownerId);
+  // One read decides `connectedAt`: reconnecting keeps the original connect
+  // time and must not rewrite history.
+  const existing = await getConnection(input.module, input.ownerId, input.caller);
   const payload: Record<string, unknown> = {
     module: input.module,
     ownerId: input.ownerId,
     status: 'connected',
     scopes: input.scopes ?? [],
     tokens: sealed,
-    connectedAt: existing.exists
-      ? ((existing.data()?.connectedAt as string | undefined) ?? now)
-      : now,
+    connectedAt: existing?.connectedAt ?? now,
     updatedAt: now,
     disconnectedAt: null,
   };
   if (input.accountLabel) payload.accountLabel = input.accountLabel;
+
+  if (socialEnginePbEnabled()) {
+    await pbSocialWrite(SOCIAL_ENGINE_PB_COLLECTIONS.connections, id, payload);
+    await fsMirrorConnection(id, payload);
+    return;
+  }
+  const ref = db.collection(CONNECTIONS_COLLECTION).doc(id);
   await ref.set(payload, { merge: true });
 }
 
@@ -121,21 +151,25 @@ export async function disconnectConnection(
   caller: { uid: string; isAdmin: boolean },
 ): Promise<boolean> {
   if (!caller.isAdmin && caller.uid !== ownerId) return false;
-  const ref = db.collection(CONNECTIONS_COLLECTION).doc(connectionId(module, ownerId));
-  const snap = await ref.get();
-  if (!snap.exists) return false;
+  const id = connectionId(module, ownerId);
+  const existing = await getConnection(module, ownerId, caller);
+  if (!existing) return false;
   // The encrypted token material is dropped as well: a disconnected account
   // must not keep a usable credential on disk, and reconnecting writes a
   // fresh record. The history (connectedAt / disconnectedAt) is preserved.
-  await ref.set(
-    {
-      status: 'disconnected',
-      tokens: null,
-      disconnectedAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    },
-    { merge: true },
-  );
+  const patch = {
+    status: 'disconnected',
+    tokens: null,
+    disconnectedAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+
+  if (socialEnginePbEnabled()) {
+    await pbSocialWrite(SOCIAL_ENGINE_PB_COLLECTIONS.connections, id, patch);
+    await fsMirrorConnection(id, patch);
+    return true;
+  }
+  await db.collection(CONNECTIONS_COLLECTION).doc(id).set(patch, { merge: true });
   return true;
 }
 

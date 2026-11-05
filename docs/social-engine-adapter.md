@@ -4,10 +4,16 @@
 
 The Social Engine wraps the existing `growth-posts` publishing queue so every
 social platform can be connected, tested, scheduled and revoked from a single
-administrator dashboard. It reuses everything that already works: Firestore,
-token encryption, media storage, the `publishSocial()` dispatcher, `site-url`
-for canonical URLs, and the existing auth guards. No new queue, database, or
-media storage system is added.
+administrator dashboard. It reuses everything that already works: token
+encryption, media storage, the `publishSocial()` dispatcher, `site-url` for
+canonical URLs, and the existing auth guards. No new queue or media storage
+system is added.
+
+**Storage (VPS-first):** Growth Posts and the Social Engine's own collections
+(`social_engine_connections`, `social_engine_tests`, `social_engine_meta`,
+`social_engine_audit`) are PRIMARY on PocketBase on the VPS. Firestore is a
+best-effort mirror and the only store when `POCKETBASE_*` is unset; existing
+rows are copied once by `scripts/migrate-social-engine.ts`.
 
 ## 2. How the pieces fit together
 
@@ -206,8 +212,9 @@ social publish credential.
 ### 6.11 PocketBase (`POCKETBASE_URL`, `POCKETBASE_ADMIN_EMAIL`,
 `POCKETBASE_ADMIN_PASSWORD`)
 
-VPS secondary store configured to mirror sections. Health check
-`/api/health` is the diagnostic; Firestore remains the source of truth.
+VPS store. It is the PRIMARY store for Growth Posts and the Social Engine
+collections listed in §1, and a mirror for every other migrated section;
+those remain Firestore-sourced. Health check `/api/health` is the diagnostic.
 
 ### 6.12 Media + URLs + Publishing
 
@@ -238,8 +245,9 @@ displays a token, credential, or secret.
 
 ## 8. Connections and tenant isolation (Phase 2)
 
-`connections.ts` stores one document per module+owner at
-`social_connections/{module}__{ownerId}`. The `getConnection`/`saveConnection`/
+`connections.ts` stores one document per module+owner keyed
+`{module}__{ownerId}` in PocketBase `social_engine_connections` (Firestore
+`social_connections` is the mirror/fallback). The `getConnection`/`saveConnection`/
 `disconnectConnection`/`openConnectionTokens` functions enforce the tenant
 wall: a seller can only touch their own connection; an admin can only touch
 their own. Stored tokens are sealed (AES-256-GCM, `crypto.ts`) and never

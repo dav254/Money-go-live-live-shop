@@ -37,8 +37,15 @@ which was not touched._
 
 ## 3. Firestore → VPS migration status — **NOT complete**
 
-Firestore remains the source of truth. PocketBase is a mirror for the
-sections below (best-effort, never authoritative), and **these collections are
+**Growth Posts and Social Engine are now PocketBase-primary.** Their five
+collections (`growthPosts`, `social_connections`, `social_engine_tests`,
+`social_engine_meta`, `social_engine_audit`) are read from and written to
+PocketBase first; Firestore is a best-effort mirror (and the only store when
+`POCKETBASE_*` is unset). Existing rows are copied once by
+`scripts/migrate-social-engine.ts` (dry-run by default).
+
+For every other section Firestore remains the source of truth. PocketBase is
+a mirror (best-effort, never authoritative), and **these collections are
 still Firestore-only**: `studioVideos`, `liveStreams` chat/reports subcollections
 (mirrored now), `requests`/`offers` (mirrored now), `chats`/`chat_messages`
 (PB-primary), `resellActivities`, `referrals`, `referralGrants`, `supportTickets`,

@@ -1,23 +1,30 @@
 /**
- * Growth posts on PocketBase — the VPS copy of the approval queue.
+ * GROWTH POSTS on PocketBase — the PRIMARY store (VPS).
  *
- * Follows the distribution-jobs mirror contract exactly:
- *   • `fsId` = the Firestore doc id, so the mirror is re-runnable and every
- *     update lands on the right row.
- *   • indexed scalar columns for the filters the admin queue runs (status,
- *     productId, sellerId) plus the FULL document in `data`.
- *   • every helper returns null/false when PocketBase is not configured and
- *     NEVER throws — a mirror failure must never fail a draft run or an
- *     approval action.
- *   • reads: Firestore first (source of truth); these helpers only answer
- *     when Firestore cannot, so a blocked project still shows the queue.
+ * The approval queue used to keep Firestore as the source of truth and copy
+ * each document here as a best-effort mirror. That is inverted: this
+ * collection is now authoritative and Firestore is the mirror
+ * (`scripts/migrate-social-engine.ts` copies existing rows once).
+ *
+ * Contract:
+ *   • `fsId` is the LOGICAL post id the app already uses for every action
+ *     (`decide`, `edit`, `publish`, `schedule`). The PocketBase record id
+ *     stays internal, so re-running the copy never changes a post id.
+ *   • indexed scalar columns for the admin filters (status, productId,
+ *     sellerId) plus the FULL document in `data`.
+ *   • reads and writes THROW when PocketBase is configured but unreachable.
+ *     A primary store that answered "not found" on an outage would silently
+ *     empty the admin queue — callers map the throw to `store_unavailable`.
+ *   • callers check `pocketBaseEnabled()` first and use Firestore only when
+ *     PocketBase is not configured at all (development, tests, first boot).
  */
 
 import {
   ensureCollection,
+  pbDelete,
   pbListRecords,
-  pocketBaseEnabled,
   pbRequest,
+  pocketBaseEnabled,
   scrubForPocketBase,
   type PbField,
   type PbRecord,
@@ -35,8 +42,13 @@ export const GROWTH_POST_FIELDS: PbField[] = [
 ];
 
 const esc = (value: string) => value.replace(/'/g, "\\'");
+const str = (value: unknown): string => (typeof value === 'string' ? value : '');
+
+/** Re-exported so callers need only one import for the enabled check. */
+export { pocketBaseEnabled };
 
 async function findByFsId(fsId: string): Promise<PbRecord | null> {
+  await ensureCollection(GROWTH_POSTS_PB_COLLECTION, GROWTH_POST_FIELDS);
   const rows = await pbListRecords(GROWTH_POSTS_PB_COLLECTION, {
     filter: `fsId = '${esc(fsId)}'`,
     perPage: 1,
@@ -44,56 +56,14 @@ async function findByFsId(fsId: string): Promise<PbRecord | null> {
   return rows[0] ?? null;
 }
 
-/**
- * Create-or-merge one growth post. Never throws; false = PB off or write
- * failed — the Firestore write is unaffected either way.
- */
-export async function pbMirrorGrowthPost(
-  fsId: string,
-  data: Record<string, unknown>,
-): Promise<boolean> {
-  if (!pocketBaseEnabled()) return false;
-  try {
-    await ensureCollection(GROWTH_POSTS_PB_COLLECTION, GROWTH_POST_FIELDS);
-    const clean = (scrubForPocketBase(data) ?? {}) as Record<string, unknown>;
-    const body = JSON.stringify({
-      fsId,
-      status: typeof clean.status === 'string' ? clean.status : '',
-      productId: typeof clean.productId === 'string' ? clean.productId : '',
-      sellerId: typeof clean.sellerId === 'string' ? clean.sellerId : '',
-      updatedAt:
-        typeof clean.updatedAt === 'string' && clean.updatedAt
-          ? clean.updatedAt
-          : new Date().toISOString(),
-      data: clean,
-    });
-    const existing = await findByFsId(fsId);
-    if (existing) {
-      const res = await pbRequest(
-        `/api/collections/${GROWTH_POSTS_PB_COLLECTION}/records/${existing.id}`,
-        { method: 'PATCH', body },
-      );
-      return res.ok;
-    }
-    const res = await pbRequest(`/api/collections/${GROWTH_POSTS_PB_COLLECTION}/records`, {
-      method: 'POST',
-      body,
-    });
-    return res.ok;
-  } catch {
-    // A mirror failure must never fail the caller's action.
-    return false;
-  }
-}
-
 /** The mirrored document of one row (full record stored under `data`). */
-function toDocument(record: PbRecord): Record<string, unknown> {
+function toDocument(fsId: string, record: PbRecord): Record<string, unknown> {
   const data = record.data;
   if (data && typeof data === 'object' && !Array.isArray(data)) {
-    return { id: String(record.fsId ?? record.id), ...(data as Record<string, unknown>) };
+    return { ...(data as Record<string, unknown>), id: fsId };
   }
   return {
-    id: String(record.fsId ?? record.id),
+    id: fsId,
     status: record.status,
     productId: record.productId,
     sellerId: record.sellerId,
@@ -102,33 +72,87 @@ function toDocument(record: PbRecord): Record<string, unknown> {
 }
 
 /**
- * VPS-side list used ONLY when Firestore cannot answer. Newest first, capped.
+ * One post by its logical id, or null when it genuinely does not exist.
+ * Throws when PocketBase is unreachable.
  */
-export async function pbListGrowthPosts(limit: number): Promise<Array<Record<string, unknown>>> {
-  if (!pocketBaseEnabled()) return [];
-  try {
-    const rows = await pbListRecords(GROWTH_POSTS_PB_COLLECTION, {
-      sort: '-updatedAt',
-      perPage: Math.max(1, Math.min(100, limit)),
-    });
-    return rows.map(toDocument);
-  } catch {
-    return [];
-  }
+export async function pbGetGrowthPost(id: string): Promise<Record<string, unknown> | null> {
+  const existing = await findByFsId(id);
+  return existing ? toDocument(id, existing) : null;
 }
 
-/** VPS-side per-status counts when Firestore cannot answer. */
-export async function pbCountGrowthPosts(): Promise<Record<string, number> | null> {
-  if (!pocketBaseEnabled()) return null;
-  try {
-    const rows = await pbListRecords(GROWTH_POSTS_PB_COLLECTION, { perPage: 100 });
-    const counts: Record<string, number> = {};
-    for (const row of rows) {
-      const status = typeof row.status === 'string' && row.status ? row.status : 'draft';
-      counts[status] = (counts[status] ?? 0) + 1;
-    }
-    return counts;
-  } catch {
-    return null;
+/**
+ * Create-or-merge one post and return the merged document.
+ * `patch` is merged over whatever is already stored, matching the
+ * Firestore `{ merge: true }` semantics every caller relied on.
+ */
+export async function pbWriteGrowthPost(
+  id: string,
+  patch: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  const existing = await findByFsId(id);
+  const prev =
+    existing && existing.data && typeof existing.data === 'object' && !Array.isArray(existing.data)
+      ? (existing.data as Record<string, unknown>)
+      : {};
+  const { id: _ignored, ...cleanPatch } = patch;
+  const merged = scrubForPocketBase({ ...prev, ...cleanPatch, id }) as Record<string, unknown>;
+  const body = JSON.stringify({
+    fsId: id,
+    status: str(merged.status),
+    productId: str(merged.productId),
+    sellerId: str(merged.sellerId),
+    updatedAt: str(merged.updatedAt) || new Date().toISOString(),
+    data: merged,
+  });
+
+  if (existing) {
+    const res = await pbRequest(
+      `/api/collections/${GROWTH_POSTS_PB_COLLECTION}/records/${existing.id}`,
+      { method: 'PATCH', body },
+    );
+    if (!res.ok) throw new Error(`PocketBase update "${GROWTH_POSTS_PB_COLLECTION}/${id}" failed (${res.status})`);
+    return merged;
   }
+
+  const res = await pbRequest(`/api/collections/${GROWTH_POSTS_PB_COLLECTION}/records`, {
+    method: 'POST',
+    body,
+  });
+  if (!res.ok) throw new Error(`PocketBase create "${GROWTH_POSTS_PB_COLLECTION}/${id}" failed (${res.status})`);
+  return merged;
+}
+
+/** Deletes one post by logical id. Used by tests/maintenance only. */
+export async function pbDeleteGrowthPost(id: string): Promise<boolean> {
+  const existing = await findByFsId(id);
+  if (!existing) return false;
+  return pbDelete(GROWTH_POSTS_PB_COLLECTION, existing.id);
+}
+
+/**
+ * Newest-first queue read, optionally filtered by status. Throws when
+ * PocketBase is unreachable.
+ */
+export async function pbListGrowthPosts(
+  limit: number,
+  status?: string,
+): Promise<Array<Record<string, unknown>>> {
+  await ensureCollection(GROWTH_POSTS_PB_COLLECTION, GROWTH_POST_FIELDS);
+  const rows = await pbListRecords(GROWTH_POSTS_PB_COLLECTION, {
+    sort: '-updatedAt',
+    perPage: Math.max(1, Math.min(500, limit)),
+    ...(status ? { filter: `status = '${esc(status)}'` } : {}),
+  });
+  return rows.map((row) => toDocument(String(row.fsId ?? row.id), row));
+}
+
+/** Per-status counts for the queue header. Throws on PocketBase failure. */
+export async function pbCountGrowthPosts(): Promise<Record<string, number>> {
+  const rows = await pbListGrowthPosts(500);
+  const counts: Record<string, number> = {};
+  for (const row of rows) {
+    const status = typeof row.status === 'string' && row.status ? row.status : 'draft';
+    counts[status] = (counts[status] ?? 0) + 1;
+  }
+  return counts;
 }

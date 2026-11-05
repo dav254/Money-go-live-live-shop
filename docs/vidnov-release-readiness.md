@@ -106,7 +106,11 @@ The Firestore → VPS migration is **NOT complete**. Firestore is the source of
 truth; PocketBase mirrors: profiles, products, shops, orders, wallet
 (payments/payouts/transactions), cart/payment/payout methods, live sessions,
 media records, admins, notifications+push, email logs, chat (PB-primary),
-requests, offers, live streams/chat/reports. Still Firestore-only:
+requests, offers, live streams/chat/reports, and — since the manual-first
+conversion — Growth Posts + Social Engine (`growthPosts`,
+`social_connections`, `social_engine_{tests,meta,audit}`, PB-primary with a
+Firestore mirror; copy once with `scripts/migrate-social-engine.ts`). Still
+Firestore-only:
 `studioVideos`, `resellActivities`, `referrals`/`referralGrants`,
 `supportTickets`/`supportThreads`, `helpArticles`, `homepageSlides`,
 `boost_requests`, `aiJobs`, `opportunities*`, `distribution*`, `contentEvents`,

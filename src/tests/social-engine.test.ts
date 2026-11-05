@@ -621,10 +621,11 @@ describe('Social Engine — source-level guarantees', () => {
     assert.ok(source.includes('sealTokens'));
   });
 
-  it('readTestDoc performs a real Firestore read', () => {
+  it('readTestDoc performs a real primary-store read (PocketBase, Firestore fallback)', () => {
     const engine = read('src/lib/social-engine/engine.ts');
     assert.ok(engine.includes('export async function readTestDoc'));
-    assert.ok(engine.includes('TESTS_COLLECTION).doc(platformDocId(module)).get()'));
+    assert.ok(engine.includes('pbSocialGet(SOCIAL_ENGINE_PB_COLLECTIONS.tests'), 'PocketBase is primary');
+    assert.ok(engine.includes('TESTS_COLLECTION).doc(id).get()'), 'Firestore remains the fallback');
     assert.equal(/return \{\} as ModuleTestDoc/.test(engine), false);
   });
 
