@@ -318,7 +318,7 @@ export const MODULE_SPECS: Record<ModuleId, ModuleSpec> = {
     },
     readyBy: 'diagnostic',
     activation:
-      'Existing Google services in Vidnov (no GOOGLE_CLIENT_ID needed today): Firebase Auth Google sign-in, Gemini AI (GEMINI_API_KEY), Search Console + GA4 + Merchant Center via service accounts, Google Tag Manager. GOOGLE_CLIENT_ID/SECRET add the generic OAuth flow for future profile/API integrations — enable the target API in Google Cloud, add scopes, publish the consent screen.',
+      'Existing Google services in Vidnov (no GOOGLE_CLIENT_ID needed today): Firebase Auth Google sign-in, Search Console + GA4 + Merchant Center via service accounts, Google Tag Manager. GOOGLE_CLIENT_ID/SECRET add the generic OAuth flow for future profile/API integrations — enable the target API in Google Cloud, add scopes, publish the consent screen.',
   },
 
   livekit: {
@@ -401,12 +401,10 @@ export const MODULE_SPECS: Record<ModuleId, ModuleSpec> = {
     purpose:
       'The shared queue every module publishes through — the existing growth-posts engine: admin approval, scheduling, per-channel retry, duplicate protection (cooldown + per-channel results), publishing history and error reporting. Sellers promote only their own approved products; tenant checks live server-side.',
     connectionKind: 'builtin',
-    env: [
-      { name: 'GEMINI_API_KEY', role: 'AI drafting for growth posts (optional — manual drafting works without it)', required: false },
-    ],
+    env: [],
     readyBy: 'diagnostic',
     activation:
-      'No new queue is created: campaigns are growth-posts drafts (Firestore growthPosts), approved by an admin, scheduled by the existing scheduler tick, published through publishSocial() with idempotency (a channel with a recorded result is never re-sent). Audit entries land in social_engine_audit.',
+      'No new queue is created: campaigns are growth-posts drafts written by an administrator (Firestore growthPosts), approved by an admin, scheduled by the existing scheduler tick, published through publishSocial() with idempotency (a channel with a recorded result is never re-sent). No AI service is involved. Audit entries land in social_engine_audit.',
   },
 };
 

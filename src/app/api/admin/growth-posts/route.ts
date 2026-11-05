@@ -1,23 +1,27 @@
 /**
- * /api/admin/growth-posts — the Growth Post approval queue API.
+ * /api/admin/growth-posts — the manual Growth Post queue API.
  *
  * Authorization: `verifyAdminUid` (Bearer token) — the same admin definition
  * every other admin route uses.
  *
+ * There is NO draft-generation action and no AI call anywhere in this route:
+ * every post starts with an administrator's own copy.
+ *
  *   GET  ?status=  → { posts, counts, providers }  (bounded, sanitized)
  *   POST actions:
- *     { action: 'draft',   limit? }              → one bounded draft run
+ *     { action: 'compose', productId, caption, hashtags? } → admin-written draft
+ *     { action: 'edit',    id, caption?, hashtags? }       → rewrite an undecided post
  *     { action: 'decide',  id, decision, reason? }→ approve / reject
  *     { action: 'publish', id, channel }          → copy | email | social publish
- *     { action: 'compose', productId, caption, hashtags? } → admin-written post
  *     { action: 'schedule', id, channels[], at }  → arm the scheduler tick
  *     { action: 'unschedule', id }                → cancel a pending schedule
  *
  * Honesty: responses carry the record and the provider status derived from
  * env presence only. A publish that the provider rejected comes back as
  * `outcome: 'failed'` with the post already marked failed — never as a
- * success. `schedule` never publishes anything by itself: it only arms a
- * pending action that `/api/growth-posts/scheduler` spends at the due time.
+ * success. `compose`/`edit` never approve anything; `schedule` never
+ * publishes anything by itself: it only arms a pending action that
+ * `/api/growth-posts/scheduler` spends at the due time.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -31,9 +35,9 @@ import {
   growthCounts,
   listGrowthPosts,
   publishGrowthPost,
-  runGrowthDraftJob,
   scheduleGrowthPost,
   unscheduleGrowthPost,
+  updateGrowthPost,
 } from '@/lib/vidnov-core/growth-posts/service';
 import {
   GROWTH_POST_STATES,
@@ -98,7 +102,6 @@ export async function POST(request: NextRequest) {
     productId?: string;
     caption?: string;
     hashtags?: string[];
-    limit?: number;
   };
   try {
     body = await request.json();
@@ -108,9 +111,17 @@ export async function POST(request: NextRequest) {
 
   try {
     switch (body.action) {
-      case 'draft': {
-        const report = await runGrowthDraftJob({ db, actorUid: adminUid, limit: body.limit });
-        return NextResponse.json({ report });
+      case 'edit': {
+        if (!body.id) {
+          return NextResponse.json({ error: 'A post id is required.' }, { status: 400 });
+        }
+        const post = await updateGrowthPost(db, {
+          id: body.id,
+          ...(body.caption !== undefined ? { caption: body.caption } : {}),
+          ...(Array.isArray(body.hashtags) ? { hashtags: body.hashtags } : {}),
+          actorUid: adminUid,
+        });
+        return NextResponse.json({ post });
       }
 
       case 'decide': {

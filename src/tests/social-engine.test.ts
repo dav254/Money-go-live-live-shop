@@ -498,7 +498,7 @@ describe('Social Engine — module registry', () => {
 
   it('declares env vars and one readyBy per module', () => {
     for (const [id, spec] of Object.entries(MODULE_SPECS)) {
-      assert.ok(spec.env.length > 0, `${id} declares no env vars at all`);
+      assert.ok(Array.isArray(spec.env), `${id} has no env declaration`);
       assert.ok(['publish', 'diagnostic', 'none'].includes(spec.readyBy));
       assert.ok(spec.activation.length > 0);
       // Any module you CONNECT to (oauth or server credentials) must name at
@@ -533,7 +533,7 @@ describe('Social Engine — capability ids', () => {
     const known = new Set<string>(allCapabilities());
     for (const id of MODULE_IDS) {
       const caps = moduleCapabilities(id);
-      for (const cap of [...caps.free, ...caps.aiPoint]) {
+      for (const cap of caps.free) {
         assert.ok(known.has(cap), `${id} exposes unknown capability ${cap}`);
       }
     }
@@ -542,7 +542,17 @@ describe('Social Engine — capability ids', () => {
   it('carries no price or point cost', () => {
     const ids = allCapabilities();
     assert.equal(ids.some((id) => /price|cost|points?:?\d/i.test(id)), false);
-    assert.equal(ids.length, 16);
+    assert.equal(ids.length, 8);
+  });
+
+  it('lists no AI capability — the marketing workflow is manual first', () => {
+    for (const id of allCapabilities()) {
+      assert.equal(/\.ai$/.test(id), false, `${id} is an AI capability`);
+    }
+    for (const moduleId of MODULE_IDS) {
+      const caps = moduleCapabilities(moduleId) as { free: string[]; aiPoint?: string[] };
+      assert.equal(caps.aiPoint, undefined, `${moduleId} still advertises AI capabilities`);
+    }
   });
 });
 

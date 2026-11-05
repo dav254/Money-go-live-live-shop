@@ -2,11 +2,12 @@
  * GROWTH POSTS — types, state machine and safety limits (pure module).
  *
  * ## What this engine is
- * The "extra hands" layer: a bounded job drafts ready-to-post social copy for
- * the products performing best on REAL metrics, parks each draft in an admin
- * approval queue, and only acts on an approved draft. Nothing here posts
- * anywhere by itself — publishing channels are gated by their own provider
- * configuration and are reported honestly (see `drafts.ts`).
+ * A manual-first marketing queue: an administrator writes a post about a real
+ * listing, it waits in the review queue as a draft, a person approves or
+ * rejects it, and only an approved post can be published or scheduled.
+ * Nothing here generates copy, approves itself or posts anywhere by itself —
+ * publishing channels are gated by their own provider configuration and are
+ * reported honestly (see `drafts.ts`).
  *
  * ## Why the state machine is closed
  * A draft is either approved or rejected; an approved post can only become
@@ -125,7 +126,7 @@ export interface GrowthPost {
   productImage?: string;
   price?: number;
   currency?: string;
-  /** AI-drafted, admin-approved copy. Never generated from thin air here. */
+  /** Copy written by an administrator. Never generated in the background. */
   caption: string;
   hashtags: string[];
   /** Same-site tracked path, e.g. `/products/x?ref=growthpost`. */
@@ -133,7 +134,7 @@ export interface GrowthPost {
   status: GrowthPostState;
   createdAt: string;
   updatedAt: string;
-  /** Who ran the draft job: an admin uid or `system:growth-cron`. */
+  /** Who wrote the post: an admin uid. */
   draftedBy: string;
   decidedBy?: string;
   decidedAt?: string;
@@ -161,19 +162,10 @@ export interface GrowthPost {
 }
 
 /**
- * Bounds, so "it works while I sleep" can never mean "it spends while I
- * sleep". Every number has a hard cap the routes clamp against.
+ * Bounds. Every number has a hard cap the routes clamp against, so a
+ * scheduled pass can never fan out beyond what one administrator approved.
  */
 export const GROWTH_POST_LIMITS = {
-  /** Posts one draft run may create. */
-  perRun: 3,
-  perRunMax: 5,
-  /** Posts one UTC day may create (cron + manual share the budget). */
-  perDay: 12,
-  /** Days a product sits out after being drafted (no repeat spam). */
-  cooldownDays: 14,
-  /** Product page read window for candidate selection. */
-  scanLimit: 80,
   /** Posts returned by the admin list. */
   listLimit: 50,
   /** Scheduler: earliest a post may be scheduled (ms from now). */
@@ -185,12 +177,6 @@ export const GROWTH_POST_LIMITS = {
   /** Scheduler: channels one post may fan out to. */
   schedulerChannelsMax: 4,
 } as const;
-
-/** Clamp a requested run size into the safe range. */
-export function clampDraftLimit(value: unknown): number {
-  const n = typeof value === 'number' && Number.isFinite(value) ? Math.floor(value) : GROWTH_POST_LIMITS.perRun;
-  return Math.min(GROWTH_POST_LIMITS.perRunMax, Math.max(1, n));
-}
 
 /** Provider status shape the admin page renders — env NAMES only. */
 export interface GrowthProviderStatus {

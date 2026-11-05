@@ -10,8 +10,9 @@
  *     the platform's own message id — the tick never sets a status itself;
  *   • an unconfigured channel fails BEFORE any network call, with an
  *     env-NAMES-only note recorded in `results`;
- *   • composed posts must pass the same real-listing eligibility gate as the
- *     nightly drafter (visible, named, priced, pictured, owned);
+ *   • composed posts must pass the real-listing eligibility gate (visible,
+ *     named, priced, pictured, owned) and enter the queue as a DRAFT — a post
+ *     is never auto-approved, and editing keeps its state;
  *   • the routes keep their gates: admin verification on every action, three
  *     opt-in gates + timing-safe secret on the scheduler cron.
  *
@@ -27,9 +28,11 @@ import type { Firestore } from 'firebase-admin/firestore';
 import {
   GrowthPostsError,
   composeGrowthPost,
+  decideGrowthPost,
   runDueGrowthPosts,
   scheduleGrowthPost,
   unscheduleGrowthPost,
+  updateGrowthPost,
 } from '../lib/vidnov-core/growth-posts/service';
 import { GROWTH_POST_LIMITS, canTransitionGrowthPost } from '../lib/vidnov-core/growth-posts/types';
 
@@ -365,7 +368,7 @@ const REAL_PRODUCT: Doc = {
 };
 
 describe('composeGrowthPost', () => {
-  it('creates an approved post from a real listing, sanitized and attributed', async () => {
+  it('creates a DRAFT from a real listing, sanitized and attributed', async () => {
     const { db, store } = makeDb({ products: { prod1: REAL_PRODUCT } });
     const post = await composeGrowthPost(db, {
       productId: 'prod1',
@@ -374,9 +377,10 @@ describe('composeGrowthPost', () => {
       actorUid: 'admin1',
       now: NOW,
     });
-    assert.equal(post.status, 'approved', 'the admin is the author — nothing to approve');
+    assert.equal(post.status, 'draft', 'manual first — nothing is auto-approved');
     assert.equal(post.draftedBy, 'admin1');
-    assert.equal(post.decidedBy, 'admin1');
+    assert.equal(post.decidedBy, undefined, 'no approval decision is recorded on compose');
+    assert.equal(post.decidedAt, undefined);
     assert.ok(post.caption.includes('New drop:'), 'control chars stripped, text kept');
     assert.ok(!post.caption.includes('\u0000'), 'control chars are gone');
     assert.deepEqual(post.hashtags, ['deals', 'newarrivals']);
@@ -385,7 +389,7 @@ describe('composeGrowthPost', () => {
     assert.equal(store.get('products')!.get('prod1')!.price, 249, 'the product itself is untouched');
   });
 
-  it('refuses listings that would fail the drafter’s own eligibility gate', async () => {
+  it('refuses listings that would fail the eligibility gate', async () => {
     const { db, store } = makeDb({
       products: {
         p1: { sellerId: 'seller1', name: 'No picture', price: 5 }, // missing_image
@@ -425,6 +429,59 @@ describe('composeGrowthPost', () => {
   });
 });
 
+/* ── Editing before approval ─────────────────────────────────────────── */
+
+describe('updateGrowthPost', () => {
+  it('rewrites the copy of a draft without changing its status', async () => {
+    const { db } = makeDb({ products: { prod1: REAL_PRODUCT } });
+    const created = await composeGrowthPost(db, {
+      productId: 'prod1',
+      caption: 'First draft copy',
+      hashtags: ['deals'],
+      actorUid: 'admin1',
+      now: NOW,
+    });
+    const edited = await updateGrowthPost(db, {
+      id: created.id,
+      caption: '  Edited copy \u0000 for review  ',
+      hashtags: ['#watches', 'new arrivals'],
+      actorUid: 'admin1',
+    });
+    assert.equal(edited.status, 'draft', 'editing is not approving');
+    assert.equal(edited.caption, 'Edited copy for review');
+    assert.deepEqual(edited.hashtags, ['watches', 'newarrivals']);
+  });
+
+  it('refuses an empty caption, an unknown post and a decided post', async () => {
+    const { db } = makeDb({ products: { prod1: REAL_PRODUCT } });
+    const created = await composeGrowthPost(db, {
+      productId: 'prod1',
+      caption: 'Copy',
+      actorUid: 'admin1',
+      now: NOW,
+    });
+    await rejectsCode(() => updateGrowthPost(db, { id: created.id, caption: '   ', actorUid: 'a' }), 'invalid_input');
+    await rejectsCode(() => updateGrowthPost(db, { id: 'ghost', caption: 'hi', actorUid: 'a' }), 'not_found');
+
+    await decideGrowthPost(db, { id: created.id, decision: 'reject', actorUid: 'admin1' });
+    await rejectsCode(() => updateGrowthPost(db, { id: created.id, caption: 'late edit', actorUid: 'a' }), 'invalid_transition');
+  });
+
+  it('allows an approved post to be edited before it is scheduled or published', async () => {
+    const { db } = makeDb({ products: { prod1: REAL_PRODUCT } });
+    const created = await composeGrowthPost(db, {
+      productId: 'prod1',
+      caption: 'Copy',
+      actorUid: 'admin1',
+      now: NOW,
+    });
+    await decideGrowthPost(db, { id: created.id, decision: 'approve', actorUid: 'admin1' });
+    const edited = await updateGrowthPost(db, { id: created.id, caption: 'Approved, then corrected', actorUid: 'admin1' });
+    assert.equal(edited.status, 'approved');
+    assert.equal(edited.caption, 'Approved, then corrected');
+  });
+});
+
 /* ── Route & UI gates (source level) ──────────────────────────────────── */
 
 describe('routes and page keep their gates (source level)', () => {
@@ -435,9 +492,10 @@ describe('routes and page keep their gates (source level)', () => {
 
   it('the admin route still verifies admin on exactly its two handlers', () => {
     assert.equal((adminRoute.match(/await verifyAdminUid/g) ?? []).length, 2);
-    for (const action of ["'compose'", "'schedule'", "'unschedule'"]) {
+    for (const action of ["'compose'", "'edit'", "'decide'", "'publish'", "'schedule'", "'unschedule'"]) {
       assert.ok(adminRoute.includes(`case ${action}`), `missing ${action} action`);
     }
+    assert.ok(!adminRoute.includes("case 'draft'"), 'no AI draft action may exist');
     assert.ok(adminRoute.includes("case 'invalid_input': return 400"));
   });
 

@@ -2,11 +2,10 @@
  * GET/POST /api/growth-posts/scheduler — the in-house Postiz clock: spends
  * the schedules that `/api/admin/growth-posts` armed.
  *
- * ## Why a separate route from the draft cron
- * The draft run SPENDS AI tokens; this tick SPENDS outbound posts. They are
- * different budgets with different failure modes, so each opt-in flag must
- * never ride along on the other's — the same rule the distribution cron
- * documents.
+ * ## Manual first
+ * There is no AI draft run any more: every post in this queue was written and
+ * approved by an administrator. This tick only spends schedules that an admin
+ * armed by hand, and it never creates, approves or edits a post.
  *
  * ## Three gates, in order (fail closed, static responses)
  *   1. `VIDNOV_CRON_ENABLED=true`          — the platform scheduler is on.

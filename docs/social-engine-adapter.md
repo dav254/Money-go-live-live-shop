@@ -192,8 +192,8 @@ same storage system — no third-party upload), then `media_publish`s it.
 
 **Not a generic social publishing API.** The env names are documented for the
 future generic OAuth flow; today Google services in Vidnov are Firebase Auth
-sign-in, Gemini AI (`GEMINI_API_KEY`), Search Console/GA4/Merchant Center
-(service accounts), and GTM. `runDiagnostics` verifies the connected OAuth
+sign-in, Search Console/GA4/Merchant Center (service accounts), and GTM. The
+marketing workflow itself is manual first and calls no AI service. `runDiagnostics` verifies the connected OAuth
 account (`openidconnect` userinfo). Publishing is deliberately refused; an
 admin should attest the intended service in the dashboard, and only then is
 the module `READY`.

@@ -13,8 +13,9 @@
  *
  * Honesty invariants:
  *   • a draft is created ONLY from a real, eligible product document and an
- *     actual model response — a failed generation is reported, never saved;
+ *     administrator's own copy — nothing is generated in the background;
  *   • every state change goes through `canTransitionGrowthPost`;
+ *   • a composed post starts as `draft`: it is never auto-approved;
  *   • `emailed` with `emailStatus: 'dev_captured'` means captured in dev
  *     mode, NOT delivered — the vocabulary from the outreach engine;
  *   • `status: 'published'` is only ever written in the SAME patch as the
@@ -27,15 +28,11 @@ import { appLink } from '@/lib/notifications/config';
 import { sendTemplateEmail } from '@/lib/notifications/email-service';
 import { pbCountGrowthPosts, pbListGrowthPosts, pbMirrorGrowthPost } from '@/lib/pocketbase/growth-posts';
 import { evaluateProductEligibility } from '../distribution/eligibility';
-import { draftSocialPost } from './ai';
 import { publishSocial } from './social';
 import {
   CHANNEL_TEXT_LIMITS,
   buildPostText,
-  draftsRemainingToday,
-  growthProviderStatuses,
   publishGate,
-  selectDraftTargets,
   sharePathFor,
   type DraftCandidate,
 } from './drafts';
@@ -43,7 +40,6 @@ import {
   GROWTH_POSTS_COLLECTION,
   GROWTH_POST_LIMITS,
   canTransitionGrowthPost,
-  clampDraftLimit,
   isSocialChannel,
   type GrowthPost,
   type GrowthPostState,
@@ -154,161 +150,6 @@ function toPost(id: string, raw: Record<string, unknown>): GrowthPost | null {
       : {}),
     ...(str(raw.scheduledBy) ? { scheduledBy: str(raw.scheduledBy) } : {}),
   };
-}
-
-async function readCollection(db: Firestore, name: string, cap: number): Promise<Map<string, Record<string, unknown>>> {
-  const out = new Map<string, Record<string, unknown>>();
-  try {
-    const snap = await db.collection(name).limit(cap).get();
-    snap.forEach((doc) => out.set(doc.id, (doc.data() ?? {}) as Record<string, unknown>));
-    return out;
-  } catch {
-    // Firestore unavailable (blocked project / quota) — caller decides the
-    // fallback: the VPS mirror answers for growthPosts, and the draft run
-    // genuinely cannot proceed without a product catalogue.
-    throw new GrowthPostsError('store_unavailable', 'The product store is unavailable right now.');
-  }
-}
-
-/* ── The nightly draft run ──────────────────────────────────────────────── */
-
-export interface DraftRunReport {
-  ranAt: string;
-  actorUid: string;
-  limit: number;
-  scanned: number;
-  drafted: number;
-  failed: number;
-  skippedCooldown: number;
-  skippedIncomplete: number;
-  dailyBudgetRemaining: number;
-  aiStatus: 'configured' | 'not_configured';
-  posts: Array<{ id: string; productId: string; status: GrowthPostState }>;
-}
-
-export interface DraftRunParams {
-  db: Firestore;
-  actorUid: string;
-  limit?: number;
-  /** Injectable clock for tests. */
-  now?: Date;
-}
-
-export async function runGrowthDraftJob(params: DraftRunParams): Promise<DraftRunReport> {
-  const { db, actorUid } = params;
-  const now = params.now ?? new Date();
-  const providers = growthProviderStatuses();
-
-  if (providers.ai.status !== 'configured') {
-    throw new GrowthPostsError('not_configured', 'AI drafting is not configured (GEMINI_API_KEY missing).');
-  }
-
-  let limit = clampDraftLimit(params.limit);
-  const report: DraftRunReport = {
-    ranAt: iso(now),
-    actorUid,
-    limit,
-    scanned: 0,
-    drafted: 0,
-    failed: 0,
-    skippedCooldown: 0,
-    skippedIncomplete: 0,
-    dailyBudgetRemaining: GROWTH_POST_LIMITS.perDay,
-    aiStatus: providers.ai.status,
-    posts: [],
-  };
-
-  // Existing posts give us BOTH the per-product cooldown and today's budget.
-  let existing: Map<string, Record<string, unknown>>;
-  try {
-    existing = await readCollection(db, GROWTH_POSTS_COLLECTION, 200);
-  } catch (error) {
-    // The queue store is mirrored: when Firestore cannot answer, the VPS copy
-    // still tells us what was drafted today so the budget stays honest.
-    const mirrored = await pbListGrowthPosts(200);
-    existing = new Map(mirrored.map((row) => [String(row.id ?? ''), row]));
-    if (mirrored.length === 0 && error instanceof GrowthPostsError) throw error;
-  }
-
-  const cooldownMs = GROWTH_POST_LIMITS.cooldownDays * 86_400_000;
-  const cooldown = new Set<string>();
-  let createdToday = 0;
-  const today = now.toISOString().slice(0, 10);
-  for (const doc of existing.values()) {
-    if (typeof doc.productId === 'string' && doc.productId) {
-      const created = str(doc.createdAt);
-      if (!created || now.getTime() - Date.parse(created) < cooldownMs) cooldown.add(doc.productId);
-    }
-    if (str(doc.createdAt).slice(0, 10) === today) createdToday += 1;
-  }
-
-  const remainingToday = draftsRemainingToday(createdToday);
-  report.dailyBudgetRemaining = remainingToday;
-  limit = Math.min(limit, remainingToday);
-  report.limit = limit;
-  if (limit <= 0) return report; // daily budget spent — nothing to do, no spend
-
-  const products = await readCollection(db, 'products', GROWTH_POST_LIMITS.scanLimit);
-  report.scanned = products.size;
-
-  const candidates: DraftCandidate[] = [];
-  for (const [id, raw] of products) {
-    const eligibility = evaluateProductEligibility(id, raw);
-    if (!eligibility.eligible) {
-      report.skippedIncomplete += 1;
-      continue;
-    }
-    candidates.push(toCandidate(id, raw));
-  }
-
-  const { selected, skipped } = selectDraftTargets(candidates, {
-    limit,
-    cooldownProductIds: cooldown,
-    now: now.getTime(),
-  });
-  report.skippedCooldown = skipped.filter((s) => s.reason === 'cooldown').length;
-  report.skippedIncomplete += skipped.filter((s) => s.reason === 'incomplete').length;
-
-  for (const candidate of selected) {
-    const sharePath = sharePathFor(candidate.id);
-    const outcome = await draftSocialPost(candidate, sharePath);
-    if (!outcome.ok) {
-      // Not configured is a global gate (already checked); anything else is
-      // a per-post failure that never enters the queue.
-      report.failed += 1;
-      continue;
-    }
-
-    const raw = products.get(candidate.id) ?? {};
-    const nowIso = iso(now);
-    const body = {
-      productId: candidate.id,
-      sellerId: str(raw.sellerId),
-      productName: candidate.name,
-      ...(candidate.imageUrl ? { productImage: candidate.imageUrl } : {}),
-      ...(Number.isFinite(candidate.price) ? { price: candidate.price } : {}),
-      ...(candidate.currency ? { currency: candidate.currency } : {}),
-      caption: outcome.draft.caption,
-      hashtags: outcome.draft.hashtags,
-      sharePath,
-      status: 'draft' as const,
-      createdAt: nowIso,
-      updatedAt: nowIso,
-      draftedBy: actorUid,
-    };
-
-    try {
-      const ref = await db.collection(GROWTH_POSTS_COLLECTION).add(body);
-      await pbMirrorGrowthPost(ref.id, { id: ref.id, ...body });
-      report.drafted += 1;
-      report.posts.push({ id: ref.id, productId: candidate.id, status: 'draft' });
-    } catch {
-      report.failed += 1;
-    }
-  }
-
-  report.dailyBudgetRemaining = Math.max(0, remainingToday - report.drafted);
-  return report;
 }
 
 /* ── Reads ──────────────────────────────────────────────────────────────── */
@@ -730,13 +571,13 @@ function normalizeHashtags(raw: unknown): string[] {
 }
 
 /**
- * Create an admin-written post about a REAL listing, straight into
- * `approved` — the admin is the author, so there is nothing to approve.
+ * Create an admin-written post about a REAL listing.
  *
- * The listing must pass the exact same `evaluateProductEligibility` gate the
- * nightly drafter uses (safe id, seller, name, price, image, visible), so a
- * composed post can never promote a hidden, price-less or picture-less
- * listing. No AI tokens are spent and no daily draft budget is consumed.
+ * The post is saved as a `draft` and waits for a person to approve it —
+ * composing never auto-approves and never auto-publishes. The listing must
+ * pass the `evaluateProductEligibility` gate (safe id, seller, name, price,
+ * image, visible), so a composed post can never promote a hidden, price-less
+ * or picture-less listing.
  */
 export async function composeGrowthPost(
   db: Firestore,
@@ -787,13 +628,12 @@ export async function composeGrowthPost(
     caption,
     hashtags: normalizeHashtags(params.hashtags),
     sharePath: sharePathFor(productId),
-    // Composed posts skip the approval queue: the admin IS the author.
-    status: 'approved' as const,
+    // Manual first: a composed post enters the review queue as a draft. The
+    // approval decision is always a separate, explicit human action.
+    status: 'draft' as const,
     createdAt: nowIso,
     updatedAt: nowIso,
     draftedBy: params.actorUid,
-    decidedBy: params.actorUid,
-    decidedAt: nowIso,
   };
 
   try {
@@ -805,6 +645,50 @@ export async function composeGrowthPost(
     if (error instanceof GrowthPostsError) throw error;
     throw new GrowthPostsError('store_unavailable', 'The growth post store is unavailable right now.');
   }
+}
+
+/* ── Editing a post before approval ─────────────────────────────────────── */
+
+/**
+ * Rewrites the caption and/or hashtags of a post that has not been decided
+ * yet. Editing never changes the state, never approves and never publishes —
+ * it is the "type and edit the caption" step of the manual workflow.
+ *
+ * Only `draft` and `approved` posts may be edited: once a post is rejected it
+ * is final, and once it has a per-channel result the copy that was published
+ * must stay the copy on record.
+ */
+export async function updateGrowthPost(
+  db: Firestore,
+  params: { id: string; caption?: string; hashtags?: string[]; actorUid: string },
+): Promise<GrowthPost> {
+  const { post } = await loadPost(db, params.id);
+  if (post.status !== 'draft' && post.status !== 'approved') {
+    throw new GrowthPostsError(
+      'invalid_transition',
+      'Only a draft or an approved post can still be edited.',
+    );
+  }
+
+  const patch: Record<string, unknown> = {};
+  if (params.caption !== undefined) {
+    const caption = sanitizeCaption(params.caption);
+    if (!caption) {
+      throw new GrowthPostsError('invalid_input', 'Write the post copy first.');
+    }
+    if (caption.length > 4_000) {
+      throw new GrowthPostsError('invalid_input', 'The post copy is too long (4,000 characters max).');
+    }
+    patch.caption = caption;
+  }
+  if (params.hashtags !== undefined) {
+    patch.hashtags = normalizeHashtags(params.hashtags);
+  }
+  if (Object.keys(patch).length === 0) {
+    throw new GrowthPostsError('invalid_input', 'Nothing to update.');
+  }
+
+  return savePatch(db, params.id, patch);
 }
 
 /* ── The tick — publishes what is due, bounded and honest ───────────────── */

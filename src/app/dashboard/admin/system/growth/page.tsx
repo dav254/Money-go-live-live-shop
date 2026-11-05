@@ -34,15 +34,19 @@ import { getPlaceholderImage } from '@/lib/placeholder-images';
 import { cn } from '@/lib/utils';
 
 /**
- * Admin · Growth Posts — the approval queue for the nightly draft engine.
+ * Admin · Growth Posts — the manual-first marketing queue.
+ *
+ * Workflow: write a post by hand → review the draft → approve or reject →
+ * publish or schedule → read the per-channel results. There is no AI drafting
+ * and no background generation: nothing enters this queue except copy an
+ * administrator typed, and nothing publishes until an administrator approves
+ * it (or schedules it after approval).
  *
  * A thin consumer of `/api/admin/growth-posts`: this page NEVER invents a
- * status. It renders exactly what the API returns — the drafted caption, the
- * real product facts behind it, the tracked share path, and the provider
- * status derived from env presence. Publishing is offered for every channel
- * the API accepts (`copy`, `email`, and the four free social networks from
- * Phase 2A); each social button only claims success when the platform's own
- * response carried a message id.
+ * status. It renders exactly what the API returns — the caption, the real
+ * product facts behind it, the tracked share path, and the provider status
+ * derived from env presence. Each social button only claims success when the
+ * platform's own response carried a message id.
  */
 
 type PostStatus = 'draft' | 'approved' | 'rejected' | 'copied' | 'emailed' | 'published' | 'failed';
@@ -88,15 +92,6 @@ interface ProviderStatus {
 }
 
 type Counts = Record<PostStatus, number>;
-
-interface DraftReport {
-  scanned: number;
-  drafted: number;
-  failed: number;
-  skippedCooldown: number;
-  limit: number;
-  dailyBudgetRemaining: number;
-}
 
 const STATUS_LABELS: Record<PostStatus, string> = {
   draft: 'Awaiting approval',
@@ -165,7 +160,6 @@ export default function AdminGrowthPostsPage() {
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [runningDraft, setRunningDraft] = useState(false);
 
   const authHeaders = useCallback(async (): Promise<Record<string, string>> => {
     const token = await user!.getIdToken();
@@ -232,16 +226,6 @@ export default function AdminGrowthPostsPage() {
     },
     [user, authHeaders, toast],
   );
-
-  const runDraftJob = useCallback(async () => {
-    setRunningDraft(true);
-    const res = await post({ action: 'draft' }, 'draft');
-    if (res.ok) {
-      toast({ title: 'Draft run finished', description: 'Refresh shows the new drafts in the queue.' });
-      await load();
-    }
-    setRunningDraft(false);
-  }, [post, load, toast]);
 
   const decide = useCallback(
     async (id: string, decision: 'approve' | 'reject') => {
@@ -364,7 +348,10 @@ export default function AdminGrowthPostsPage() {
       'compose',
     );
     if (res.ok) {
-      toast({ title: 'Post composed', description: 'It is approved — publish it now or schedule it.' });
+      toast({
+        title: 'Draft saved',
+        description: 'It is waiting in review — approve it before it can be published or scheduled.',
+      });
       setComposing(false);
       setComposeProductId('');
       setComposeCaption('');
@@ -373,6 +360,41 @@ export default function AdminGrowthPostsPage() {
       await load();
     }
   }, [composeProductId, composeCaption, composeTags, post, load, toast]);
+
+  /* ── Editing: rewrite an undecided post without changing its state ──── */
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editCaption, setEditCaption] = useState('');
+  const [editTags, setEditTags] = useState('');
+
+  const startEdit = useCallback((p: GrowthPost) => {
+    setEditId(p.id);
+    setEditCaption(p.caption);
+    setEditTags((p.hashtags ?? []).join(', '));
+  }, []);
+
+  const cancelEdit = useCallback(() => {
+    setEditId(null);
+    setEditCaption('');
+    setEditTags('');
+  }, []);
+
+  const saveEdit = useCallback(async () => {
+    if (!editId) return;
+    if (!editCaption.trim()) {
+      toast({ variant: 'destructive', title: 'The caption cannot be empty.' });
+      return;
+    }
+    const hashtags = editTags
+      .split(/[,\s]+/)
+      .map((t) => t.replace(/^#/, '').trim())
+      .filter(Boolean);
+    const res = await post({ action: 'edit', id: editId, caption: editCaption, hashtags }, editId);
+    if (res.ok) {
+      toast({ title: 'Draft updated', description: 'The review queue now shows the edited copy.' });
+      cancelEdit();
+      await load();
+    }
+  }, [editId, editCaption, editTags, post, cancelEdit, load, toast]);
 
   /* ── Scheduling: arm / cancel the pending action the tick spends ────── */
   const [schedDraft, setSchedDraft] = useState<Record<string, { at: string; channels: string[] }>>({});
@@ -436,25 +458,16 @@ export default function AdminGrowthPostsPage() {
               Growth Posts
             </h1>
             <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-              The nightly engine drafts ready-to-post copy for your best-performing products from real
-              metrics — or compose your own. Every draft waits here for approval; approved posts can be
-              copied, emailed to the seller, published to the four free social channels right away, or
-              scheduled for later. Every publish is confirmed by the platform’s own message id or
-              reported as an honest failure.
+              Write every post yourself. A composed post is saved as a draft, reviewed, approved by a
+              person, then either published right away or scheduled for later. Approved posts can also be
+              copied or emailed to the seller. Every publish is confirmed by the platform’s own message id
+              or reported as an honest failure — nothing is generated or sent automatically.
             </p>
           </div>
           <div className="flex shrink-0 gap-2">
             <Button variant="outline" size="sm" onClick={() => void load()} disabled={loading}>
               <RefreshCw className={cn('mr-2 h-4 w-4', loading && 'animate-spin')} />
               Refresh
-            </Button>
-            <Button size="sm" onClick={() => void runDraftJob()} disabled={runningDraft}>
-              {runningDraft ? (
-                <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Sparkles className="mr-2 h-4 w-4" />
-              )}
-              Run draft job
             </Button>
           </div>
         </div>
@@ -491,10 +504,10 @@ export default function AdminGrowthPostsPage() {
         ) : (
           <Card className="rounded-2xl border-primary/40">
             <CardHeader className="pb-3">
-              <CardTitle className="text-base">Compose a post about a real listing</CardTitle>
+              <CardTitle className="text-base">Create a post about a real listing</CardTitle>
               <CardDescription>
-                Written by you and saved straight to approved — it passes the same listing gate as the
-                drafter (visible, priced, pictured), and can be published or scheduled like any other post.
+                Written by you and saved as a draft. The listing must be visible, priced and pictured; the
+                post then waits in review and is never auto-approved or auto-published.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -536,7 +549,7 @@ export default function AdminGrowthPostsPage() {
               />
               <div className="flex flex-wrap gap-2">
                 <Button size="sm" onClick={() => void submitCompose()} disabled={busyId === 'compose'}>
-                  <CheckCircle2 className="mr-2 h-4 w-4" /> Save as approved
+                  <PenLine className="mr-2 h-4 w-4" /> Save draft
                 </Button>
                 <Button size="sm" variant="outline" onClick={() => setComposing(false)}>
                   Cancel
@@ -596,16 +609,16 @@ export default function AdminGrowthPostsPage() {
             <CardContent className="flex flex-col items-center gap-3 py-14 text-center">
               <Sparkles className="h-6 w-6 text-muted-foreground" aria-hidden />
               <p className="text-sm font-semibold">
-                {filter === 'all' ? 'No drafts yet.' : `Nothing with this status.`}
+                {filter === 'all' ? 'No posts yet.' : `Nothing with this status.`}
               </p>
               <p className="max-w-md text-xs text-muted-foreground">
                 {filter === 'all'
-                  ? 'Run the draft job to have the engine prepare posts from your top-performing products. It is bounded: 3 per run, 12 per day, and no product repeats within 14 days.'
+                  ? 'Use “Compose a post” to write one about a real listing. It is saved as a draft for review — nothing is generated for you.'
                   : 'Switch back to “All” to see the whole queue.'}
               </p>
               {filter === 'all' && (
-                <Button size="sm" onClick={() => void runDraftJob()} disabled={runningDraft}>
-                  <Sparkles className="mr-2 h-4 w-4" /> Run draft job
+                <Button size="sm" onClick={() => void openComposer()}>
+                  <PenLine className="mr-2 h-4 w-4" /> Compose a post
                 </Button>
               )}
             </CardContent>
@@ -643,21 +656,46 @@ export default function AdminGrowthPostsPage() {
                 </CardHeader>
 
                 <CardContent className="space-y-3">
-                  <div className="rounded-xl border bg-white/[0.03] p-4">
-                    <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">{p.caption}</p>
-                    {p.hashtags.length > 0 && (
-                      <p className="mt-2 flex flex-wrap gap-1.5">
-                        {p.hashtags.map((tag) => (
-                          <span
-                            key={tag}
-                            className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary"
-                          >
-                            #{tag}
-                          </span>
-                        ))}
-                      </p>
-                    )}
-                  </div>
+                  {editId === p.id ? (
+                    <div className="space-y-2 rounded-xl border border-primary/40 p-4">
+                      <textarea
+                        value={editCaption}
+                        onChange={(e) => setEditCaption(e.target.value)}
+                        rows={5}
+                        className="w-full rounded-md border bg-transparent px-3 py-2 text-sm"
+                      />
+                      <input
+                        value={editTags}
+                        onChange={(e) => setEditTags(e.target.value)}
+                        placeholder="hashtags, separated by commas (without #)"
+                        className="w-full rounded-md border bg-transparent px-3 py-2 text-sm"
+                      />
+                      <div className="flex flex-wrap gap-2">
+                        <Button size="sm" onClick={() => void saveEdit()} disabled={busyId === p.id}>
+                          <CheckCircle2 className="mr-2 h-4 w-4" /> Save changes
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={cancelEdit}>
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="rounded-xl border bg-white/[0.03] p-4">
+                      <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">{p.caption}</p>
+                      {p.hashtags.length > 0 && (
+                        <p className="mt-2 flex flex-wrap gap-1.5">
+                          {p.hashtags.map((tag) => (
+                            <span
+                              key={tag}
+                              className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary"
+                            >
+                              #{tag}
+                            </span>
+                          ))}
+                        </p>
+                      )}
+                    </div>
+                  )}
 
                   <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                     <a
@@ -703,6 +741,14 @@ export default function AdminGrowthPostsPage() {
                       <>
                         <Button
                           size="sm"
+                          variant="outline"
+                          onClick={() => startEdit(p)}
+                          disabled={busyId === p.id || editId === p.id}
+                        >
+                          <PenLine className="mr-2 h-4 w-4" /> Edit
+                        </Button>
+                        <Button
+                          size="sm"
                           onClick={() => void decide(p.id, 'approve')}
                           disabled={busyId === p.id}
                         >
@@ -720,6 +766,14 @@ export default function AdminGrowthPostsPage() {
                     )}
                     {p.status === 'approved' && (
                       <>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => startEdit(p)}
+                          disabled={busyId === p.id || editId === p.id}
+                        >
+                          <PenLine className="mr-2 h-4 w-4" /> Edit
+                        </Button>
                         <Button
                           size="sm"
                           variant="outline"
@@ -885,14 +939,12 @@ export default function AdminGrowthPostsPage() {
         {/* ── Cadence note ───────────────────────────────────────── */}
         <p className="flex items-start gap-2 text-[11px] leading-relaxed text-muted-foreground">
           <Clock className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
-          Nightly runs are opt-in: set <code className="font-mono">VIDNOV_CRON_ENABLED</code>,{' '}
-          <code className="font-mono">GROWTH_POSTS_CRON_ENABLED</code> and{' '}
-          <code className="font-mono">CRON_SECRET</code>, then hit{' '}
-          <code className="font-mono">/api/growth-posts/cron</code> from your scheduler. Scheduled posts
-          are spent by the same three gates plus{' '}
-          <code className="font-mono">GROWTH_POSTS_SCHEDULER_ENABLED</code> on{' '}
-          <code className="font-mono">/api/growth-posts/scheduler</code> — until both are enabled,
-          “Run draft job” and the publish buttons above do the same work on demand.
+          Scheduled posts are spent by three gates: <code className="font-mono">VIDNOV_CRON_ENABLED</code>,{' '}
+          <code className="font-mono">GROWTH_POSTS_SCHEDULER_ENABLED</code> and{' '}
+          <code className="font-mono">CRON_SECRET</code> on{' '}
+          <code className="font-mono">/api/growth-posts/scheduler</code>. The tick only touches approved
+          posts an administrator scheduled — there is no AI draft run and nothing is created in the
+          background. Until the scheduler is enabled, the publish buttons above do the work on demand.
         </p>
       </div>
     </AdminLayout>

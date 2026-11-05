@@ -42,7 +42,7 @@ import type { ModuleReadiness, ReadinessState } from '@/lib/social-engine/types'
 
 interface StatusResponse {
   modules: ModuleReadiness[];
-  capabilities: { free: string[]; aiPoint: string[] };
+  capabilities: { free: string[] };
   canonicalOrigin: string;
   generatedAt?: string;
 }
@@ -440,15 +440,7 @@ export default function SocialEnginePage() {
                               {cap}
                             </span>
                           ))}
-                          {caps.aiPoint.map((cap) => (
-                            <span
-                              key={cap}
-                              className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 font-mono text-[10px] text-primary"
-                            >
-                              {cap}
-                            </span>
-                          ))}
-                          {caps.free.length === 0 && caps.aiPoint.length === 0 ? (
+                          {caps.free.length === 0 ? (
                             <span className="text-xs text-muted-foreground">None</span>
                           ) : null}
                         </div>
@@ -605,31 +597,18 @@ export default function SocialEnginePage() {
                 </CardTitle>
                 <CardDescription>
                   Stable ids only — no prices and no point deductions are implemented in the Social Engine.
+                  This workflow is manual first: posts are written and approved by an administrator, so no
+                  AI generation capability is listed here.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3 text-sm">
                 <div>
                   <div className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
-                    <Circle className="h-3 w-3 fill-emerald-500 text-emerald-500" /> Free
+                    <Circle className="h-3 w-3 fill-emerald-500 text-emerald-500" /> Available
                   </div>
                   <div className="flex flex-wrap gap-1">
                     {data.capabilities.free.map((cap) => (
                       <span key={cap} className="rounded-full border border-border px-2 py-0.5 font-mono text-[10px]">
-                        {cap}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <div className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
-                    <Circle className="h-3 w-3 fill-primary text-primary" /> AI Points (future pricing)
-                  </div>
-                  <div className="flex flex-wrap gap-1">
-                    {data.capabilities.aiPoint.map((cap) => (
-                      <span
-                        key={cap}
-                        className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 font-mono text-[10px] text-primary"
-                      >
                         {cap}
                       </span>
                     ))}

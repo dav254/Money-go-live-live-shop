@@ -1,15 +1,18 @@
 /**
- * SOCIAL ENGINE — feature capability identifiers (free vs AI Points).
+ * SOCIAL ENGINE — feature capability identifiers (manual-first).
  *
- * Pricing is configured LATER without rewriting integrations (task §9):
- * every feature the engine exposes is named here as a stable id. NO prices,
+ * Every feature the engine exposes is named here as a stable id, so a future
+ * pricing layer can attach to it without rewriting integrations. NO prices,
  * NO point costs, NO deduction logic exist in this file or anywhere in the
  * Social Engine — only identifiers and grouping.
  *
- * FREE capabilities are always available to a seller whose accounts are
- * connected and whose content is approved. AI POINT capabilities are the
- * candidates for future per-use pricing; their presence here is not a
- * charge, only a seam a pricing layer can attach to later.
+ * ## Why there are no AI capabilities any more
+ * The marketing workflow is manual first: captions and hashtags are written by
+ * an administrator, drafts are approved by a person, and nothing is generated
+ * in the background. The AI identifiers that used to live here (`caption.ai`,
+ * `campaign.ideas.ai`, …) were never implemented, so they were removed rather
+ * than shown as available controls. Vidnov's unrelated AI tools keep their own
+ * point balance and capability surface — this file never described them.
  */
 
 export const FREE_CAPABILITIES = [
@@ -23,32 +26,16 @@ export const FREE_CAPABILITIES = [
   'analytics.view.basic',
 ] as const;
 
-export const AI_POINT_CAPABILITIES = [
-  'caption.ai',
-  'campaign.ideas.ai',
-  'poster.ai',
-  'image.enhance.ai',
-  'video.generate.ai',
-  'voiceover.ai',
-  'marketing.recommendations.ai',
-  'performance.analysis.ai',
-] as const;
-
 export type FreeCapability = (typeof FREE_CAPABILITIES)[number];
-export type AiPointCapability = (typeof AI_POINT_CAPABILITIES)[number];
-export type CapabilityId = FreeCapability | AiPointCapability;
+export type CapabilityId = FreeCapability;
 
 export function isFreeCapability(id: string): id is FreeCapability {
   return (FREE_CAPABILITIES as readonly string[]).includes(id);
 }
 
-export function isAiPointCapability(id: string): id is AiPointCapability {
-  return (AI_POINT_CAPABILITIES as readonly string[]).includes(id);
-}
-
-/** Every known capability id (both groups). */
+/** Every known capability id. */
 export function allCapabilities(): CapabilityId[] {
-  return [...FREE_CAPABILITIES, ...AI_POINT_CAPABILITIES];
+  return [...FREE_CAPABILITIES];
 }
 
 /**
@@ -56,7 +43,7 @@ export function allCapabilities(): CapabilityId[] {
  * rather than defaulting them to free or to a charge.
  */
 export function isKnownCapability(id: string): boolean {
-  return isFreeCapability(id) || isAiPointCapability(id);
+  return isFreeCapability(id);
 }
 
 /**
@@ -67,7 +54,6 @@ export function isKnownCapability(id: string): boolean {
  */
 export function moduleCapabilities(moduleId: string): {
   free: FreeCapability[];
-  aiPoint: AiPointCapability[];
 } {
   const publishFree: FreeCapability[] = [
     'account.connect',
@@ -77,7 +63,6 @@ export function moduleCapabilities(moduleId: string): {
     'history.view.basic',
     'analytics.view.basic',
   ];
-  const publishAi: AiPointCapability[] = ['caption.ai', 'campaign.ideas.ai'];
 
   switch (moduleId) {
     case 'telegram':
@@ -88,17 +73,11 @@ export function moduleCapabilities(moduleId: string): {
     case 'discord':
     case 'facebook':
     case 'instagram':
-      return { free: publishFree, aiPoint: publishAi };
+      return { free: publishFree };
     case 'media':
-      return {
-        free: ['content.upload', 'history.view.basic'],
-        aiPoint: ['poster.ai', 'image.enhance.ai', 'video.generate.ai'],
-      };
+      return { free: ['content.upload', 'history.view.basic'] };
     case 'urls':
-      return {
-        free: ['campaign.create.ordinary', 'history.view.basic', 'analytics.view.basic'],
-        aiPoint: ['marketing.recommendations.ai', 'performance.analysis.ai'],
-      };
+      return { free: ['campaign.create.ordinary', 'history.view.basic', 'analytics.view.basic'] };
     case 'publishing':
       return {
         free: [
@@ -108,10 +87,9 @@ export function moduleCapabilities(moduleId: string): {
           'history.view.basic',
           'analytics.view.basic',
         ],
-        aiPoint: ['marketing.recommendations.ai', 'performance.analysis.ai', 'voiceover.ai'],
       };
     default:
       // google / livekit / pocketbase — infrastructure with no publish surface.
-      return { free: ['account.connect', 'history.view.basic'], aiPoint: [] };
+      return { free: ['account.connect', 'history.view.basic'] };
   }
 }

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyUserContext } from '@/lib/notifications/server-utils';
 import { isAdminUid } from '@/lib/server/admin-guard';
 import { getAllReadiness } from '@/lib/social-engine/engine';
-import { AI_POINT_CAPABILITIES, FREE_CAPABILITIES } from '@/lib/social-engine/capabilities';
+import { FREE_CAPABILITIES } from '@/lib/social-engine/capabilities';
 import { canonicalOrigin } from '@/lib/social-engine/url-track';
 import { sanitizeErrorMessage } from '@/lib/vidnov-core/distribution/job-utils';
 
@@ -38,7 +38,6 @@ export async function GET(request: NextRequest) {
       modules,
       capabilities: {
         free: [...FREE_CAPABILITIES],
-        aiPoint: [...AI_POINT_CAPABILITIES],
       },
       canonicalOrigin: canonicalOrigin(),
       generatedAt: new Date().toISOString(),
