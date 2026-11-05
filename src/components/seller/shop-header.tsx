@@ -20,6 +20,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { mergeSocialLinks, socialPlatformFor } from '@/lib/social-links';
+import { publicUrl } from '@/lib/site-url';
 import { SOCIAL_LINK_ICONS } from '@/components/seller/social-link-icons';
 import { useUser, useFirestore, useUserProfile } from '@/firebase';
 import { doc, setDoc, serverTimestamp, collection, query, where, getDocs } from 'firebase/firestore';
@@ -157,7 +158,9 @@ export function useShopActions(seller: Seller) {
   };
 
   const handleShare = () => {
-    const shopUrl = `https://goearnvid.shop/sellers/${seller.id}`;
+    // Canonical public origin (defaults to https://vidnov.com) — never a
+    // hardcoded host, so a copied shop link always names the main domain.
+    const shopUrl = publicUrl(`/sellers/${seller.id}`);
     navigator.clipboard
       .writeText(shopUrl)
       .then(() => {

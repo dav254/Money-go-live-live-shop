@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Radio, StopCircle, Loader2, Share2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
+import { publicUrl } from '@/lib/site-url';
 
 interface StreamControlsProps {
   isLive: boolean;
@@ -26,7 +27,8 @@ export function StreamControls({
 
   const handleShare = () => {
     if (!streamId) return;
-    const url = `https://goearnvid.shop/buyer/live/${streamId}`;
+    // Canonical public origin (defaults to https://vidnov.com).
+    const url = publicUrl(`/buyer/live/${streamId}`);
     navigator.clipboard.writeText(url).then(() => {
       toast({
         title: 'Stream Link Copied!',
