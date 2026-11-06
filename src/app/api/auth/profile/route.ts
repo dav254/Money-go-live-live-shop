@@ -49,10 +49,20 @@ export async function POST(request: NextRequest) {
   const uid = await uidFromRequest(request);
   if (!uid) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const body = (await request.json().catch(() => ({}))) as { role?: string; name?: string };
+  const body = (await request.json().catch(() => ({}))) as {
+    role?: string;
+    name?: string;
+    phone?: string;
+  };
   const role = (body.role ?? '').toString();
   if (!['buyer', 'seller', 'reseller'].includes(role)) {
     return NextResponse.json({ error: 'Invalid role' }, { status: 400 });
+  }
+  // Optional contact number captured at registration. Clamped to the same
+  // character set the app validates, so nothing arbitrary lands in the profile.
+  const phone = (body.phone ?? '').toString().trim().slice(0, 24);
+  if (phone && !/^\+?[0-9 ()-]{7,20}$/.test(phone)) {
+    return NextResponse.json({ error: 'That phone number looks incomplete.' }, { status: 400 });
   }
 
   // Never clobber an account that already has a profile.
@@ -75,6 +85,7 @@ export async function POST(request: NextRequest) {
     role,
     name: body.name || decoded.name || undefined,
     email: decoded.email || undefined,
+    phone: phone || undefined,
   });
   return NextResponse.json({ ok: true, profile: publicProfile(profile), healed: true });
 }

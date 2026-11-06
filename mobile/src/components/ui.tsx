@@ -5,6 +5,7 @@ import {
   RefreshControl,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   View,
@@ -18,6 +19,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 
 import { HIT, colors, radius, spacing, type } from '../theme';
+import { apiUrl } from '../lib/config';
 
 /* ── Layout ──────────────────────────────────────────────────────────────── */
 
@@ -197,6 +199,145 @@ export function ListRow({
   );
 }
 
+/** A labelled on/off setting — used for delivery, pickup and visibility. */
+export function ToggleRow({
+  label,
+  detail,
+  value,
+  onValueChange,
+  icon,
+}: {
+  label: string;
+  detail?: string;
+  value: boolean;
+  onValueChange: (next: boolean) => void;
+  icon?: keyof typeof Ionicons.glyphMap;
+}) {
+  return (
+    <View style={styles.toggleRow}>
+      {icon ? (
+        <View style={styles.listIcon}>
+          <Ionicons name={icon} size={18} color={colors.textMuted} />
+        </View>
+      ) : null}
+      <View style={{ flex: 1 }}>
+        <Text style={styles.listTitle}>{label}</Text>
+        {detail ? <Text style={styles.listDetail}>{detail}</Text> : null}
+      </View>
+      <Switch
+        value={value}
+        onValueChange={onValueChange}
+        trackColor={{ false: colors.border, true: 'rgba(255,77,46,0.45)' }}
+        thumbColor={value ? colors.primary : colors.textFaint}
+        accessibilityLabel={label}
+      />
+    </View>
+  );
+}
+
+/** A single-choice group rendered as tappable chips. */
+export function ChoiceGroup<T extends string>({
+  label,
+  options,
+  value,
+  onChange,
+}: {
+  label?: string;
+  options: ReadonlyArray<{ value: T; label: string }>;
+  value: T | '';
+  onChange: (next: T) => void;
+}) {
+  return (
+    <View style={{ gap: spacing.xs }}>
+      {label ? <Text style={styles.label}>{label}</Text> : null}
+      <View style={styles.chipWrap}>
+        {options.map((option) => (
+          <Chip
+            key={option.value}
+            label={option.label}
+            active={value === option.value}
+            onPress={() => onChange(option.value)}
+          />
+        ))}
+      </View>
+    </View>
+  );
+}
+
+/**
+ * An honest explanatory panel. Used where a capability is genuinely not
+ * available yet — never as decoration, and never to replace a working screen.
+ */
+export function Notice({
+  title,
+  body,
+  tone = 'neutral',
+  icon = 'information-circle-outline',
+}: {
+  title: string;
+  body: string;
+  tone?: 'neutral' | 'warning';
+  icon?: keyof typeof Ionicons.glyphMap;
+}) {
+  return (
+    <View style={[styles.notice, tone === 'warning' && styles.noticeWarning]}>
+      <Ionicons
+        name={icon}
+        size={18}
+        color={tone === 'warning' ? colors.warning : colors.textMuted}
+      />
+      <View style={{ flex: 1, gap: 2 }}>
+        <Text style={styles.noticeTitle}>{title}</Text>
+        <Text style={styles.listDetail}>{body}</Text>
+      </View>
+    </View>
+  );
+}
+
+/** One number on a dashboard, with an honest caption. */
+export function StatTile({
+  label,
+  value,
+  hint,
+  tone = 'default',
+  onPress,
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+  tone?: 'default' | 'primary' | 'warning' | 'danger';
+  onPress?: () => void;
+}) {
+  const content = (
+    <>
+      <Text
+        style={[
+          styles.statValue,
+          tone === 'primary' && { color: colors.primary },
+          tone === 'warning' && { color: colors.warning },
+          tone === 'danger' && { color: colors.danger },
+        ]}
+      >
+        {value}
+      </Text>
+      <Text style={styles.statLabel}>{label}</Text>
+      {hint ? <Text style={styles.statHint}>{hint}</Text> : null}
+    </>
+  );
+
+  if (!onPress) return <View style={styles.statTile}>{content}</View>;
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${label}: ${value}`}
+      style={({ pressed }) => [styles.statTile, pressed && { opacity: 0.85 }]}
+    >
+      {content}
+    </Pressable>
+  );
+}
+
 export function Price({ amount, currency, style }: { amount?: number | null; currency?: string | null; style?: any }) {
   if (amount == null || !Number.isFinite(amount)) {
     return <Text style={[styles.price, style]}>Ask for a quote</Text>;
@@ -213,7 +354,15 @@ export function Price({ amount, currency, style }: { amount?: number | null; cur
 export function Avatar({ uri, name, size = 44 }: { uri?: string | null; name?: string | null; size?: number }) {
   const initial = (name || '?').trim().charAt(0).toUpperCase();
   if (uri) {
-    return <Image source={{ uri }} style={{ width: size, height: size, borderRadius: size / 2 }} contentFit="cover" transition={150} />;
+    // Avatars are stored media references too — resolve before drawing.
+    return (
+      <Image
+        source={{ uri: apiUrl(uri) }}
+        style={{ width: size, height: size, borderRadius: size / 2 }}
+        contentFit="cover"
+        transition={150}
+      />
+    );
   }
   return (
     <View style={[styles.avatar, { width: size, height: size, borderRadius: size / 2 }]}>
@@ -489,6 +638,43 @@ const styles = StyleSheet.create({
     paddingHorizontal: 3,
   },
   iconBadgeText: { color: colors.white, fontSize: 9.5, fontWeight: '800' },
+  toggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    minHeight: HIT,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+  },
+  chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  notice: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    alignItems: 'flex-start',
+    padding: spacing.md,
+    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+  },
+  noticeWarning: { borderColor: 'rgba(245,165,36,0.4)' },
+  noticeTitle: { color: colors.text, ...type.caption, fontWeight: '700' },
+  statTile: {
+    flexGrow: 1,
+    minWidth: '45%',
+    flexBasis: '45%',
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    padding: spacing.lg,
+    gap: 3,
+  },
+  statValue: { color: colors.text, fontSize: 22, fontWeight: '800', letterSpacing: -0.4 },
+  statLabel: { color: colors.textMuted, ...type.caption, fontWeight: '600' },
+  statHint: { color: colors.textFaint, fontSize: 11.5, lineHeight: 15 },
   stateBlock: { alignItems: 'center', gap: spacing.md, paddingVertical: spacing.xxl, paddingHorizontal: spacing.lg },
   stateIcon: {
     width: 56,

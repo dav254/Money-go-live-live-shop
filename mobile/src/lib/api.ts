@@ -164,7 +164,7 @@ export const catalog = {
 
 export const account = {
   profile: (token: string) => apiRequest<{ profile: any }>('/api/auth/profile', { token }),
-  ensureProfile: (token: string, body: { role: string; name?: string }) =>
+  ensureProfile: (token: string, body: { role: string; name?: string; phone?: string }) =>
     apiRequest<{ ok: boolean; profile: any }>('/api/auth/profile', { method: 'POST', body, token }),
   /** Records a dated deletion request — support performs the purge. */
   requestDeletion: (token: string, reason?: string) =>
@@ -233,6 +233,18 @@ export const commerce = {
       token,
     }),
   sellerOffers: (token: string) => apiRequest<{ offers: any[] }>('/api/requests/offers?mine=1', { token }),
+  /** Respond to a buyer brief. The server validates price, status and ownership. */
+  submitOffer: (
+    token: string,
+    requestId: string,
+    body: { price: number; message: string; deliveryDays?: number | null; availability?: string | null },
+  ) =>
+    apiRequest<{ offer: any }>(`/api/requests?action=offer&id=${encodeURIComponent(requestId)}`, {
+      method: 'PATCH',
+      body,
+      token,
+      timeoutMs: 30_000,
+    }),
   myRequests: (token: string) => apiRequest<{ requests: any[] }>('/api/requests?scope=mine', { token }),
   openRequests: (token: string) => apiRequest<{ requests: any[] }>('/api/requests?scope=open', { token }),
 };
@@ -255,6 +267,51 @@ export const saved = {
 
 /* ── Seller ──────────────────────────────────────────────────────────────── */
 
+/** The seller's own storefront document (`sellerShops/{uid}`). */
+export interface SellerShop {
+  id?: string;
+  shopName?: string;
+  category?: string;
+  description?: string;
+  phoneNumber?: string;
+  businessEmail?: string;
+  location?: string;
+  cityTown?: string;
+  county?: string;
+  website?: string;
+  socialLinks?: Array<{ label: string; url: string }>;
+  logoUrl?: string;
+  bannerUrl?: string;
+  businessType?: string;
+  offering?: string;
+  offersDelivery?: boolean;
+  offersPickup?: boolean;
+  operatingHours?: string;
+  serviceAreas?: string;
+  published?: boolean;
+  publishedAt?: string;
+  updatedAt?: string;
+  /** Profile-side fields saved alongside the shop. */
+  fullName?: string;
+  bio?: string;
+}
+
+export interface SellerProductInput {
+  name: string;
+  description: string;
+  category: string;
+  listingType: 'product' | 'service';
+  condition?: 'new' | 'used';
+  price: number;
+  currency: string;
+  wasPrice?: number | null;
+  stock?: number;
+  location?: string;
+  deliveryOptions?: string;
+  tags?: string;
+  imageUrls?: string[];
+}
+
 export const seller = {
   overview: (token: string) =>
     apiRequest<{
@@ -264,6 +321,66 @@ export const seller = {
     }>('/api/mobile/seller/overview', { token }),
   products: (token: string) =>
     apiRequest<{ products: any[]; source?: string }>('/api/products/mine', { token }),
+  /** Create a listing — ownership is taken from the bearer token server-side. */
+  createProduct: (token: string, body: SellerProductInput) =>
+    apiRequest<{ ok: boolean; product: any }>('/api/mobile/seller/products', {
+      method: 'POST',
+      body,
+      token,
+      timeoutMs: 45_000,
+    }),
+  updateProduct: (token: string, id: string, body: SellerProductInput) =>
+    apiRequest<{ ok: boolean; product: any }>(
+      `/api/mobile/seller/products/${encodeURIComponent(id)}`,
+      { method: 'PATCH', body, token, timeoutMs: 45_000 },
+    ),
+  deleteProduct: (token: string, id: string) =>
+    apiRequest<{ ok: boolean }>(`/api/mobile/seller/products/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+      token,
+    }),
+  /** Own storefront — Firestore first, the VPS copy as the fallback. */
+  shop: (token: string) =>
+    apiRequest<{ shop: SellerShop | null; source?: string }>('/api/mobile/seller/shop', { token }),
+  saveShop: (token: string, body: Partial<SellerShop>) =>
+    apiRequest<{ ok: boolean; shop: SellerShop; mirrored?: boolean }>(
+      '/api/mobile/seller/shop',
+      { method: 'PUT', body, token, timeoutMs: 45_000 },
+    ),
+  /** Records the buy/sell/both intent and enables seller tools. */
+  setAccountType: (token: string, accountType: 'buyer' | 'seller' | 'both') =>
+    apiRequest<{ ok: boolean; accountType: string; role: string; canSell: boolean }>(
+      '/api/mobile/seller/role',
+      { method: 'POST', body: { accountType }, token },
+    ),
+  /** Own display name, phone, bio and avatar (never email or role). */
+  updateProfile: (
+    token: string,
+    body: { fullName?: string; phoneNumber?: string; bio?: string; profilePictureUrl?: string },
+  ) =>
+    apiRequest<{ ok: boolean; profile: any }>('/api/mobile/seller/profile', {
+      method: 'PATCH',
+      body,
+      token,
+    }),
+  /** Real money records: delivered order value, payouts, payout method count. */
+  wallet: (token: string) =>
+    apiRequest<{
+      deliveredSales: number;
+      inTransitSales: number;
+      paidOut: number;
+      pendingPayouts: number;
+      payoutMethods: number;
+      orderCount: number;
+      payouts: Array<{
+        id: string;
+        amount: number;
+        currency: string;
+        status: string;
+        method?: string;
+        createdAt?: string | null;
+      }>;
+    }>('/api/mobile/seller/wallet', { token }),
 };
 
 /* ── Live ────────────────────────────────────────────────────────────────── */

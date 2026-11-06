@@ -1,6 +1,5 @@
 import React from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
-import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
@@ -14,6 +13,7 @@ import {
   Muted,
   Screen,
 } from '../src/components/ui';
+import { RemoteImage } from '../src/components/remote-image';
 import { RequireAuth } from '../src/components/require-auth';
 import { commerce } from '../src/lib/api';
 import { money, orderStatus, shortDate } from '../src/lib/format';
@@ -104,11 +104,14 @@ function OrderCard({ order, onOpenSeller }: { order: MobileOrder; onOpenSeller: 
       {firstLine ? (
         <View style={styles.line}>
           <View style={styles.thumb}>
-            {firstLine.imageUrl ? (
-              <Image source={{ uri: firstLine.imageUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />
-            ) : (
-              <Ionicons name="cube-outline" size={20} color={colors.textFaint} />
-            )}
+            {/* Same resolver as every other surface: the order's line item
+                stores the media reference, not an absolute URL. */}
+            <RemoteImage
+              source={firstLine.imageUrl}
+              style={styles.thumbImage}
+              radius={8}
+              label={firstLine.name ? `${firstLine.name} photo` : 'Order item photo'}
+            />
           </View>
           <View style={{ flex: 1, gap: 3 }}>
             <Text numberOfLines={2} style={styles.lineName}>
@@ -186,6 +189,7 @@ const styles = StyleSheet.create({
   cardHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm },
   orderId: { fontSize: 15, letterSpacing: 0.4 },
   line: { flexDirection: 'row', gap: spacing.md, alignItems: 'center' },
+  thumbImage: { width: '100%', height: '100%', borderRadius: 8 },
   thumb: {
     width: 54,
     height: 54,

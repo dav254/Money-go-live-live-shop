@@ -1,10 +1,10 @@
 import React from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
 import { ProductCard } from '../../src/components/product-card';
+import { RemoteImage } from '../../src/components/remote-image';
 import { Badge, Body, Display, ErrorState, Loading, Muted, Row, ScrollScreen, SectionHeader } from '../../src/components/ui';
 import { catalog } from '../../src/lib/api';
 import { useAuth } from '../../src/lib/auth';
@@ -81,11 +81,12 @@ export default function HomeScreen() {
               accessibilityRole="button"
               accessibilityLabel={`${room.title}, ${room.viewerCount} watching`}
             >
-              {room.image ? (
-                <Image source={{ uri: room.image }} style={StyleSheet.absoluteFill} contentFit="cover" />
-              ) : (
-                <View style={[StyleSheet.absoluteFill, styles.liveFallback]} />
-              )}
+              <RemoteImage
+                source={room.image}
+                style={[StyleSheet.absoluteFill, styles.liveImage]}
+                radius={0}
+                label={room.title ? `${room.title} preview` : 'Live session'}
+              />
               <View style={styles.liveOverlay}>
                 <Badge label="LIVE" tone="primary" />
                 <Text numberOfLines={2} style={styles.liveTitle}>{room.title || 'Live session'}</Text>
@@ -189,7 +190,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
   },
   liveCard: { width: 210, height: 250, borderRadius: radius.lg, overflow: 'hidden', backgroundColor: colors.surfaceRaised },
-  liveFallback: { backgroundColor: colors.primarySoft },
+  liveImage: { borderRadius: 0 },
   liveOverlay: {
     flex: 1,
     justifyContent: 'flex-end',

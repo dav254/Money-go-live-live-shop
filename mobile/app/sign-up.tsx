@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import {
   KeyboardAvoidingView,
+  Linking,
   Platform,
   Pressable,
   ScrollView,
@@ -14,45 +15,78 @@ import { useRouter } from 'expo-router';
 import { Button, Display, Field, Muted } from '../src/components/ui';
 import { useAuth } from '../src/lib/auth';
 import { messageFor } from '../src/lib/api';
+import { PRIVACY_URL, TERMS_URL } from '../src/lib/config';
+import {
+  clean,
+  validateEmail,
+  validateName,
+  validatePassword,
+  validatePasswordConfirmation,
+  validatePhone,
+} from '../src/lib/validation';
 import { colors, radius, spacing, type } from '../src/theme';
 
-type Role = 'buyer' | 'seller';
+type Errors = Partial<Record<'name' | 'email' | 'phone' | 'password' | 'confirm' | 'terms', string>>;
 
 /**
  * CREATE ACCOUNT.
  *
- * The role is chosen here because it decides which section the account opens
- * into — the same choice the website's signup makes. The profile document is
- * written by the server (`POST /api/auth/profile`), so a dropped connection
- * after the Firebase account exists can be repaired on the next launch instead
- * of leaving a half-created account.
+ * Everything is validated before a request leaves the phone, every server
+ * rejection is shown verbatim (never replaced with "account created"), and the
+ * password is only ever held in this component's state and the request body —
+ * the session the server returns is what gets stored, in the Keystore.
  */
 export default function SignUpScreen() {
   const router = useRouter();
   const { signUp } = useAuth();
 
-  const [role, setRole] = useState<Role>('buyer');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
   const [reveal, setReveal] = useState(false);
+  const [accepted, setAccepted] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [errors, setErrors] = useState<Errors>({});
+  const [failure, setFailure] = useState<string | null>(null);
+
+  const validate = (): boolean => {
+    const next: Errors = {};
+    const nameError = validateName(name);
+    if (nameError) next.name = nameError;
+    const emailError = validateEmail(email);
+    if (emailError) next.email = emailError;
+    const phoneError = validatePhone(phone);
+    if (phoneError) next.phone = phoneError;
+    const passwordError = validatePassword(password);
+    if (passwordError) next.password = passwordError;
+    const confirmError = validatePasswordConfirmation(password, confirm);
+    if (confirmError) next.confirm = confirmError;
+    if (!accepted) next.terms = 'Please accept the terms to continue.';
+    setErrors(next);
+    return Object.keys(next).length === 0;
+  };
 
   const submit = async () => {
     if (busy) return;
-    setError(null);
-
-    if (!name.trim()) return setError('Tell us your name.');
-    if (!email.trim()) return setError('Enter your email address.');
-    if (password.length < 8) return setError('Choose a password of at least 8 characters.');
+    setFailure(null);
+    if (!validate()) return;
 
     setBusy(true);
     try {
-      await signUp({ email: email.trim(), password, name: name.trim(), role });
-      router.replace('/(tabs)');
+      // The account starts as a buyer. The next screen records the sell/buy
+      // choice, so nobody is pushed into a seller role they did not ask for.
+      await signUp({
+        email: clean(email).toLowerCase(),
+        password,
+        name: clean(name),
+        phone: clean(phone) || undefined,
+        role: 'buyer',
+      });
+      router.replace('/onboarding/role');
     } catch (thrown) {
-      setError(messageFor(thrown));
+      setFailure(messageFor(thrown));
     } finally {
       setBusy(false);
     }
@@ -66,24 +100,7 @@ export default function SignUpScreen() {
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <View style={styles.header}>
           <Display>Join Vidnov</Display>
-          <Muted>One account for shopping, selling and going live.</Muted>
-        </View>
-
-        <View style={styles.roles}>
-          <RoleCard
-            active={role === 'buyer'}
-            icon="bag-handle-outline"
-            title="I'm shopping"
-            body="Buy products and services, message sellers, follow shops."
-            onPress={() => setRole('buyer')}
-          />
-          <RoleCard
-            active={role === 'seller'}
-            icon="storefront-outline"
-            title="I'm selling"
-            body="List products or services, take orders, run live sales."
-            onPress={() => setRole('seller')}
-          />
+          <Muted>One account for shopping, selling and growing your business.</Muted>
         </View>
 
         <View style={styles.form}>
@@ -91,9 +108,11 @@ export default function SignUpScreen() {
             label="Full name"
             value={name}
             onChangeText={setName}
-            placeholder="Your name"
+            placeholder="Your full name"
             autoComplete="name"
             textContentType="name"
+            autoCapitalize="words"
+            error={errors.name}
           />
           <Field
             label="Email"
@@ -103,6 +122,17 @@ export default function SignUpScreen() {
             keyboardType="email-address"
             autoComplete="email"
             textContentType="emailAddress"
+            error={errors.email}
+          />
+          <Field
+            label="Phone number (optional)"
+            value={phone}
+            onChangeText={setPhone}
+            placeholder="+254 700 000 000"
+            keyboardType="phone-pad"
+            autoComplete="tel"
+            textContentType="telephoneNumber"
+            error={errors.phone}
           />
 
           <View style={{ gap: spacing.xs }}>
@@ -116,6 +146,7 @@ export default function SignUpScreen() {
                 autoComplete="new-password"
                 textContentType="newPassword"
                 style={styles.passwordInput}
+                error={errors.password}
               />
               <Pressable
                 onPress={() => setReveal((v) => !v)}
@@ -133,18 +164,48 @@ export default function SignUpScreen() {
             </View>
           </View>
 
-          {error ? (
+          <Field
+            label="Confirm password"
+            value={confirm}
+            onChangeText={setConfirm}
+            placeholder="Type it once more"
+            secureTextEntry={!reveal}
+            autoComplete="new-password"
+            textContentType="newPassword"
+            error={errors.confirm}
+          />
+
+          <Pressable
+            onPress={() => setAccepted((v) => !v)}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: accepted }}
+            style={styles.termsRow}
+          >
+            <View style={[styles.checkbox, accepted && styles.checkboxOn]}>
+              {accepted ? <Ionicons name="checkmark" size={14} color={colors.white} /> : null}
+            </View>
+            <Text style={styles.termsText}>
+              I agree to Vidnov&apos;s{' '}
+              <Text style={styles.link} onPress={() => void Linking.openURL(TERMS_URL)}>
+                terms of service
+              </Text>{' '}
+              and{' '}
+              <Text style={styles.link} onPress={() => void Linking.openURL(PRIVACY_URL)}>
+                privacy policy
+              </Text>
+              .
+            </Text>
+          </Pressable>
+          {errors.terms ? <Text style={styles.fieldError}>{errors.terms}</Text> : null}
+
+          {failure ? (
             <View style={styles.errorBox}>
               <Ionicons name="alert-circle-outline" size={16} color={colors.danger} />
-              <Text style={styles.errorText}>{error}</Text>
+              <Text style={styles.errorText}>{failure}</Text>
             </View>
           ) : null}
 
-          <Button label="Create account" onPress={submit} loading={busy} />
-
-          <Muted style={styles.terms}>
-            By creating an account you agree to Vidnov&apos;s terms and privacy policy.
-          </Muted>
+          <Button label="Create account" onPress={submit} loading={busy} disabled={busy} />
         </View>
 
         <View style={styles.footer}>
@@ -156,63 +217,30 @@ export default function SignUpScreen() {
   );
 }
 
-function RoleCard({
-  active,
-  icon,
-  title,
-  body,
-  onPress,
-}: {
-  active: boolean;
-  icon: keyof typeof Ionicons.glyphMap;
-  title: string;
-  body: string;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="radio"
-      accessibilityState={{ selected: active }}
-      style={[styles.roleCard, active && styles.roleCardActive]}
-    >
-      <Ionicons name={icon} size={20} color={active ? colors.primary : colors.textMuted} />
-      <View style={{ flex: 1 }}>
-        <Text style={[styles.roleTitle, active && { color: colors.primary }]}>{title}</Text>
-        <Text style={styles.roleBody}>{body}</Text>
-      </View>
-      <Ionicons
-        name={active ? 'radio-button-on' : 'radio-button-off'}
-        size={18}
-        color={active ? colors.primary : colors.textFaint}
-      />
-    </Pressable>
-  );
-}
-
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: colors.background },
   content: { padding: spacing.xl, gap: spacing.xl, paddingBottom: spacing.xxl * 2 },
   header: { gap: spacing.xs, marginTop: spacing.md },
-  roles: { gap: spacing.sm },
-  roleCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    padding: spacing.lg,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  roleCardActive: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
-  roleTitle: { color: colors.text, ...type.bodyStrong },
-  roleBody: { color: colors.textFaint, ...type.caption, marginTop: 2 },
   form: { gap: spacing.lg },
   label: { color: colors.textMuted, ...type.caption },
-  passwordRow: { flexDirection: 'row', alignItems: 'center' },
+  passwordRow: { flexDirection: 'row', alignItems: 'flex-start' },
   passwordInput: { flex: 1, paddingRight: 44 },
   reveal: { position: 'absolute', right: spacing.md, height: 46, justifyContent: 'center' },
+  termsRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 1,
+  },
+  checkboxOn: { backgroundColor: colors.primary, borderColor: colors.primary },
+  termsText: { color: colors.textMuted, ...type.caption, flex: 1, lineHeight: 18 },
+  link: { color: colors.primary, fontWeight: '700' },
+  fieldError: { color: colors.danger, ...type.caption },
   errorBox: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -222,6 +250,5 @@ const styles = StyleSheet.create({
     padding: spacing.md,
   },
   errorText: { color: colors.danger, ...type.caption, flex: 1 },
-  terms: { textAlign: 'center' },
   footer: { gap: spacing.sm, marginTop: spacing.md },
 });

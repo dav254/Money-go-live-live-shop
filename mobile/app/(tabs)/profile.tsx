@@ -18,7 +18,7 @@ import { colors, radius, spacing, type } from '../../src/theme';
  */
 export default function ProfileScreen() {
   const router = useRouter();
-  const { status, profile, signOut, refreshProfile } = useAuth();
+  const { status, profile, signOut, refreshProfile, canSell, mode, setMode } = useAuth();
 
   if (status === 'signedOut') {
     return (
@@ -30,7 +30,7 @@ export default function ProfileScreen() {
   }
 
   const role = (profile?.userRole ?? 'buyer').toLowerCase();
-  const isSeller = role === 'seller' || role === 'reseller' || role === 'admin';
+  const isSeller = canSell;
   const name = profile?.fullName || profile?.shopName || 'Vidnov member';
 
   return (
@@ -57,12 +57,15 @@ export default function ProfileScreen() {
 
         {isSeller ? (
           <>
-            <SectionHeader title="Selling" />
+            <SectionHeader
+              title="Selling"
+              action={<Badge label={mode === 'seller' ? 'Seller mode' : 'Buyer mode'} tone="primary" />}
+            />
             <View style={styles.group}>
               <ListRow
                 icon="storefront-outline"
-                title="Seller dashboard"
-                detail="Orders, revenue and what needs action"
+                title="Seller centre"
+                detail="Dashboard, products, orders and growth"
                 onPress={() => router.push('/seller')}
               />
               <ListRow
@@ -74,12 +77,33 @@ export default function ProfileScreen() {
               <ListRow
                 icon="cube-outline"
                 title="Your listings"
-                detail="Everything you have published"
+                detail="Add, edit and publish"
                 onPress={() => router.push('/seller/products')}
+              />
+              <ListRow
+                icon="swap-horizontal-outline"
+                title={mode === 'seller' ? 'Switch to buyer' : 'Switch to seller'}
+                detail="Change what the app opens into — same account"
+                onPress={async () => {
+                  await setMode(mode === 'seller' ? 'buyer' : 'seller');
+                  if (mode === 'buyer') router.push('/seller');
+                }}
               />
             </View>
           </>
-        ) : null}
+        ) : (
+          <>
+            <SectionHeader title="Selling" />
+            <View style={styles.group}>
+              <ListRow
+                icon="storefront-outline"
+                title="Start selling on Vidnov"
+                detail="Open a shop on this same account"
+                onPress={() => router.push('/onboarding/role')}
+              />
+            </View>
+          </>
+        )}
 
         <SectionHeader title="Shopping" />
         <View style={styles.group}>

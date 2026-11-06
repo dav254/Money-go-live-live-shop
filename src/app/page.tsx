@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+
 import {
   ArrowRight,
   ArrowUpRight,
@@ -33,12 +33,10 @@ import type { LandingCategories, LandingCategory } from '@/components/home/categ
 import { landingSellers } from '@/lib/home-sellers';
 import { landingProducts } from '@/lib/home-products';
 import { landingVideos } from '@/lib/home-videos';
-import { landingLiveSessions } from '@/lib/home-live-sessions';
+import type { LandingLiveSession } from '@/components/home/live-session-card';
 import { FeaturedBadge } from '@/components/home/featured-badge';
 import { BusinessCard } from '@/components/home/business-card';
 import { ProductCard } from '@/components/home/product-card';
-import { BuyerRequestBanner } from '@/components/home/buyer-request-banner';
-import { SellerInvite } from '@/components/home/seller-invite';
 import { VideoCard } from '@/components/home/video-card';
 import { LiveSessionCard } from '@/components/home/live-session-card';
 import { CategoryGrid } from '@/components/home/category-grid';
@@ -48,6 +46,44 @@ import { LandingFooter } from '@/components/layout/landing-footer';
 import { LandingHeader } from '@/components/layout/landing-header';
 import { LandingBottomNav } from '@/components/layout/landing-bottom-nav';
 import { SmartInstallPrompt } from '@/components/app/smart-install-prompt';
+
+/**
+ * Intro video is configured, never committed: `NEXT_PUBLIC_VIDNOV_INTRO_VIDEO_URL`
+ * points at the current brand film and the poster is a local placeholder, so a
+ * missing asset degrades to a still card instead of a broken player.
+ */
+const INTRO_VIDEO_URL = process.env.NEXT_PUBLIC_VIDNOV_INTRO_VIDEO_URL ?? '';
+const INTRO_POSTER = '/placeholder-image.svg';
+
+/** One clearly-labelled preview of a live room (never a real session). */
+function DemoRoomCard({ demo }: { demo?: boolean }) {
+  return (
+    <Link
+      href={demo ? '/buyer/discovery' : '/buyer/discovery'}
+      className="group flex h-full flex-col justify-between rounded-[20px] border border-white/10 bg-[#111111] p-4 transition hover:border-[#ff5a36]/40"
+    >
+      {demo && (
+        // Sample room — never presented as a real, live session.
+        <span className="mb-3 inline-flex w-fit items-center rounded-full border border-[#ff5a36]/30 bg-[#ff5a36]/10 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.16em] text-[#ff8a6a]">
+          Sample
+        </span>
+      )}
+      <div>
+        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#ffcfbf]">
+          Maison One
+        </p>
+        <p className="mt-2 font-grotesk text-2xl font-black leading-none text-white">NOVA</p>
+        <p className="mt-2 text-[10px] leading-relaxed text-white/50">
+          What a live room looks like
+        </p>
+      </div>
+      <div className="mt-4 flex items-center justify-between">
+        <span className="text-[10px] uppercase tracking-[0.16em] text-white/40">From $249</span>
+        <CirclePlay className="h-4 w-4 text-[#ff5a36]" />
+      </div>
+    </Link>
+  );
+}
 
 /** Transparent header, sticky over the hero. */
 const DEMO_ROOMS: React.ReactNode[] = [
@@ -181,40 +217,22 @@ function Hero() {
   const HERO_DISCLAIMER = 'Illustrative preview figures';
 
   const [isLoading, setIsLoading] = useState(true);
-  const [liveSessions, setLiveSessions] = useState<typeof landingLiveSessions>([]);
   const [liveCount, setLiveCount] = useState(0);
-  const searchParams = useSearchParams();
 
+  // The live strip is read from our own origin, server-side — never from the
+  // client Firestore SDK, so a visitor with Firebase blocked still sees the
+  // real count (or an honest zero).
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
       setIsLoading(true);
       try {
-        await new Promise((resolve) => setTimeout(resolve, 400));
+        const response = await fetch('/api/home/live', { cache: 'no-store' });
+        const payload = (await response.json().catch(() => ({}))) as { rooms?: unknown[] };
         if (cancelled) return;
-        setLiveSessions(landingLiveSessions);
-        setLiveCount(landingLiveSessions.length);
+        setLiveCount(Array.isArray(payload.rooms) ? payload.rooms.length : 0);
       } catch {
-        // Intentionally left empty: loading state is controlled by the hook.
-      } finally {
-        if (!cancelled) setIsLoading(false);
-      }
-    };
-    void load();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-  useEffect(() => {
-    let cancelled = false;
-    const load = async () => {
-      setIsLoading(true);
-      try {
-        await new Promise((resolve) => setTimeout(resolve, 400));
-        if (cancelled) return;
-        setLiveSessions(landingLiveSessions);
-      } catch {
-        // Intentionally left empty: loading is controlled by the hook.
+        if (!cancelled) setLiveCount(0);
       } finally {
         if (!cancelled) setIsLoading(false);
       }
@@ -268,6 +286,45 @@ function Hero() {
               >
                 <Link href="/app/seller/create">Start Selling</Link>
               </Button>
+            </div>
+
+            {/* Intro film: the asset is configured, never invented. Without a
+                URL the poster is shown, so the hero never embeds a broken
+                player. */}
+            <div className="mt-6 max-w-lg">
+              <div className="overflow-hidden rounded-[18px] border border-white/10 bg-[#111111]">
+                {INTRO_VIDEO_URL ? (
+                  <video
+                    src={INTRO_VIDEO_URL}
+                    poster={INTRO_POSTER}
+                    controls
+                    playsInline
+                    preload="metadata"
+                    className="h-44 w-full object-cover"
+                    onError={(event) => {
+                      // A dead URL must not leave a black rectangle in the hero.
+                      event.currentTarget.style.display = 'none';
+                    }}
+                  />
+                ) : (
+                  <img
+                    src={INTRO_POSTER}
+                    alt="Vidnov intro film — poster"
+                    className="h-44 w-full object-cover opacity-60"
+                  />
+                )}
+              </div>
+              <div className="mt-2 flex items-center justify-between gap-3">
+                <p className="text-[10px] uppercase tracking-[0.18em] text-white/40">
+                  Intro film
+                </p>
+                <Link
+                  href="/dashboard/seller/video-studio"
+                  className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#ff8a6a]"
+                >
+                  Make yours in the video studio
+                </Link>
+              </div>
             </div>
           </div>
 
@@ -334,10 +391,14 @@ function Hero() {
                         </div>
                         <Button size="sm" className="bg-[#ff5a36] px-4 py-2 text-xs font-bold uppercase tracking-[0.12em] text-[#1c0907]">
                           <CirclePlay className="mr-2 h-3.5 w-3.5 fill-current" />
-                          {isLoading ? 'Loading live' : liveSessions.length > 0 ? 'Explore the room' : 'Join the live floor'}
+                          {isLoading ? 'Loading live' : liveCount > 0 ? 'Explore the room' : 'Join the live floor'}
                         </Button>
                         <p className="mt-2 text-[9px] text-[#6b6258]">
-                          {isLoading ? 'Loading real sessions…' : liveSessions.length > 0 ? `See ${liveSessions.length} session${liveSessions.length > 1 ? 's' : ''} live now` : 'Demo tiles are previews — live sessions come from the platform.'}
+                          {isLoading
+                            ? 'Loading real sessions…'
+                            : liveCount > 0
+                              ? `See ${liveCount} session${liveCount > 1 ? 's' : ''} live now`
+                              : 'Nobody is live right now — the preview room is a sample, not a stream.'}
                         </p>
                       </div>
                     </div>
@@ -487,96 +548,7 @@ function BusinessSection() {
 }
 
 function ProductSection() {
-  const [landingItems, setLandingItems] = useState<typeof landingSellers>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [hasError, setHasError] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    const load = async () => {
-      setIsLoading(true);
-      setHasError(false);
-      try {
-        await new Promise((resolve) => setTimeout(resolve, 400));
-        if (cancelled) return;
-        setLandingItems(landingSellers);
-      } catch {
-        if (!cancelled) setHasError(true);
-      } finally {
-        if (!cancelled) setIsLoading(false);
-      }
-    };
-    void load();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  return (
-    <section className="bg-[#090909]">
-      <div className="container mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-        <div className="flex items-end gap-3">
-          <h2 className="font-grotesk text-3xl font-black tracking-[-0.05em] text-white">
-            Discover businesses around you
-          </h2>
-          <p className="mt-1 text-sm text-white/60">
-            Find businesses, explore their shops and connect with the people
-            behind them.
-          </p>
-        </div>
-
-        {isLoading ? (
-          <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="rounded-[24px] border border-white/10 bg-white/5 p-3">
-                <Skeleton className="h-28 w-full rounded-xl" />
-                <Skeleton className="mt-4 h-5 w-3/4 rounded" />
-                <Skeleton className="mt-2 h-4 w-1/2 rounded" />
-                <Skeleton className="mt-2 h-3 w-1/4 rounded" />
-                <div className="mt-4 flex gap-2">
-                  <Skeleton className="h-8 w-8 rounded-full" />
-                  <Skeleton className="h-8 w-16 rounded-full" />
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : hasError ? (
-          <div className="mt-8 flex flex-col items-center rounded-[24px] border border-dashed border-white/15 bg-white/5 px-6 py-16 text-center">
-            <Store className="h-10 w-10 text-white/40" />
-            <p className="mt-4 font-grotesk text-lg font-semibold text-white">
-              We could not load businesses right now.
-            </p>
-            <p className="mt-2 max-w-sm text-sm text-white/60">
-              After a moment, try again. No businesses are shown until the
-              platform verifies them as real registered sellers.
-            </p>
-          </div>
-        ) : landingItems.length === 0 ? (
-          <div className="mt-8 flex flex-col items-center rounded-[24px] border border-dashed border-white/15 bg-white/5 px-6 py-16 text-center">
-            <Store className="h-10 w-10 text-white/40" />
-            <p className="mt-4 font-grotesk text-lg font-semibold text-white">
-              Be among the first businesses discovered on Vidnov.
-            </p>
-            <p className="mt-2 max-w-sm text-sm text-white/60">
-              Join Vidnov and create your shop to get discovered by real
-              customers.
-            </p>
-            <SellerInvite />
-          </div>
-        ) : (
-          <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {landingItems.map((business) => (
-              <BusinessCard key={business.id} business={business} />
-            ))}
-          </div>
-        )}
-      </div>
-    </section>
-  );
-}
-
-function ProductSection() {
-  const [landingItems, setLandingItems] = useState<typeof landingSellers>([]);
+  const [items, setItems] = useState<typeof landingProducts>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
 
@@ -747,21 +719,36 @@ function VideoSection() {
 }
 
 function LiveSection() {
-  const [items, setItems] = useState<typeof landingLiveSessions>([]);
+  const [items, setItems] = useState<LandingLiveSession[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
   const [liveCount, setLiveCount] = useState(0);
 
+  // Real rooms only: `/api/home/live` reads the VPS store first and Firestore
+  // second, server-side. An empty answer stays empty and the sample tile below
+  // says it is a sample.
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
       setIsLoading(true);
       setHasError(false);
       try {
-        await new Promise((resolve) => setTimeout(resolve, 400));
+        const response = await fetch('/api/home/live', { cache: 'no-store' });
+        if (!response.ok) throw new Error(String(response.status));
+        const payload = (await response.json()) as {
+          rooms?: Array<{ id: string; title?: string; sellerId: string; viewerCount?: number }>;
+        };
         if (cancelled) return;
-        setLiveCount(landingLiveSessions.length);
-        setItems(landingLiveSessions);
+        const rooms = Array.isArray(payload.rooms) ? payload.rooms : [];
+        setLiveCount(rooms.length);
+        setItems(
+          rooms.map((room) => ({
+            id: room.id,
+            title: room.title || 'Live session',
+            seller: `${room.viewerCount ?? 0} watching`,
+            thumbnail: '/placeholder-image.svg',
+          })),
+        );
       } catch {
         if (!cancelled) setHasError(true);
       } finally {
@@ -828,17 +815,23 @@ function LiveSection() {
             </Button>
           </div>
         ) : items.length === 0 ? (
-          <div className="mt-8 flex flex-col items-center rounded-[24px] border border-dashed border-white/15 bg-white/5 px-6 py-16 text-center">
-            <CirclePlay className="h-10 w-10 text-white/40" />
-            <p className="mt-4 font-grotesk text-lg font-semibold text-white">
-              No businesses are live right now.
-            </p>
-            <p className="mt-2 max-w-sm text-sm text-white/60">
-              Explore shops and discover upcoming sessions.
-            </p>
-            <Button asChild size="sm" className="mt-6 bg-[#ff5a36] px-5 py-2.5 text-xs font-bold text-[#150d0b] hover:bg-[#ff6b49]">
-              <Link href="/buyer/discovery">Explore shops</Link>
-            </Button>
+          <div className="mt-8 grid gap-4 sm:grid-cols-[300px_1fr] sm:items-start">
+            <div className="h-[210px]">
+              <DemoRoomCard demo />
+            </div>
+            <div className="rounded-[24px] border border-dashed border-white/15 bg-white/5 p-6">
+              <p className="font-grotesk text-lg font-semibold text-white">
+                No businesses are live right now.
+              </p>
+              <p className="mt-2 max-w-md text-sm text-white/60">
+                The tile beside this note is a sample of what a live room looks
+                like. Real sessions appear here the moment a verified seller
+                goes live — they are never generated for the page.
+              </p>
+              <Button asChild size="sm" className="mt-6 bg-[#ff5a36] px-5 py-2.5 text-xs font-bold text-[#150d0b] hover:bg-[#ff6b49]">
+                <Link href="/buyer/discovery">Explore shops</Link>
+              </Button>
+            </div>
           </div>
         ) : (
           <div className="mt-8 flex gap-4 overflow-x-auto pb-2">

@@ -8,7 +8,6 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
-import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useVideoPlayer, VideoView } from 'expo-video';
@@ -26,7 +25,9 @@ import {
   Price,
   Screen,
 } from '../../src/components/ui';
+import { RemoteImage } from '../../src/components/remote-image';
 import { catalog, saved as savedApi } from '../../src/lib/api';
+import { apiUrl } from '../../src/lib/config';
 import { useAuth } from '../../src/lib/auth';
 import { money, shortDate } from '../../src/lib/format';
 import { useResource } from '../../src/lib/use-resource';
@@ -101,13 +102,13 @@ export default function ListingScreen() {
             showsHorizontalScrollIndicator={false}
             style={styles.gallery}
           >
-            {uniqueImages.map((uri) => (
-              <Image
+            {uniqueImages.map((uri, index) => (
+              <RemoteImage
                 key={uri}
-                source={{ uri }}
+                source={uri}
                 style={{ width, height: width }}
-                contentFit="cover"
-                transition={180}
+                radius={0}
+                label={`${listing.name || 'Listing'} photo ${index + 1}`}
               />
             ))}
           </ScrollView>
@@ -220,7 +221,8 @@ export default function ListingScreen() {
 
 /** Native video playback for listings that carry one. */
 function ListingVideo({ uri }: { uri: string }) {
-  const player = useVideoPlayer(uri, (instance) => {
+  // A stored video reference is relative too — resolve it against the API host.
+  const player = useVideoPlayer(apiUrl(uri), (instance) => {
     instance.loop = false;
   });
 

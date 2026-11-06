@@ -21,3 +21,23 @@ export const FIREBASE = {
 export const SUPPORT_EMAIL = 'support@vidnov.com';
 export const PRIVACY_URL = 'https://vidnov.com/privacy';
 export const TERMS_URL = 'https://vidnov.com/terms';
+
+/**
+ * Absolute URL for anything the server hands back.
+ *
+ * The media pipeline stores RELATIVE paths (`/api/media/file/<path>`, plus
+ * thumbnails) because the file is served from whichever host the app is
+ * talking to. React Native's image component cannot resolve a relative path —
+ * it needs a scheme and a host — so every image reference must pass through
+ * here before it reaches the UI. Absolute URLs are left untouched, and local
+ * picker URIs (`file:`, `content:`, `ph:`) are passed through so previews work
+ * before an upload completes.
+ */
+export function apiUrl(path?: string | null): string {
+  if (!path) return '';
+  const value = path.trim();
+  if (!value) return '';
+  if (/^(https?:|file:|content:|ph:|asset:|data:|blob:)/i.test(value)) return value;
+  if (value.startsWith('//')) return `https:${value}`;
+  return `${API_BASE_URL}${value.startsWith('/') ? '' : '/'}${value}`;
+}

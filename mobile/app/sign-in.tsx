@@ -6,6 +6,7 @@ import { useRouter } from 'expo-router';
 import { Button, Display, Field, Muted } from '../src/components/ui';
 import { useAuth } from '../src/lib/auth';
 import { messageFor } from '../src/lib/api';
+import { validateEmail } from '../src/lib/validation';
 import { colors, radius, spacing, type } from '../src/theme';
 
 /**
@@ -29,15 +30,16 @@ export default function SignInScreen() {
     if (busy) return;
     setError(null);
 
-    if (!email.trim()) return setError('Enter the email you signed up with.');
+    const emailProblem = validateEmail(email);
+    if (emailProblem) return setError(emailProblem);
     if (!password) return setError('Enter your password.');
 
     setBusy(true);
     try {
       await signIn(email.trim(), password);
-      // The stack already holds the tab shell; dismissing lands back on it.
-      if (router.canGoBack()) router.back();
-      else router.replace('/(tabs)');
+      // This screen is a modal over the welcome page, so "back" would land on
+      // the sign-in prompt again. Close the modal stack and open the product.
+      router.replace('/(tabs)');
     } catch (thrown) {
       setError(messageFor(thrown));
     } finally {

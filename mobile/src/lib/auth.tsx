@@ -1,7 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import * as SecureStore from 'expo-secure-store';
 
-import { account, messageFor } from './api';
+import { account, messageFor, seller } from './api';
 import {
   AuthError,
   refreshSession,
@@ -24,21 +24,41 @@ import type { Profile } from './types';
 
 const STORAGE_KEY = 'vidnov.session.v1';
 const PROFILE_KEY = 'vidnov.profile.v1';
+const MODE_KEY = 'vidnov.mode.v1';
 const REFRESH_WINDOW_MS = 60_000;
 
 type Status = 'loading' | 'signedOut' | 'signedIn';
+
+/** Which half of the product the app is currently showing. */
+export type AccountMode = 'buyer' | 'seller';
 
 interface AuthValue {
   status: Status;
   session: FirebaseSession | null;
   profile: Profile | null;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (input: { email: string; password: string; name?: string; role: 'buyer' | 'seller' }) => Promise<void>;
+  signUp: (input: {
+    email: string;
+    password: string;
+    name?: string;
+    phone?: string;
+    role: 'buyer' | 'seller';
+  }) => Promise<void>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   /** Valid bearer token, refreshed on demand. Throws when signed out. */
   getToken: () => Promise<string>;
   refreshProfile: () => Promise<void>;
+  /** True when the verified profile is allowed into the seller tools. */
+  canSell: boolean;
+  /** Buyer or seller surface — a deliberate switch, never a second account. */
+  mode: AccountMode;
+  setMode: (mode: AccountMode) => Promise<void>;
+  /**
+   * Records the buy/sell/both choice on the server and enables seller tools.
+   * The buyer account, its orders and its messages are never touched.
+   */
+  enableSelling: (accountType: 'buyer' | 'seller' | 'both') => Promise<void>;
 }
 
 const AuthContext = createContext<AuthValue | null>(null);
@@ -86,6 +106,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = useState<Status>('loading');
   const [session, setSession] = useState<FirebaseSession | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [mode, setModeState] = useState<AccountMode>('buyer');
   const sessionRef = useRef<FirebaseSession | null>(null);
   const refreshing = useRef<Promise<FirebaseSession | null> | null>(null);
 
@@ -199,7 +220,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const signUp = useCallback(
-    async (input: { email: string; password: string; name?: string; role: 'buyer' | 'seller' }) => {
+    async (input: {
+      email: string;
+      password: string;
+      name?: string;
+      phone?: string;
+      role: 'buyer' | 'seller';
+    }) => {
       const next = await signUpWithPassword(input.email, input.password);
       await applySession(next);
       setStatus('signedIn');
@@ -211,6 +238,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const { profile: created } = await account.ensureProfile(next.idToken, {
           role: input.role,
           name: input.name,
+          phone: input.phone,
         });
         if (created) {
           setProfile(created as Profile);
@@ -230,8 +258,48 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await applySession(null);
     setProfile(null);
     await writeCachedProfile(null);
+    await SecureStore.deleteItemAsync(MODE_KEY).catch(() => undefined);
+    setModeState('buyer');
     setStatus('signedOut');
   }, [applySession]);
+
+  const setMode = useCallback(async (next: AccountMode) => {
+    setModeState(next);
+    await SecureStore.setItemAsync(MODE_KEY, next).catch(() => undefined);
+  }, []);
+
+  const canSell = useMemo(() => {
+    const role = (profile?.userRole ?? '').toLowerCase();
+    return role === 'seller' || role === 'reseller' || role === 'admin';
+  }, [profile?.userRole]);
+
+  /**
+   * Records the choice server-side before switching the UI. Flipping the local
+   * mode first would show seller screens to an account the server still treats
+   * as a buyer, and every request would 403 — the order matters.
+   */
+  const enableSelling = useCallback(
+    async (accountType: 'buyer' | 'seller' | 'both') => {
+      const token = await ensureToken();
+      await seller.setAccountType(token, accountType);
+      await loadProfile(token);
+      await setMode(accountType === 'buyer' ? 'buyer' : 'seller');
+    },
+    [ensureToken, loadProfile, setMode],
+  );
+
+  // Restore the chosen mode alongside the session.
+  useEffect(() => {
+    (async () => {
+      const stored = await SecureStore.getItemAsync(MODE_KEY).catch(() => null);
+      if (stored === 'seller' || stored === 'buyer') {
+        setModeState(stored);
+      } else {
+        const role = (profile?.userRole ?? '').toLowerCase();
+        if (role === 'seller' || role === 'reseller' || role === 'admin') setModeState('seller');
+      }
+    })();
+  }, [profile?.userRole]);
 
   const value = useMemo<AuthValue>(
     () => ({
@@ -244,8 +312,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       resetPassword: sendPasswordReset,
       getToken: ensureToken,
       refreshProfile,
+      canSell,
+      mode,
+      setMode,
+      enableSelling,
     }),
-    [status, session, profile, signIn, signUp, signOut, ensureToken, refreshProfile],
+    [
+      status,
+      session,
+      profile,
+      signIn,
+      signUp,
+      signOut,
+      ensureToken,
+      refreshProfile,
+      canSell,
+      mode,
+      setMode,
+      enableSelling,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

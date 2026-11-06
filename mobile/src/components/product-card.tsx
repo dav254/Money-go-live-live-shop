@@ -1,9 +1,9 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
+import { RemoteImage } from './remote-image';
 import { Badge, Price } from './ui';
 import { colors, radius, spacing, type } from '../theme';
 import type { Product } from '../lib/types';
@@ -32,13 +32,14 @@ export function ProductCard({ product, width }: { product: Product; width?: numb
       style={({ pressed }) => [styles.card, width ? { width } : null, pressed && { opacity: 0.86 }]}
     >
       <View style={styles.media}>
-        {image ? (
-          <Image source={{ uri: image }} style={StyleSheet.absoluteFill} contentFit="cover" transition={180} />
-        ) : (
-          <View style={[StyleSheet.absoluteFill, styles.placeholder]}>
-            <Ionicons name="image-outline" size={26} color={colors.textFaint} />
-          </View>
-        )}
+        {/* Always through RemoteImage: a stored relative path must be resolved
+            against the API host or the card renders an empty box. */}
+        <RemoteImage
+          source={image}
+          style={styles.mediaImage}
+          radius={0}
+          label={product.name ? `${product.name} photo` : 'Listing photo'}
+        />
         <View style={styles.mediaTop}>
           {isService ? <Badge label="Service" tone="primary" /> : null}
           {outOfStock ? <Badge label="Sold out" tone="warning" /> : null}
@@ -77,6 +78,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   media: { aspectRatio: 1, backgroundColor: colors.surfaceRaised },
+  mediaImage: { width: '100%', height: '100%', borderRadius: 0 },
   mediaTop: { position: 'absolute', top: spacing.sm, left: spacing.sm, right: spacing.sm, flexDirection: 'row', gap: spacing.xs },
   placeholder: { alignItems: 'center', justifyContent: 'center' },
   body: { padding: spacing.md, gap: 4 },
