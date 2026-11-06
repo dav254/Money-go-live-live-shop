@@ -151,61 +151,294 @@ export interface PbRecord {
 }
 
 /**
- * Creates a collection (admin-only API rules) unless it already exists.
+ * SUPERUSER-ONLY API RULES — the correct way to lock a collection.
+ *
+ * PocketBase has three rule states, and two of them look almost identical:
+ *
+ *   null   → "locked": only an authorised superuser may perform the action.
+ *            This is what a server-owned collection wants.
+ *   ""     → NO restriction: every guest, every authenticated user, every
+ *            scraper on the internet may perform the action.
+ *   filter → allowed only when the expression matches.
+ *
+ * The empty string is therefore the opposite of "locked" — clearing a rule box
+ * in the dashboard does not remove access, it opens the action to the world.
+ * (https://pocketbase.io/docs/api-rules-and-filters/)
+ *
+ * This constant exists because the previous code used `''` with a comment
+ * claiming it meant "nobody but the superuser". It did not: it published
+ * every one of these collections — including `social_engine_connections`, whose
+ * `data`/`tokens` field holds sealed provider credentials — for anonymous
+ * read AND write. `null` is the fix.
+ */
+export const SUPERUSER_ONLY_RULES = {
+  listRule: null,
+  viewRule: null,
+  createRule: null,
+  updateRule: null,
+  deleteRule: null,
+} as const;
+
+/** The `fsId` column name every section uses as its logical primary key. */
+export const LOGICAL_ID_FIELD = 'fsId';
+
+/** SQL for a unique index on the logical id — the duplicate-row safeguard. */
+export function uniqueIndexSql(collection: string): string {
+  // Identifier is the collection name, which is never user input: every caller
+  // passes a module constant.
+  return `CREATE UNIQUE INDEX \`idx_${collection}_fsid\` ON \`${collection}\` (\`fsId\`)`;
+}
+
+export interface PbCollectionRules {
+  listRule: string | null;
+  viewRule: string | null;
+  createRule: string | null;
+  updateRule: string | null;
+  deleteRule: string | null;
+}
+
+/** Everything a verification run needs to know about one collection. */
+export interface PbCollectionState {
+  exists: boolean;
+  /** Null when the collection is missing or unreadable. */
+  rules: PbCollectionRules | null;
+  /** True only when all five rules are `null` (superuser-only). */
+  locked: boolean;
+  indexes: string[];
+  /** Row count, or null when it could not be read. */
+  totalItems: number | null;
+}
+
+const EMPTY_RULES: PbCollectionRules = {
+  listRule: null,
+  viewRule: null,
+  createRule: null,
+  updateRule: null,
+  deleteRule: null,
+};
+
+function rulesFrom(detail: Record<string, unknown>): PbCollectionRules {
+  const pick = (key: keyof PbCollectionRules): string | null => {
+    const value = detail[key];
+    return typeof value === 'string' ? value : null;
+  };
+  return {
+    listRule: pick('listRule'),
+    viewRule: pick('viewRule'),
+    createRule: pick('createRule'),
+    updateRule: pick('updateRule'),
+    deleteRule: pick('deleteRule'),
+  };
+}
+
+function rulesAreLocked(rules: PbCollectionRules): boolean {
+  return (Object.keys(EMPTY_RULES) as Array<keyof PbCollectionRules>).every(
+    (key) => rules[key] === null,
+  );
+}
+
+/**
+ * Reads a collection's schema, rules and row count. Read-only: used by the
+ * verification command, never by a request path.
+ */
+export async function pbGetCollection(name: string): Promise<PbCollectionState> {
+  const res = await pbRequest(`/api/collections/${encodeURIComponent(name)}`);
+  if (res.status === 404) return { exists: false, rules: null, locked: false, indexes: [], totalItems: null };
+  if (!res.ok) return { exists: false, rules: null, locked: false, indexes: [], totalItems: null };
+
+  const detail = (await res.json().catch(() => null)) as Record<string, unknown> | null;
+  if (!detail) return { exists: false, rules: null, locked: false, indexes: [], totalItems: null };
+
+  const rules = rulesFrom(detail);
+  const indexes = Array.isArray(detail.indexes)
+    ? detail.indexes.filter((i): i is string => typeof i === 'string')
+    : [];
+
+  let totalItems: number | null = null;
+  const countRes = await pbRequest(
+    `/api/collections/${encodeURIComponent(name)}/records?perPage=1&page=1`,
+  );
+  if (countRes.ok) {
+    const page = (await countRes.json().catch(() => null)) as { totalItems?: unknown } | null;
+    if (typeof page?.totalItems === 'number') totalItems = page.totalItems;
+  }
+
+  return { exists: true, rules, locked: rulesAreLocked(rules), indexes, totalItems };
+}
+
+/**
+ * Ensures one collection exists with the correct schema, a unique index on the
+ * logical id, and SUPERUSER-ONLY access rules.
+ *
  * Sends `fields` for PocketBase ≥ 0.25 and falls back to `schema` for older
- * instances, so the same script works on any version the VPS installs.
+ * instances, so the same code works on any version the VPS installs.
  */
 export async function ensureCollection(name: string, fields: PbField[]): Promise<void> {
   const existing = await pbRequest(`/api/collections/${encodeURIComponent(name)}`);
-  if (existing.ok) {
-    /*
-     * Collection already exists — but a section gaining a new column (e.g.
-     * `user_profiles` gaining `aiPoints` when the live-session charge moved
-     * over) must still land on it. Diff the schema and PATCH in only what is
-     * missing; an unchanged collection costs one GET and no write.
-     */
-    const detail = (await existing.json().catch(() => null)) as
-      | { fields?: { name: string }[]; schema?: { name: string }[] }
-      | null;
-    const current = detail?.fields ?? detail?.schema ?? null;
-    if (!current) return;
-    const have = new Set(current.map((f) => f.name));
-    const missing = fields.filter((f) => !have.has(f.name));
-    if (missing.length === 0) return;
-    const schemaKey = detail?.fields ? 'fields' : 'schema';
-    const res = await pbRequest(`/api/collections/${encodeURIComponent(name)}`, {
-      method: 'PATCH',
-      body: JSON.stringify({ [schemaKey]: [...current, ...missing] }),
-    });
-    if (!res.ok) {
-      // Non-fatal: record writes will report the missing column themselves.
-      console.error(`[pocketbase] adding fields to "${name}" failed (${res.status})`);
+
+  if (!existing.ok) {
+    if (await createCollection(name, fields)) return;
+
+    // A concurrent request may have created it between our GET and POST. If it
+    // now exists, fall through and repair it instead of failing the caller.
+    const retry = await pbRequest(`/api/collections/${encodeURIComponent(name)}`);
+    if (!retry.ok) {
+      throw new Error(`Could not create PocketBase collection "${name}" (${retry.status})`);
     }
+    await repairCollection(name, fields, await readDetail(retry));
     return;
   }
 
-  const base = {
+  await repairCollection(name, fields, await readDetail(existing));
+}
+
+async function readDetail(res: Response): Promise<Record<string, unknown> | null> {
+  return (await res.json().catch(() => null)) as Record<string, unknown> | null;
+}
+
+/** POST the collection, trying the modern and legacy schema key. */
+async function createCollection(name: string, fields: PbField[]): Promise<boolean> {
+  const base: Record<string, unknown> = {
     name,
     type: 'base',
-    // Empty rules = nobody but the superuser can touch it; only server code
-    // reads/writes these collections.
-    listRule: '',
-    viewRule: '',
-    createRule: '',
-    updateRule: '',
-    deleteRule: '',
+    ...SUPERUSER_ONLY_RULES,
   };
+  // A unique index on the logical id is what stops a race (or a retried write)
+  // from silently accumulating two rows for one logical document. Only added
+  // when the section actually keys on fsId.
+  if (fields.some((f) => f.name === LOGICAL_ID_FIELD)) {
+    base.indexes = [uniqueIndexSql(name)];
+  }
+
   for (const schemaKey of ['fields', 'schema'] as const) {
     const res = await pbRequest('/api/collections', {
       method: 'POST',
       body: JSON.stringify({ ...base, [schemaKey]: fields }),
     });
-    if (res.ok) return;
-    const detail = await res.text().catch(() => '');
-    if (schemaKey === 'schema') {
-      throw new Error(`Could not create PocketBase collection "${name}" (${res.status}): ${detail.slice(0, 300)}`);
+    if (res.ok) return true;
+    // A 400 on the first attempt may mean "already exists" (legacy vs modern),
+    // or a legacy instance rejecting `fields`. Try the other key; the caller
+    // re-checks existence afterwards either way.
+  }
+  return false;
+}
+
+/**
+ * Brings an existing collection up to the current contract: missing columns are
+ * added, access rules are locked to superusers, and the fsId uniqueness index
+ * is present.
+ *
+ * Every step here only ever TIGHTENS the collection (a `null` rule is more
+ * restrictive than `""`). Nothing is dropped and no column is removed.
+ */
+async function repairCollection(
+  name: string,
+  fields: PbField[],
+  detail: Record<string, unknown> | null,
+): Promise<void> {
+  if (!detail) return;
+
+  // ── 1. Rules ──────────────────────────────────────────────────────────────
+  const rules = rulesFrom(detail);
+  if (!rulesAreLocked(rules)) {
+    const res = await pbRequest(`/api/collections/${encodeURIComponent(name)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(SUPERUSER_ONLY_RULES),
+    });
+    if (!res.ok) {
+      // Loud on purpose: this is the difference between a private store and a
+      // publicly writable one, so it must never fail silently.
+      console.error(
+        `[pocketbase] SECURITY: could not lock access rules on "${name}" (${res.status}). ` +
+          'This collection may be publicly readable/writable until it is fixed.',
+      );
     }
   }
+
+  // ── 2. Columns ────────────────────────────────────────────────────────────
+  const current = (detail.fields ?? detail.schema) as { name: string }[] | undefined;
+  if (Array.isArray(current)) {
+    const have = new Set(current.map((f) => f.name));
+    const missing = fields.filter((f) => !have.has(f.name));
+    if (missing.length > 0) {
+      const schemaKey = detail.fields ? 'fields' : 'schema';
+      const res = await pbRequest(`/api/collections/${encodeURIComponent(name)}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ [schemaKey]: [...current, ...missing] }),
+      });
+      if (!res.ok) {
+        // Non-fatal: record writes will report the missing column themselves.
+        console.error(`[pocketbase] adding fields to "${name}" failed (${res.status})`);
+      }
+    }
+  }
+
+  // ── 3. fsId uniqueness ────────────────────────────────────────────────────
+  if (!fields.some((f) => f.name === LOGICAL_ID_FIELD)) return;
+  const indexes = Array.isArray(detail.indexes)
+    ? detail.indexes.filter((i): i is string => typeof i === 'string')
+    : [];
+  const alreadyUnique = indexes.some(
+    (sql) => /unique/i.test(sql) && sql.toLowerCase().includes(LOGICAL_ID_FIELD.toLowerCase()),
+  );
+  if (alreadyUnique) return;
+
+  const res = await pbRequest(`/api/collections/${encodeURIComponent(name)}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ indexes: [...indexes, uniqueIndexSql(name)] }),
+  });
+  if (!res.ok) {
+    // Existing duplicate rows are the usual cause. Report it as an integrity
+    // problem to fix — but never delete anyone's data to make the index fit.
+    console.error(
+      `[pocketbase] could not add the fsId unique index to "${name}" (${res.status}). ` +
+        'Duplicate logical ids may already exist; resolve them before relying on uniqueness.',
+    );
+  }
+}
+
+/**
+ * Race-safe create for an fsId-keyed row.
+ *
+ * The read-then-create flow in the writers has a window: two concurrent writes
+ * for the same logical id both see "no row" and both POST. With the unique index
+ * in place the loser gets a 400 — so instead of throwing, re-read the winner and
+ * PATCH it. The result is exactly one row per logical id, always.
+ */
+export async function pbCreateRecordKeyed(
+  collection: string,
+  fsId: string,
+  body: Record<string, unknown>,
+): Promise<'created' | 'merged'> {
+  const res = await pbRequest(`/api/collections/${encodeURIComponent(collection)}/records`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+  if (res.ok) return 'created';
+
+  const detail = await res.text().catch(() => '');
+  if (res.status === 400 || res.status === 409) {
+    const escaped = fsId.replace(/'/g, "\\'");
+    const rows = await pbListRecords(collection, {
+      filter: `${LOGICAL_ID_FIELD} = '${escaped}'`,
+      perPage: 1,
+    });
+    const winner = rows[0];
+    if (winner) {
+      const patched = await pbRequest(
+        `/api/collections/${encodeURIComponent(collection)}/records/${winner.id}`,
+        { method: 'PATCH', body: JSON.stringify(body) },
+      );
+      if (!patched.ok) {
+        throw new Error(`PocketBase update "${collection}/${fsId}" failed (${patched.status})`);
+      }
+      return 'merged';
+    }
+  }
+
+  throw new Error(
+    `PocketBase create "${collection}/${fsId}" failed (${res.status}): ${detail.slice(0, 300)}`,
+  );
 }
 
 export async function pbCreateRecord(collection: string, data: Record<string, unknown>): Promise<PbRecord> {

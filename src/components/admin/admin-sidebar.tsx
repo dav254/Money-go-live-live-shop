@@ -317,6 +317,9 @@ export function AdminSidebar() {
             { href: 'boosts', label: 'TikTok Boosts' },
             { href: 'banners', label: 'Promo Banners' },
             { href: 'sliders', label: 'Homepage Sliders' },
+            // What customers search for on /discover, where, and what they
+            // cannot find — anonymous aggregates only, beside the supply side.
+            { href: 'discover-demand', label: 'Discovery Demand' },
           ]}
         />
         
@@ -368,9 +371,10 @@ export function AdminSidebar() {
             // and the shared submission/audit history. Read-only unless an
             // admin presses a submit button.
             { href: 'search-engine', label: 'Search Engine Center' },
-            // Growth Post engine: nightly AI drafts of ready-to-post social
-            // copy for the best-performing products, queued for human
-            // approval. Publishing is limited to channels that exist.
+            // Growth Post queue: posts an administrator writes for a real
+            // listing, decides, schedules and publishes. Manual only — there
+            // is no AI draft run, and publishing is limited to channels that
+            // genuinely exist (`GROWTH_PUBLISH_CHANNELS`).
             { href: 'growth', label: 'Growth Posts' },
             // Postiz publishing bridge: the external scheduling service's
             // channel list, post composer and delivery log (server-side

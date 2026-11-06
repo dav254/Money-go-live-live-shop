@@ -264,15 +264,18 @@ test('both sources empty → truthful empty catalogue, homepage-only sitemap', a
   assert.ok(result, 'an empty-but-successful read is still a result');
   assert.deepEqual(result.productIds, []);
   assert.deepEqual(result.shopIds, []);
-  // The sitemap document then contains exactly the homepage — no invented ids.
+  // The core document is the homepage plus the public discovery page — and
+  // still not a single invented product or shop id.
   const entries = buildSitemapEntries(result);
-  assert.deepEqual(entries, [{ url: SITEMAP_ORIGIN }]);
+  assert.deepEqual(entries, [{ url: SITEMAP_ORIGIN }, { url: `${SITEMAP_ORIGIN}/discover` }]);
+  assert.equal(entries.some((entry) => entry.url.includes('/products/')), false);
+  assert.equal(entries.some((entry) => entry.url.includes('/sellers/')), false);
 });
 
 test('no sources at all → null (route serves the core document)', async () => {
   assert.equal(await resolveCatalogue({}), null);
   const entries = buildSitemapEntries({ productIds: [], shopIds: [] });
-  assert.deepEqual(entries, [{ url: SITEMAP_ORIGIN }]);
+  assert.deepEqual(entries, [{ url: SITEMAP_ORIGIN }, { url: `${SITEMAP_ORIGIN}/discover` }]);
 });
 
 test('unconfigured PocketBase (missing env) reports null instead of throwing', async () => {

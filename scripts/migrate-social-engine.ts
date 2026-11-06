@@ -23,7 +23,8 @@
  *   • Firestore is never written or deleted. No data is removed anywhere.
  *
  * USAGE (run on the VPS, in /root/app, with the app's env loaded):
- *   npx -y tsx scripts/migrate-social-engine.ts             # dry-run
+ *   npx -y tsx scripts/migrate-social-engine.ts --check   # create/verify collections + rules
+ *   npx -y tsx scripts/migrate-social-engine.ts             # dry-run (counts)
  *   npx -y tsx scripts/migrate-social-engine.ts --apply
  *   npx -y tsx scripts/migrate-social-engine.ts --verify
  *
@@ -39,15 +40,22 @@ import { getFirestore, type Firestore } from 'firebase-admin/firestore';
 import * as fs from 'fs';
 import * as path from 'path';
 
-import { pocketBaseEnabled } from '../src/lib/pocketbase/server';
+import {
+  ensureCollection,
+  pbGetCollection,
+  pocketBaseEnabled,
+  type PbField,
+} from '../src/lib/pocketbase/server';
 import {
   pbGetGrowthPost,
   pbWriteGrowthPost,
+  GROWTH_POST_FIELDS,
   GROWTH_POSTS_PB_COLLECTION,
 } from '../src/lib/pocketbase/growth-posts';
 import {
   pbSocialGet,
   pbSocialWrite,
+  SOCIAL_ENGINE_FIELDS,
   SOCIAL_ENGINE_PB_COLLECTIONS,
   type SocialEnginePbCollection,
 } from '../src/lib/pocketbase/social-engine';
@@ -140,11 +148,87 @@ async function readAll(
   return out;
 }
 
+/** The five destinations, each with the schema its writers already declare. */
+const TARGETS: Array<{ name: string; fields: PbField[] }> = [
+  { name: GROWTH_POSTS_PB_COLLECTION, fields: GROWTH_POST_FIELDS },
+  { name: SOCIAL_ENGINE_PB_COLLECTIONS.connections, fields: SOCIAL_ENGINE_FIELDS },
+  { name: SOCIAL_ENGINE_PB_COLLECTIONS.tests, fields: SOCIAL_ENGINE_FIELDS },
+  { name: SOCIAL_ENGINE_PB_COLLECTIONS.meta, fields: SOCIAL_ENGINE_FIELDS },
+  { name: SOCIAL_ENGINE_PB_COLLECTIONS.audit, fields: SOCIAL_ENGINE_FIELDS },
+];
+
+/**
+ * `--check` — create the five collections if absent, then VERIFY them.
+ *
+ * Creates schema only, never records: this is the safe command to run on the
+ * VPS before relying on the store, and it is what proves the access rules are
+ * superuser-only rather than public. Exits non-zero when anything is wrong, so
+ * it can gate a deploy.
+ */
+async function checkCollections(): Promise<void> {
+  console.log('Social Engine → PocketBase collections — schema + access-rule verification\n');
+  let problems = 0;
+
+  for (const target of TARGETS) {
+    try {
+      await ensureCollection(target.name, target.fields);
+    } catch (error) {
+      problems += 1;
+      console.log(
+        `${target.name.padEnd(26)} CREATE FAILED — ${error instanceof Error ? error.message : 'unknown error'}`,
+      );
+      continue;
+    }
+
+    const state = await pbGetCollection(target.name);
+    if (!state.exists) {
+      problems += 1;
+      console.log(`${target.name.padEnd(26)} MISSING — the collection could not be read back.`);
+      continue;
+    }
+
+    const r = state.rules;
+    const rulesText = r
+      ? (['listRule', 'viewRule', 'createRule', 'updateRule', 'deleteRule'] as const)
+          .map((key) => `${key.replace('Rule', '').toLowerCase()}:${r[key] === null ? 'locked' : 'PUBLIC'}`)
+          .join(' ')
+      : 'rules unreadable';
+    const hasUnique = state.indexes.some(
+      (sql) => /unique/i.test(sql) && sql.toLowerCase().includes('fsid'),
+    );
+
+    const ok = state.locked && hasUnique;
+    if (!ok) problems += 1;
+
+    console.log(
+      `${target.name.padEnd(26)} rows=${String(state.totalItems ?? '?').padStart(4)}  ` +
+        `${rulesText}  unique_fsid=${hasUnique ? 'yes' : 'NO'}  ${ok ? 'OK' : 'FAIL'}`,
+    );
+  }
+
+  if (problems > 0) {
+    console.error(
+      `\n${problems} collection(s) need attention. Do not treat the Social Engine as production-ready until every line reads OK.`,
+    );
+    process.exitCode = 1;
+    return;
+  }
+  console.log('\nAll five collections exist, are superuser-only, and enforce one row per fsId.');
+}
+
 async function main() {
   const args = new Set(process.argv.slice(2));
   const apply = args.has('--apply');
   const verify = args.has('--verify');
   const explain = args.has('--explain');
+  const check = args.has('--check');
+
+  // `--explain` only prints the mapping: it needs no store and no credentials,
+  // so it must answer even on a machine with nothing configured.
+  if (explain) {
+    for (const s of SECTIONS) console.log(`${s.firestore} → ${s.pocketbase}`);
+    return;
+  }
 
   if (!pocketBaseEnabled()) {
     console.error(
@@ -153,8 +237,8 @@ async function main() {
     process.exitCode = 1;
     return;
   }
-  if (explain) {
-    for (const s of SECTIONS) console.log(`${s.firestore} → ${s.pocketbase}`);
+  if (check) {
+    await checkCollections();
     return;
   }
 
@@ -164,8 +248,30 @@ async function main() {
   console.log(`Social Engine → PocketBase copy — mode: ${apply ? 'APPLY' : 'DRY-RUN'}`);
   console.log('Counts only. No document bodies, tokens or captions are printed.\n');
 
+  // `--verify` proves the destination is properly configured, not just counted.
+  if (verify) await checkCollections();
+
+  // Read every source collection ONCE, up front. The `--apply` guard below has
+  // to be decided on the real totals, not on a per-section probe.
+  const source = new Map<string, Array<{ id: string; data: Record<string, unknown> }>>();
+  let totalRows = 0;
   for (const section of SECTIONS) {
     const rows = await readAll(db, section.firestore);
+    source.set(section.label, rows);
+    totalRows += rows.length;
+  }
+
+  if (apply && totalRows === 0) {
+    console.error('Refusing --apply: all five Firestore source collections are empty.');
+    console.error('There is nothing to migrate, so a write pass would only create empty collections.');
+    console.error('PocketBase is already primary and creates them on first use.');
+    console.error('Run --check instead to create and verify them without touching any data.');
+    process.exitCode = 1;
+    return;
+  }
+
+  for (const section of SECTIONS) {
+    const rows = source.get(section.label) ?? [];
     let written = 0;
     let already = 0;
     let failed = 0;

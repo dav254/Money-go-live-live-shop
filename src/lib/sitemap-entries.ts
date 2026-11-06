@@ -88,6 +88,14 @@ export function buildSitemapEntries(input: {
   const seen = new Set<string>([SITEMAP_ORIGIN]);
   const entries: SitemapEntry[] = [{ url: SITEMAP_ORIGIN }];
 
+  // The unified discovery page is a genuine public surface even when the
+  // catalogue is too small to produce a single listing entry.
+  if (!isPrivatePath('/discover')) {
+    const discoverUrl = `${SITEMAP_ORIGIN}/discover`;
+    seen.add(discoverUrl);
+    entries.push(entry('/discover'));
+  }
+
   const push = (path: string, id: string) => {
     if (isPrivatePath(path)) return;
     const url = `${SITEMAP_ORIGIN}${path}`;

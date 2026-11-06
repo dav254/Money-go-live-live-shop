@@ -52,9 +52,15 @@ import {
  */
 export function InstallAppButton({
   className,
+  iconClassName,
   label = 'Install Vidnov App',
 }: {
   className?: string;
+  /**
+   * Icon colour. Defaults to the brand primary, which suits a light surface;
+   * a solid brand-filled button needs the icon in the foreground colour instead.
+   */
+  iconClassName?: string;
   /**
    * Button text. Overridable because the same control appears in surfaces that
    * speak differently — a sidebar says "Install", a marketing section says
@@ -122,6 +128,8 @@ export function InstallAppButton({
     }
   };
 
+  const iconTone = iconClassName ?? 'text-primary';
+
   const button = (
     <Button
       type="button"
@@ -133,9 +141,9 @@ export function InstallAppButton({
       className={className}
     >
       {isInstalling ? (
-        <Loader2 className="mr-2 h-4 w-4 animate-spin text-primary" />
+        <Loader2 className={`mr-2 h-4 w-4 animate-spin ${iconTone}`} />
       ) : (
-        <Smartphone className="mr-2 h-4 w-4 text-primary" />
+        <Smartphone className={`mr-2 h-4 w-4 ${iconTone}`} />
       )}
       {label}
     </Button>

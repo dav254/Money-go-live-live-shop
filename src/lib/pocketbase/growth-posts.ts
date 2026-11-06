@@ -21,8 +21,10 @@
 
 import {
   ensureCollection,
+  pbCreateRecordKeyed,
   pbDelete,
   pbListRecords,
+  pbListRecordsPage,
   pbRequest,
   pocketBaseEnabled,
   scrubForPocketBase,
@@ -96,29 +98,27 @@ export async function pbWriteGrowthPost(
       : {};
   const { id: _ignored, ...cleanPatch } = patch;
   const merged = scrubForPocketBase({ ...prev, ...cleanPatch, id }) as Record<string, unknown>;
-  const body = JSON.stringify({
+  const payload = {
     fsId: id,
     status: str(merged.status),
     productId: str(merged.productId),
     sellerId: str(merged.sellerId),
     updatedAt: str(merged.updatedAt) || new Date().toISOString(),
     data: merged,
-  });
+  };
 
   if (existing) {
     const res = await pbRequest(
       `/api/collections/${GROWTH_POSTS_PB_COLLECTION}/records/${existing.id}`,
-      { method: 'PATCH', body },
+      { method: 'PATCH', body: JSON.stringify(payload) },
     );
     if (!res.ok) throw new Error(`PocketBase update "${GROWTH_POSTS_PB_COLLECTION}/${id}" failed (${res.status})`);
     return merged;
   }
 
-  const res = await pbRequest(`/api/collections/${GROWTH_POSTS_PB_COLLECTION}/records`, {
-    method: 'POST',
-    body,
-  });
-  if (!res.ok) throw new Error(`PocketBase create "${GROWTH_POSTS_PB_COLLECTION}/${id}" failed (${res.status})`);
+  // `pbCreateRecordKeyed` re-reads and PATCHes if a concurrent write won the
+  // unique-id race, so two writers can never leave two rows for one post.
+  await pbCreateRecordKeyed(GROWTH_POSTS_PB_COLLECTION, id, payload);
   return merged;
 }
 
@@ -146,13 +146,25 @@ export async function pbListGrowthPosts(
   return rows.map((row) => toDocument(String(row.fsId ?? row.id), row));
 }
 
-/** Per-status counts for the queue header. Throws on PocketBase failure. */
+/**
+ * Per-status counts for the queue header. Throws on PocketBase failure.
+ *
+ * Exact, not sampled: the previous version listed at most 500 rows and counted
+ * them in memory, so every number in the admin header went wrong once a queue
+ * grew past that. PocketBase returns an authoritative `totalItems` for a
+ * filtered page, so one cheap request per known status gives the true count at
+ * any size.
+ */
 export async function pbCountGrowthPosts(): Promise<Record<string, number>> {
-  const rows = await pbListGrowthPosts(500);
+  const statuses = ['draft', 'approved', 'rejected', 'copied', 'emailed', 'published', 'failed'];
+  await ensureCollection(GROWTH_POSTS_PB_COLLECTION, GROWTH_POST_FIELDS);
   const counts: Record<string, number> = {};
-  for (const row of rows) {
-    const status = typeof row.status === 'string' && row.status ? row.status : 'draft';
-    counts[status] = (counts[status] ?? 0) + 1;
+  for (const status of statuses) {
+    const page = await pbListRecordsPage(GROWTH_POSTS_PB_COLLECTION, {
+      filter: `status = '${esc(status)}'`,
+      perPage: 1,
+    });
+    counts[status] = page.totalItems;
   }
   return counts;
 }

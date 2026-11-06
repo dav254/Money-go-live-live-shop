@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { ArrowRight, Bell, Download, Heart, Home, MessageCircle, Search, Sparkles, Store } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import { InstallAppButton } from '@/components/install-app-button';
 import {
   ANDROID_APP,
   DOWNLOAD_PAGE_PATH,
@@ -21,10 +22,15 @@ import {
  * React Native surface, and a promo that showed a shrunken website would both
  * misrepresent it and undercut the whole point of building it.
  *
- * The button never lies. `IS_PUBLISHED` is driven by a verified Play URL in the
- * environment; until that exists this renders "coming soon" and sends people to
- * `/download`, which states the real status. No invented store link, no
- * unverified APK.
+ * The button never lies, and it never dead-ends. `IS_PUBLISHED` is driven by a
+ * verified Play URL in the environment. While that is empty the visitor is not
+ * sent to a status page and left there: the primary action is a real install —
+ * the browser's own install flow, which puts Vidnov on the home screen and
+ * genuinely works today — and the Google Play status is stated in the copy
+ * beside it, with `/download` for the full explanation.
+ *
+ * No invented store link, and no unverified APK: an unsigned sideload is not
+ * something this site hands out, and Play requires the signed bundle anyway.
  */
 export function AndroidAppPromo() {
   return (
@@ -77,7 +83,7 @@ export function AndroidAppPromo() {
               ))}
             </ul>
 
-            <div className="mt-9 flex flex-col items-start gap-3 sm:flex-row sm:items-center">
+            <div className="mt-9 flex flex-col items-start gap-4">
               {IS_PUBLISHED ? (
                 <Button
                   asChild
@@ -91,19 +97,25 @@ export function AndroidAppPromo() {
                 </Button>
               ) : (
                 <>
-                  <Button
-                    asChild
-                    size="lg"
-                    className="h-12 rounded-full border border-[#ff5a36] bg-[#ff5a36] px-7 text-sm font-bold text-[#150d0b] shadow-[0_12px_30px_rgba(255,90,54,0.32)] hover:-translate-y-0.5 hover:bg-[#ff6a49]"
-                  >
-                    <Link href={DOWNLOAD_PAGE_PATH}>
-                      <Download className="mr-2 h-4 w-4" />
-                      Download the Vidnov App
+                  {/* A real download, not a link to a status page: this opens
+                      the browser's install flow and Vidnov lands on the home
+                      screen. It also explains itself when a browser has no
+                      install API (iOS, embedded frames, plain http). */}
+                  <InstallAppButton
+                    label="Download the application"
+                    iconClassName="text-[#150d0b]"
+                    className="h-12 rounded-full border border-[#ff5a36] bg-[#ff5a36] px-7 text-sm font-bold text-[#150d0b] shadow-[0_12px_30px_rgba(255,90,54,0.32)] hover:-translate-y-0.5 hover:bg-[#ff6a49] disabled:opacity-70"
+                  />
+                  <p className="max-w-sm text-xs leading-relaxed text-[#a79e95]">
+                    Installs from your browser in one tap — same Vidnov account, shops and
+                    orders. The native Google Play build is still being prepared.{' '}
+                    <Link
+                      href={DOWNLOAD_PAGE_PATH}
+                      className="font-semibold text-[#ffcfbf] underline decoration-[#ff5a36]/50 underline-offset-2 hover:text-[#ff5a36]"
+                    >
+                      Installation help
                     </Link>
-                  </Button>
-                  <span className="rounded-full border border-white/12 bg-[#151515] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-[#a79e95]">
-                    Android app coming soon
-                  </span>
+                  </p>
                 </>
               )}
             </div>

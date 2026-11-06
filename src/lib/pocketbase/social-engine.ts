@@ -23,6 +23,7 @@
  */
 import {
   ensureCollection,
+  pbCreateRecordKeyed,
   pbListRecords,
   pbRequest,
   pocketBaseEnabled,
@@ -48,6 +49,9 @@ const FIELDS: PbField[] = [
   { name: 'updatedAt', type: 'date' },
   { name: 'data', type: 'json' },
 ];
+
+/** Exported so the verification command can assert the same schema the writers use. */
+export const SOCIAL_ENGINE_FIELDS: PbField[] = FIELDS;
 
 /** True when the VPS store should be treated as the source of truth. */
 export function socialEnginePbEnabled(): boolean {
@@ -101,26 +105,23 @@ export async function pbSocialWrite(
       ? (existing.data as Record<string, unknown>)
       : {};
   const merged = scrubForPocketBase({ ...prev, ...patch, id: fsId }) as Record<string, unknown>;
-  const body = JSON.stringify({
+  const payload = {
     fsId,
     module: str(merged.module),
     status: str(merged.status),
     updatedAt: str(merged.updatedAt) || new Date().toISOString(),
     data: merged,
-  });
+  };
   if (existing) {
     const res = await pbRequest(
       `/api/collections/${encodeURIComponent(collection)}/records/${existing.id}`,
-      { method: 'PATCH', body },
+      { method: 'PATCH', body: JSON.stringify(payload) },
     );
     if (!res.ok) throw new Error(`PocketBase update "${collection}/${fsId}" failed (${res.status})`);
     return merged;
   }
-  const res = await pbRequest(`/api/collections/${encodeURIComponent(collection)}/records`, {
-    method: 'POST',
-    body,
-  });
-  if (!res.ok) throw new Error(`PocketBase create "${collection}/${fsId}" failed (${res.status})`);
+  // Race-safe: a concurrent write for the same fsId is merged, never duplicated.
+  await pbCreateRecordKeyed(collection, fsId, payload);
   return merged;
 }
 
@@ -135,15 +136,11 @@ export async function pbSocialAppend(
 ): Promise<void> {
   await ensureCollection(collection, FIELDS);
   const clean = scrubForPocketBase({ ...doc, id: fsId }) as Record<string, unknown>;
-  const res = await pbRequest(`/api/collections/${encodeURIComponent(collection)}/records`, {
-    method: 'POST',
-    body: JSON.stringify({
-      fsId,
-      module: str(clean.module),
-      status: str(clean.outcome),
-      updatedAt: str(clean.at) || new Date().toISOString(),
-      data: clean,
-    }),
+  await pbCreateRecordKeyed(collection, fsId, {
+    fsId,
+    module: str(clean.module),
+    status: str(clean.outcome),
+    updatedAt: str(clean.at) || new Date().toISOString(),
+    data: clean,
   });
-  if (!res.ok) throw new Error(`PocketBase append "${collection}" failed (${res.status})`);
 }
