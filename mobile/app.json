@@ -1,0 +1,53 @@
+{
+  "expo": {
+    "name": "Vidnov",
+    "slug": "vidnov",
+    "version": "1.0.0",
+    "scheme": "vidnov",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "icon": "./assets/images/icon.png",
+    "backgroundColor": "#0A0A0A",
+    "primaryColor": "#FF4D2E",
+    "android": {
+      "package": "com.vidnov.app",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "backgroundColor": "#0A0A0A",
+        "foregroundImage": "./assets/images/android-icon-foreground.png"
+      },
+      "permissions": ["android.permission.CAMERA", "android.permission.POST_NOTIFICATIONS"],
+      "edgeToEdgeEnabled": true
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.vidnov.app"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-image",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Vidnov uses your photos so you can add images to listings and messages.",
+          "cameraPermission": "Vidnov uses the camera so you can photograph items you sell or share."
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/splash-icon.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#0A0A0A"
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "apiBaseUrl": "https://vidnov.com"
+    }
+  }
+}

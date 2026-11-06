@@ -2,6 +2,7 @@
 import { LandingHeader } from './landing-header';
 import { LandingFooter } from './landing-footer';
 import { LandingBottomNav } from './landing-bottom-nav';
+import { SmartInstallPrompt } from '@/components/app/smart-install-prompt';
 
 /**
  * LANDING CHROME.
@@ -33,6 +34,10 @@ export function LandingLayout({
           row and any page CTA stay reachable above it. */}
       <div aria-hidden className="h-16 pb-[env(safe-area-inset-bottom)] md:hidden" />
       <LandingBottomNav />
+      {/* Marketing surfaces only: the install prompt is mounted here and not in
+          the app shell, so it can never interrupt a checkout or the seller
+          studio. It renders nothing until it decides it is welcome. */}
+      <SmartInstallPrompt />
     </div>
   );
 }

@@ -18,6 +18,7 @@ const COLUMNS: { title: string; links: { label: string; href: string }[] }[] = [
     links: [
       { label: 'Discover', href: '/buyer/discovery' },
       { label: 'Create Studio', href: '/ai-studio' },
+      { label: 'Android app', href: '/download' },
       { label: 'About', href: '/about' },
     ],
   },

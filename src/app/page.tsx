@@ -5,6 +5,7 @@ import { ArrowRight, ArrowUpRight, Check, CirclePlay, Flame, Radio, ShieldCheck,
 
 import { useEffect, useState } from 'react';
 import { LandingLayout } from '@/components/layout/landing-layout';
+import { AndroidAppPromo } from '@/components/app/android-app-promo';
 import { Button } from '@/components/ui/button';
 
 /** A seller's room on the live strip — real (on air now) or a demo tile. */
@@ -688,6 +689,10 @@ export default function VidnovHomePage() {
             </div>
           </div>
         </section>
+
+        {/* Android app promotion — sits just before the closing CTA so the
+            page still ends on the marketplace, not on a download. */}
+        <AndroidAppPromo />
 
         <section className="relative border-t border-[#ff5a36]/20 bg-[#0d0d0d]">
           <div className="mx-auto max-w-7xl px-4 py-18 sm:px-6 lg:px-8">
