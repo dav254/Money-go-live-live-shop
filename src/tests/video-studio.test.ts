@@ -435,17 +435,20 @@ describe('studio wiring (nav, registry, public surfaces)', () => {
     assert.ok(existsSync(join(ROOT, 'src/app/dashboard/seller/video-studio/page.tsx')));
   });
 
-  it('homepage intro video uses only the configured asset, with a fallback', () => {
+  it('homepage offers real media samples without inventing a video asset', () => {
     const page = read('src/app/page.tsx');
-    assert.ok(page.includes('process.env.NEXT_PUBLIC_VIDNOV_INTRO_VIDEO_URL'));
-    assert.ok(page.includes('onError'), 'a broken video must fall back, not block the page');
-    assert.ok(page.includes('INTRO_POSTER'), 'fallback image required');
+    const strip = read('src/components/home/live-discovery.tsx');
+    // The redesign dropped the placeholder intro player. What must hold is that
+    // no video URL is invented and that the page routes creators into the real
+    // studio surfaces.
     assert.equal(
-      /src=\{?["'`][^"'`]*\.mp4["'`]/.test(page),
+      /src=\{?["'`][^"'`]*\.(mp4|webm|m3u8)["'`]/.test(page),
       false,
       'no hardcoded video URL may be invented',
     );
-    assert.ok(page.includes('/dashboard/seller/video-studio'), 'CTA into the studio');
+    assert.ok(page.includes('/live'), 'public live surface linked');
+    assert.ok(strip.includes('/dashboard/seller/video-studio'), 'CTA into the studio');
+    assert.ok(strip.includes('/dashboard/seller/live-feed'), 'CTA into the live studio');
   });
 
   it('the recorder has camera switching, permission fallback and a file fallback', () => {

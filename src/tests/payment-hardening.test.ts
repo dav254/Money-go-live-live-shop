@@ -166,25 +166,36 @@ describe('payment methods with missing credentials are not offered', () => {
 describe('homepage honesty labels', () => {
   const src = read('src/app/page.tsx');
 
-  it('hero figures are labelled as illustrative', () => {
+  it('renders real marketplace records instead of invented cards', () => {
+    // The redesign removed the stand-in arrays and demo rooms entirely: the
+    // business and listing grids come from loadLandingFeed(), which reads the
+    // VPS store first and Firestore second.
+    assert.ok(src.includes('loadLandingFeed'), 'homepage must read the real feed');
+    for (const fabricated of [
+      'landingSellers',
+      'landingProducts',
+      'landingVideos',
+      'DEMO_ROOMS',
+      'Illustrative preview figures',
+      '2.8k',
+      '+28%',
+    ]) {
+      assert.equal(src.includes(fabricated), false, `homepage must not contain ${fabricated}`);
+    }
+  });
+
+  it('empty sections invite registration instead of faking supply', () => {
+    assert.ok(src.includes('Register your business'), 'honest business empty state');
+    assert.ok(src.includes('List a product or service'), 'honest listing empty state');
     assert.ok(
-      src.includes('Illustrative preview figures'),
-      'fabricated stats need a visible disclaimer',
+      src.includes('Sponsored placements are always labelled'),
+      'paid placement must stay labelled',
     );
   });
 
-  it('demo room tiles carry a visible Sample tag and honest caption', () => {
-    assert.ok(/demo && \(\s*[\s\S]{0,200}Sample/.test(src), 'demo tiles must show the Sample badge');
-    assert.ok(src.includes('What a live room looks like'), 'demo caption must not claim live viewers');
-    assert.equal(
-      src.includes("href={demo ? '/buyer/discovery'"),
-      true,
-      'demo tiles must not pretend to open a real room',
-    );
-  });
-
-  it('the intro video still uses only the configured asset', () => {
-    assert.ok(src.includes('process.env.NEXT_PUBLIC_VIDNOV_INTRO_VIDEO_URL'));
+  it('promises nothing the platform cannot guarantee', () => {
+    assert.ok(src.includes('never guaranteed'), 'indexing/ranking caveat');
+    assert.ok(src.includes('Reach and engagement are never promised'), 'social reach caveat');
   });
 });
 

@@ -5,29 +5,47 @@ import { Logo } from '../logo';
 import { requestConsentBanner } from '@/lib/cookie-consent';
 
 /**
- * LANDING FOOTER — compact, per the homepage spec.
+ * LANDING FOOTER — the public site footer.
  *
- * Every link points at a route that exists today. The "Contact" entry links
- * to the help centre rather than inventing an email address that is not
- * configured anywhere in the product.
+ * Every link points at a route that exists today. There is no invented contact
+ * email (none is configured in the product), so "Contact" goes to the help
+ * centre, which is where support actually happens. Social links are omitted
+ * rather than pointed at accounts that may not be ours.
  */
 
 const COLUMNS: { title: string; links: { label: string; href: string }[] }[] = [
   {
-    title: 'EXPLORE',
+    title: 'VIDNOV',
     links: [
-      { label: 'Discover', href: '/buyer/discovery' },
-      { label: 'Create Studio', href: '/ai-studio' },
+      { label: 'About Vidnov', href: '/about' },
+      { label: 'How it works', href: '/how-it-works' },
+      { label: 'Pricing', href: '/pricing' },
       { label: 'Android app', href: '/download' },
-      { label: 'About', href: '/about' },
     ],
   },
   {
-    title: 'SUPPORT',
+    title: 'DISCOVER',
     links: [
-      { label: 'Help and Support', href: '/faq' },
-      { label: 'Privacy', href: '/privacy' },
-      { label: 'Terms', href: '/terms' },
+      { label: 'Discover everything', href: '/discover' },
+      { label: 'Businesses', href: '/discover?kind=businesses' },
+      { label: 'Products & services', href: '/discover?kind=listings' },
+      { label: 'Live shopping', href: '/live' },
+    ],
+  },
+  {
+    title: 'FOR BUSINESS',
+    links: [
+      { label: 'Seller registration', href: '/app/seller/create' },
+      { label: 'Create Studio', href: '/ai-studio' },
+      { label: 'Seller sign in', href: '/login' },
+      { label: 'Help & support', href: '/faq' },
+    ],
+  },
+  {
+    title: 'LEGAL',
+    links: [
+      { label: 'Privacy policy', href: '/privacy' },
+      { label: 'Terms of service', href: '/terms' },
       { label: 'Contact', href: '/faq' },
     ],
   },
@@ -37,15 +55,22 @@ export function LandingFooter() {
   return (
     <footer className="border-t border-border bg-background">
       <div className="container mx-auto max-w-7xl px-4 py-14 lg:px-8">
-        <div className="grid grid-cols-2 gap-10 md:grid-cols-4">
-          <div className="col-span-2 space-y-5 md:col-span-1">
+        <div className="grid grid-cols-2 gap-x-8 gap-y-10 md:grid-cols-6">
+          <div className="col-span-2 space-y-4">
             <Link href="/" aria-label="Vidnov home">
               <Logo className="text-3xl" />
             </Link>
             <p className="max-w-xs text-sm leading-relaxed text-muted-foreground">
-              Post. Earn. Repeat. A new space for ideas — discover, create and
-              bring them to life.
+              Discover businesses, explore products and services, connect with
+              creators, and find new opportunities.
             </p>
+            <div className="flex flex-wrap gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+              <span>Marketplace</span>
+              <span aria-hidden>·</span>
+              <span>Live</span>
+              <span aria-hidden>·</span>
+              <span>Video</span>
+            </div>
           </div>
 
           {COLUMNS.map((col) => (
@@ -69,10 +94,10 @@ export function LandingFooter() {
           ))}
         </div>
 
-        <div className="mt-12 flex flex-col items-center justify-between gap-3 border-t border-border pt-6 md:flex-row">
-          <div className="flex items-center gap-4">
+        <div className="mt-12 flex flex-col items-start justify-between gap-4 border-t border-border pt-6 sm:flex-row sm:items-center">
+          <div className="flex flex-wrap items-center gap-4">
             <p className="text-[11px] font-medium tracking-wide text-muted-foreground">
-              © 2026 Vidnov
+              © 2026 Vidnov. All rights reserved.
             </p>
             <button
               type="button"
@@ -83,7 +108,7 @@ export function LandingFooter() {
             </button>
           </div>
           <p className="text-[10px] font-semibold uppercase tracking-[0.35em] text-muted-foreground">
-            Post · Earn · Repeat
+            Discover · Connect · Grow
           </p>
         </div>
       </div>

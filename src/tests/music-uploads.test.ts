@@ -116,9 +116,16 @@ describe('music wiring (source-level guards)', () => {
 describe('homepage VPS migration (Section 3)', () => {
   it('the homepage reads the live strip from our own origin, not the client Firestore SDK', () => {
     const home = readFileSync(join(ROOT, 'src', 'app', 'page.tsx'), 'utf8');
-    assert.match(home, /\/api\/home\/live/);
-    assert.doesNotMatch(home, /firebase\/firestore/, 'homepage must not query Firestore from the browser');
-    assert.doesNotMatch(home, /useCollection/, 'homepage must not subscribe with the client SDK');
+    const strip = readFileSync(
+      join(ROOT, 'src', 'components', 'home', 'live-discovery.tsx'),
+      'utf8',
+    );
+    assert.match(home, /components\/home\/live-discovery/, 'homepage renders the live strip');
+    assert.match(strip, /\/api\/home\/live/);
+    for (const source of [home, strip]) {
+      assert.doesNotMatch(source, /firebase\/firestore/, 'homepage must not query Firestore from the browser');
+      assert.doesNotMatch(source, /useCollection/, 'homepage must not subscribe with the client SDK');
+    }
   });
 
   it('/api/home/live is public, VPS-first, and answers safely on failure', () => {
@@ -128,8 +135,15 @@ describe('homepage VPS migration (Section 3)', () => {
     assert.doesNotMatch(route, /verifyUserContext|Authorization/, 'the landing strip is public on purpose');
   });
 
-  it('the homepage demo-tile fallback still exists (graceful empty state)', () => {
-    const home = readFileSync(join(ROOT, 'src', 'app', 'page.tsx'), 'utf8');
-    assert.match(home, /DEMO_ROOMS/);
+  it('the empty live floor is explained honestly instead of staging a demo room', () => {
+    const strip = readFileSync(
+      join(ROOT, 'src', 'components', 'home', 'live-discovery.tsx'),
+      'utf8',
+    );
+    // Redesign: the sample room is gone. With no real session the section says
+    // so and explains how sellers go live — it never renders a fake live tile.
+    assert.doesNotMatch(strip, /DEMO_ROOMS/);
+    assert.match(strip, /No one is live right now/);
+    assert.match(strip, /\/dashboard\/seller\/live-feed/, 'points at the real go-live studio');
   });
 });
