@@ -27,25 +27,27 @@ const COLUMNS: { title: string; links: { label: string; href: string }[] }[] = [
     title: 'DISCOVER',
     links: [
       { label: 'Discover everything', href: '/discover' },
-      { label: 'Businesses', href: '/discover?kind=businesses' },
-      { label: 'Products & services', href: '/discover?kind=listings' },
+      { label: 'Explore businesses', href: '/discover?kind=businesses' },
+      { label: 'Products', href: '/discover?kind=listings' },
+      { label: 'Services', href: '/categories?type=services' },
       { label: 'Live shopping', href: '/live' },
     ],
   },
   {
-    title: 'FOR BUSINESS',
+    title: 'BUSINESS & CREATORS',
     links: [
-      { label: 'Seller registration', href: '/app/seller/create' },
-      { label: 'Create Studio', href: '/ai-studio' },
+      { label: 'For sellers', href: '/app/seller/create' },
+      { label: 'For creators', href: '/ai-studio' },
       { label: 'Seller sign in', href: '/login' },
       { label: 'Help & support', href: '/faq' },
     ],
   },
   {
-    title: 'LEGAL',
+    title: 'LEGAL & SAFETY',
     links: [
       { label: 'Privacy policy', href: '/privacy' },
       { label: 'Terms of service', href: '/terms' },
+      { label: 'Safety & community rules', href: '/terms' },
       { label: 'Contact', href: '/faq' },
     ],
   },

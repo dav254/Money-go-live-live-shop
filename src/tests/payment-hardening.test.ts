@@ -184,18 +184,38 @@ describe('homepage honesty labels', () => {
     }
   });
 
-  it('empty sections invite registration instead of faking supply', () => {
-    assert.ok(src.includes('Register your business'), 'honest business empty state');
-    assert.ok(src.includes('List a product or service'), 'honest listing empty state');
+  it('labels every sample card as a design preview', () => {
+    // The layout is demonstrated with stock photography, so the sample cards
+    // must be unmistakable: a DemoBadge on the card and a placeholder price
+    // instead of an invented number.
+    assert.ok(src.includes('Design Preview'), 'demo cards carry the Design Preview badge');
+    assert.ok(src.includes('Demo price'), 'sample cards show a demo price label');
+    assert.ok(src.includes('These cards are layout previews'), 'demo grid is explained');
+    assert.ok(
+      src.includes('Sample preview — not a real broadcast'),
+      'live previews never imply a real broadcast',
+    );
+  });
+
+  it('does not attribute demo cards to a seller', () => {
+    // Sample products must not borrow seller identity: the only shop label on a
+    // demo card is the explicit "Sample shop (preview)".
+    assert.ok(src.includes('Sample shop (preview)'));
+    assert.equal(/image: PHOTOS[\s\S]{0,120}seller:/.test(src), false);
+  });
+
+  it('promises nothing the platform cannot guarantee', () => {
+    assert.ok(src.includes('Indexing and ranking are decided by Google'), 'search caveat');
+    assert.ok(src.includes('no reach, ranking or sale is guaranteed'), 'distribution caveat');
+    assert.ok(src.includes('Planned'), 'planned capabilities are marked as planned');
+  });
+
+  it('keeps paid placement and real-seller identity honest', () => {
     assert.ok(
       src.includes('Sponsored placements are always labelled'),
       'paid placement must stay labelled',
     );
-  });
-
-  it('promises nothing the platform cannot guarantee', () => {
-    assert.ok(src.includes('never guaranteed'), 'indexing/ranking caveat');
-    assert.ok(src.includes('Reach and engagement are never promised'), 'social reach caveat');
+    assert.ok(src.includes('Register your business'), 'honest registration CTA');
   });
 });
 
