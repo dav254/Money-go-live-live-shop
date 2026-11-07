@@ -25,7 +25,7 @@ import { useUser } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { MODULE_SPECS } from '@/lib/social-engine/modules';
 import { moduleCapabilities } from '@/lib/social-engine/capabilities';
-import type { ModuleReadiness, ReadinessState } from '@/lib/social-engine/types';
+import type { ConnectionInfo, ModuleReadiness, ReadinessState } from '@/lib/social-engine/types';
 
 /**
  * SOCIAL ENGINE — administrator readiness dashboard.
@@ -83,6 +83,23 @@ function when(iso?: string): string {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return '—';
   return date.toLocaleString();
+}
+
+/**
+ * Token lifetime, in words. Providers that declare no expiry say so instead of
+ * inventing a countdown, and an expired token is stated as an action.
+ */
+function tokenStateLabel(connection: ConnectionInfo): string {
+  switch (connection.tokenState) {
+    case 'expired':
+      return 'Access token expired — reconnect';
+    case 'expiring':
+      return `Access token expires ${when(connection.expiresAt)}`;
+    case 'valid':
+      return connection.expiresAt ? `Access token valid until ${when(connection.expiresAt)}` : 'Access token valid';
+    default:
+      return 'No token expiry declared by the provider';
+  }
 }
 
 function StateBadge({ state }: { state: ReadinessState }) {
@@ -382,6 +399,19 @@ export default function SocialEnginePage() {
                           <div className="truncate text-muted-foreground">
                             {module.connection.accountLabel ?? (module.connection.disconnectedAt ? 'Disconnected' : '—')}
                           </div>
+                          {module.connection.connected ? (
+                            <div
+                              className={`mt-0.5 text-[10px] leading-tight ${
+                                module.connection.tokenState === 'expired'
+                                  ? 'font-semibold text-red-600'
+                                  : module.connection.tokenState === 'expiring'
+                                    ? 'text-amber-600'
+                                    : 'text-muted-foreground'
+                              }`}
+                            >
+                              {tokenStateLabel(module.connection)}
+                            </div>
+                          ) : null}
                         </div>
                         <div className="rounded-lg bg-muted/60 p-2">
                           <div className="text-muted-foreground">Provider approval</div>
@@ -467,6 +497,117 @@ export default function SocialEnginePage() {
                             {copied === module.id ? <CheckCircle2 className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
                           </Button>
                         </div>
+                      ) : null}
+
+                      {/* Setup guide — where to create the app, what to request,
+                          and the failures this engine actually reports. */}
+                      {spec.setup ? (
+                        <details className="rounded-lg border border-border bg-muted/30 p-2 text-xs">
+                          <summary className="cursor-pointer select-none font-semibold">
+                            Setup guide
+                          </summary>
+                          <div className="mt-2 space-y-2">
+                            <a
+                              href={spec.setup.docsUrl}
+                              target="_blank"
+                              rel="noreferrer noopener"
+                              className="inline-flex items-center gap-1 underline underline-offset-2"
+                            >
+                              <ExternalLink className="h-3 w-3" /> Official developer setup
+                            </a>
+
+                            <div>
+                              <div className="font-semibold">Create / collect</div>
+                              <ul className="ml-4 list-disc text-muted-foreground">
+                                {spec.setup.needs.map((need) => (
+                                  <li key={need}>{need}</li>
+                                ))}
+                              </ul>
+                            </div>
+
+                            <div>
+                              <div className="font-semibold">Permissions to request</div>
+                              <div className="mt-1 flex flex-wrap gap-1">
+                                {spec.setup.scopes.map((scope) => (
+                                  <span
+                                    key={scope}
+                                    className="rounded-full border border-border bg-background px-2 py-0.5 font-mono text-[10px]"
+                                  >
+                                    {scope}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+
+                            {isOauth ? (
+                              <div>
+                                <div className="font-semibold">Redirect URI (must match exactly)</div>
+                                <code className="mt-1 block break-all rounded bg-background px-1.5 py-1 font-mono text-[10px]">
+                                  {callback}
+                                </code>
+                              </div>
+                            ) : null}
+
+                            <div>
+                              <div className="font-semibold">Server variables</div>
+                              <ul className="ml-4 list-disc text-muted-foreground">
+                                {module.env.map((envVar) => (
+                                  <li key={envVar.name}>
+                                    <span className="font-mono text-[10px]">{envVar.name}</span>
+                                    {envVar.required ? '' : ' (optional)'} — {envVar.role}{' '}
+                                    <span className={envVar.present ? 'text-emerald-600' : 'text-red-600'}>
+                                      {envVar.present ? 'set' : 'empty'}
+                                    </span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+
+                            {module.connection.scopes?.length ? (
+                              <div>
+                                <div className="font-semibold">Scopes granted at connect time</div>
+                                <div className="mt-1 flex flex-wrap gap-1">
+                                  {module.connection.scopes.map((scope) => (
+                                    <span
+                                      key={scope}
+                                      className="rounded-full border border-border bg-background px-2 py-0.5 font-mono text-[10px]"
+                                    >
+                                      {scope}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            ) : null}
+
+                            {spec.additionalSetup?.length ? (
+                              <div>
+                                <div className="font-semibold">Additional setup</div>
+                                <ul className="ml-4 list-disc text-muted-foreground">
+                                  {spec.additionalSetup.map((item) => (
+                                    <li key={item}>{item}</li>
+                                  ))}
+                                </ul>
+                              </div>
+                            ) : null}
+
+                            <div>
+                              <div className="font-semibold">Common errors</div>
+                              <ul className="ml-4 list-disc text-muted-foreground">
+                                {spec.setup.commonErrors.map((item) => (
+                                  <li key={item}>{item}</li>
+                                ))}
+                              </ul>
+                            </div>
+
+                            {spec.setup.providerRequirement ? (
+                              <p className="rounded border border-orange-200 bg-orange-50 p-1.5 text-orange-800">
+                                {spec.setup.providerRequirement}
+                              </p>
+                            ) : null}
+
+                            <p className="text-muted-foreground">{spec.activation}</p>
+                          </div>
+                        </details>
                       ) : null}
 
                       {/* Actions */}

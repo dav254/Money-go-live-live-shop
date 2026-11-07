@@ -27,6 +27,28 @@ export interface EnvVarSpec {
   required: boolean;
 }
 
+/**
+ * The administrator's setup guide for one platform.
+ *
+ * Everything here is provider-documented fact or a failure this engine
+ * actually reports — no invented endpoints, no invented permission names. The
+ * redirect URI is NOT stored here: it is derived from the canonical origin and
+ * the real callback route (`callbackPath()`), so the guide can never drift from
+ * the route that exists.
+ */
+export interface ModuleSetupGuide {
+  /** Official developer console / documentation page. */
+  docsUrl: string;
+  /** The values the administrator must create in that console. */
+  needs: string[];
+  /** Exact provider permission/scope names to request. */
+  scopes: string[];
+  /** Honest, actionable explanations of the failures seen most often. */
+  commonErrors: string[];
+  /** Extra provider-side requirement (review, account type, verification). */
+  providerRequirement?: string;
+}
+
 export interface ModuleSpec {
   id: ModuleId;
   label: string;
@@ -49,6 +71,8 @@ export interface ModuleSpec {
   /** Route that starts the connection flow (existing routes reused). */
   connectPath?: string;
   activation: string;
+  /** In-dashboard setup guide (optional for infrastructure modules). */
+  setup?: ModuleSetupGuide;
 }
 
 export const MODULE_SPECS: Record<ModuleId, ModuleSpec> = {
@@ -70,6 +94,18 @@ export const MODULE_SPECS: Record<ModuleId, ModuleSpec> = {
     readyBy: 'publish',
     activation:
       'Create a bot with @BotFather → set TELEGRAM_BOT_TOKEN and TELEGRAM_BOT_USERNAME → add the bot to the target channel as an administrator with post permission → set TELEGRAM_CHANNEL_ID. Run Test, then a publish test (neutral message).',
+    setup: {
+      docsUrl: 'https://core.telegram.org/bots/api',
+      needs: ['Bot token from @BotFather', 'Bot username', 'Channel username (@name) or numeric -100… id'],
+      scopes: ['Administrator role in the channel with “Post messages”'],
+      commonErrors: [
+        '“chat not found” — the bot has never been added to that channel, or TELEGRAM_CHANNEL_ID is the wrong id/username.',
+        '“not enough rights to send text messages” — the bot is in the channel but is not an administrator with post permission. Membership alone is never enough, which is exactly what Test checks.',
+        '“Unauthorized” — TELEGRAM_BOT_TOKEN is wrong or was revoked in BotFather.',
+      ],
+      providerRequirement:
+        'No developer review. A bot can post only where it is an administrator with post permission.',
+    },
   },
 
   tiktok: {
@@ -106,6 +142,18 @@ export const MODULE_SPECS: Record<ModuleId, ModuleSpec> = {
     connectPath: '/api/tiktok/connect',
     activation:
       'Register the app in the TikTok developer portal with redirect URI /api/tiktok/callback → set TIKTOK_CLIENT_KEY / TIKTOK_CLIENT_SECRET → Connect (existing Social Reach flow) → confirm video.publish permission for direct posting, or use Share-to-TikTok handoff.',
+    setup: {
+      docsUrl: 'https://developers.tiktok.com/doc/content-posting-api-get-started',
+      needs: ['Client key', 'Client secret', 'Registered redirect URI (/api/tiktok/callback)'],
+      scopes: ['user.info.basic', 'video.upload', 'video.publish'],
+      commonErrors: [
+        'A publish test without video.publish is recorded as a HANDOFF, never as a published post — the exact distinction the dashboard shows.',
+        'An unaudited app can publish only to private/self-only audiences; TikTok shows the post as private rather than failing loudly.',
+        '“scope_not_authorized” — the account did not grant the scope at connect time; reconnect and approve all requested scopes.',
+      ],
+      providerRequirement:
+        'video.publish requires TikTok developer review of your app. Until it is granted, use Share-to-TikTok and do not expect API publication.',
+    },
   },
 
   bluesky: {
@@ -122,6 +170,16 @@ export const MODULE_SPECS: Record<ModuleId, ModuleSpec> = {
     readyBy: 'publish',
     activation:
       'Bluesky settings → App passwords → create one → set BLUESKY_HANDLE and BLUESKY_APP_PASSWORD. Run Test (session), then a publish test.',
+    setup: {
+      docsUrl: 'https://docs.bsky.app/docs/get-started',
+      needs: ['Handle (e.g. vidnov.bsky.social)', 'App password created in Bluesky settings'],
+      scopes: ['Session scope: com.atproto.repo.createRecord (app passwords carry full account scope)'],
+      commonErrors: [
+        '“Invalid identifier or password” — the account PASSWORD was used instead of an app password, or the handle is misspelled.',
+        'A custom PDS must be set in BLUESKY_SERVICE_URL; leaving it unset always talks to https://bsky.social.',
+      ],
+      providerRequirement: 'No developer review. App passwords can be revoked individually, which is the safe disconnect.',
+    },
   },
 
   tumblr: {
@@ -148,6 +206,16 @@ export const MODULE_SPECS: Record<ModuleId, ModuleSpec> = {
     readyBy: 'publish',
     activation:
       'Register an app at tumblr.com/oauth/apps → callback exactly {origin}/api/social-engine/callback/tumblr → set the three variables → Connect → Run test → publish test.',
+    setup: {
+      docsUrl: 'https://www.tumblr.com/oauth/apps',
+      needs: ['OAuth consumer key', 'OAuth consumer secret', 'Registered callback URL'],
+      scopes: ['write (implied by the OAuth 1.0a app registration)'],
+      commonErrors: [
+        '“401 Unauthorized” on publish — the OAuth 1.0a signature did not match, usually because TUMBLR_CALLBACK_URL differs from the registered callback (it must be exact, including https and the path).',
+        '“404 Not Found” — the blog hostname recorded at connect time is not the primary blog; reconnect after fixing the account’s primary blog.',
+      ],
+      providerRequirement: 'No app review. OAuth 1.0a uses request-token → authorize → access-token, which the connect route performs.',
+    },
   },
 
   mastodon: {
@@ -174,7 +242,18 @@ export const MODULE_SPECS: Record<ModuleId, ModuleSpec> = {
     approval: { required: false, note: '' },
     readyBy: 'publish',
     activation:
-      'On your instance: Development → New application (scopes read write) → set the four variables (redirect must match) → Connect → Test (instance + account) → publish test. The legacy MASTODON_API_URL/MASTODON_ACCESS_TOKEN pair still satisfies the publish adapter when no account is connected.',
+      'On your instance: Development → New application (scopes read write) → set the four variables (redirect must match) → Connect → Test (instance + account) → publish test. The legacy MASTODON_API_URL/MASTODON_ACCESS_TOKEN pair is used ONLY when no account is connected — a linked account always wins.',
+    setup: {
+      docsUrl: 'https://docs.joinmastodon.org/client/token/',
+      needs: ['Instance URL', 'OAuth client id', 'OAuth client secret', 'Registered redirect URI'],
+      scopes: ['read', 'write'],
+      commonErrors: [
+        '“401 Unauthorized” — the access token was revoked (password change or manual revoke); reconnect.',
+        'Instance mismatch — MASTODON_INSTANCE_URL must be the same origin the app was registered on; a token from one instance is not valid on another.',
+        'If a legacy MASTODON_ACCESS_TOKEN is set while an account is also connected, the connected account is what a publish test now verifies.',
+      ],
+      providerRequirement: 'No developer review. Each instance issues its own client credentials.',
+    },
   },
 
   discord: {
@@ -206,6 +285,17 @@ export const MODULE_SPECS: Record<ModuleId, ModuleSpec> = {
     readyBy: 'publish',
     activation:
       'Create the application at discord.com/developers → add OAuth2 redirect {origin}/api/social-engine/callback/discord → set the four variables (and DISCORD_WEBHOOK_URL for the webhook publish path) → Connect → Test → publish test.',
+    setup: {
+      docsUrl: 'https://discord.com/developers/applications',
+      needs: ['Application id', 'OAuth2 client secret', 'Application public key', 'Channel webhook URL (or a bot invited to the server)'],
+      scopes: ['identify', 'guilds'],
+      commonErrors: [
+        'A guild id alone proves nothing: the OAuth scopes above cannot send a message. Publishing needs either DISCORD_WEBHOOK_URL or a bot with View Channel + Send Messages + Embed Links in that channel — Test checks which of the two actually exists.',
+        '“401 Unauthorized” on the webhook — the webhook was deleted or regenerated in the channel settings; paste the current URL.',
+        '“Missing Permissions” — the bot is in the server but lacks Send Messages in the destination channel.',
+      ],
+      providerRequirement: 'No app review for webhooks. Message Content is not requested and is not needed to publish.',
+    },
   },
 
   facebook: {
@@ -251,6 +341,19 @@ export const MODULE_SPECS: Record<ModuleId, ModuleSpec> = {
     connectPath: '/api/social-engine/facebook/connect',
     activation:
       'developers.facebook.com → reuse the Meta app → add Valid OAuth Redirect URI {origin}/api/social-engine/callback/facebook → set META_APP_ID / META_APP_SECRET / META_REDIRECT_URI → request pages_read_engagement + pages_manage_posts → complete App Review → Connect (choose a Page) → Test → publish test (neutral post to the selected Page).',
+    setup: {
+      docsUrl: 'https://developers.facebook.com/docs/pages-api/posts',
+      needs: ['App ID', 'App secret', 'Valid OAuth Redirect URI'],
+      scopes: ['pages_show_list', 'pages_read_engagement', 'pages_manage_posts'],
+      commonErrors: [
+        '“(#200) Requires pages_manage_posts permission” — App Review has not granted it, or the Page was not selected at connect time. Facebook Page access never implies publishing rights.',
+        '“(#190) Error validating access token” — the user token expired or was revoked; reconnect.',
+        'No Pages listed — the connected account does not manage any Page, or pages_show_list was declined at the consent screen.',
+        'META_COMMERCE_ACCESS_TOKEN / META_CATALOG_ID are the catalog feed and cannot publish to a Page. They are different credentials from the app id and secret.',
+      ],
+      providerRequirement:
+        'App Review for pages_manage_posts, and Business Verification for accounts outside the app’s own testers and roles.',
+    },
   },
 
   instagram: {
@@ -294,6 +397,18 @@ export const MODULE_SPECS: Record<ModuleId, ModuleSpec> = {
     connectPath: '/api/social-engine/instagram/connect',
     activation:
       'Same Meta app → add redirect {origin}/api/social-engine/callback/instagram → set META_APP_ID / META_APP_SECRET / META_REDIRECT_URI → link a professional Instagram account to a managed Page → request instagram_basic + instagram_content_publish (App Review) → Connect → Test → publish test (neutral image post).',
+    setup: {
+      docsUrl: 'https://developers.facebook.com/docs/instagram-platform/content-publishing',
+      needs: ['App ID', 'App secret', 'Valid OAuth Redirect URI', 'A professional Instagram account linked to a managed Page'],
+      scopes: ['instagram_basic', 'instagram_content_publish', 'pages_show_list', 'pages_read_engagement'],
+      commonErrors: [
+        '“The user is not an Instagram Business user” — the account is personal/consumer, or it is not linked to the Facebook Page used to connect.',
+        '“Media URL is not accessible” — Instagram fetches the image/video itself; it must be a public https URL served by Vidnov’s own media pipeline.',
+        '“(#10) Application does not have permission for this action” — instagram_content_publish is not granted to the app yet.',
+      ],
+      providerRequirement:
+        'App Review for instagram_content_publish, a professional account, and a linked Facebook Page. A working Facebook Page connection does NOT imply Instagram is ready.',
+    },
   },
 
   google: {

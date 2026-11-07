@@ -26,6 +26,7 @@ import type {
   ReadyBy,
   TestKind,
   TestRecord,
+  TokenState,
 } from './types';
 
 export interface ReadinessInput {
@@ -36,6 +37,12 @@ export interface ReadinessInput {
   approval: ApprovalInfo;
   /** Recorded tests by kind — strongest wins when successful. */
   tests: Partial<Record<TestKind, TestRecord>>;
+  /**
+   * Expiry of the stored access token. An EXPIRED token means publishing is
+   * not possible right now, no matter how old the last successful test is —
+   * showing READY there would be a lie the next scheduled post would discover.
+   */
+  tokenState?: TokenState;
 }
 
 export interface ReadinessResult {
@@ -95,6 +102,14 @@ export function computeReadiness(input: ReadinessInput): ReadinessResult {
     return {
       state: 'ERROR',
       nextStep: `Investigate the last failure (${failure.kind} test at ${failure.at}): ${failure.note}`,
+    };
+  }
+
+  if (input.tokenState === 'expired') {
+    return {
+      state: 'ERROR',
+      nextStep:
+        'The stored access token has expired — reconnect the account, then run Test and a publish test again.',
     };
   }
 

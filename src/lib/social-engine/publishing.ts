@@ -215,32 +215,87 @@ async function publishViaSharedEngine(
  *     the app is configured for. Without this the module told an admin to
  *     connect an account and then refused to publish with it.
  */
+/**
+ * Mastodon publishing — ONE credential resolver, with the linked account first.
+ *
+ * ## The defect this replaces
+ *
+ * This adapter used to check the legacy server pair
+ * (`MASTODON_API_URL` + `MASTODON_ACCESS_TOKEN`) BEFORE looking at the
+ * connection, so a server with both configured tested (and published through)
+ * the legacy token even when an administrator had connected a real account.
+ * The result was a green publish test that proved nothing about the account the
+ * dashboard showed as connected — and a broken connection could stay hidden
+ * indefinitely.
+ *
+ * Order is now: a linked account always decides. The legacy pair is only a
+ * fallback for a server with NO account linked (the state the growth-posts
+ * adapter still documents). If an account IS linked but cannot be decrypted,
+ * the test REFUSES instead of quietly posting with the other credential.
+ */
 async function publishMastodonModule(ctx: PublishTestContext): Promise<PublishTestOutcome> {
+  // A store that cannot be READ is not the same as "no account linked". It is
+  // tracked separately so the legacy fallback can say so in its note instead
+  // of presenting itself as the connected account.
+  let storeUnreadable = false;
+  let opened: Awaited<ReturnType<typeof openConnectionTokens>> | { missing: 'store_unreadable' };
+  try {
+    opened = await openConnectionTokens('mastodon', ctx.ownerId, ctx.caller);
+  } catch {
+    opened = { missing: 'store_unreadable' };
+    storeUnreadable = true;
+  }
+
+  if ('missing' in opened && opened.missing !== 'no_connection' && opened.missing !== 'store_unreadable') {
+    return {
+      ok: false,
+      note:
+        opened.missing === 'no_key'
+          ? 'SOCIAL_ENGINE_TOKEN_KEY is not set — the connected Mastodon account cannot be read. Set the key on the server.'
+          : 'The connected Mastodon account could not be decrypted — reconnect it.',
+    };
+  }
+
+  if ('tokens' in opened) {
+    const instance = ((ctx.env.MASTODON_INSTANCE_URL ?? '').trim() ||
+      (typeof opened.tokens.meta?.instanceUrl === 'string' ? opened.tokens.meta.instanceUrl.trim() : ''))
+      .replace(/\/+$/, '');
+    if (!instance) {
+      return { ok: false, note: 'The Mastodon instance was not recorded for this connection — set MASTODON_INSTANCE_URL and reconnect.' };
+    }
+    if (!opened.tokens.access_token) {
+      return { ok: false, note: 'The connected Mastodon account has no access token — reconnect it.' };
+    }
+    return publishViaSharedEngine(
+      'mastodon',
+      {
+        ...ctx,
+        env: { ...ctx.env, MASTODON_API_URL: instance, MASTODON_ACCESS_TOKEN: opened.tokens.access_token },
+      },
+      'Mastodon',
+    );
+  }
+
+  // No account linked (or the store could not be read): the legacy
+  // server-level credential pair is the only remaining path, and the note says
+  // so plainly if it is absent.
   const base = (ctx.env.MASTODON_API_URL ?? '').trim().replace(/\/+$/, '');
   const token = (ctx.env.MASTODON_ACCESS_TOKEN ?? '').trim();
-  if (base && token) return publishViaSharedEngine('mastodon', ctx, 'Mastodon');
-
-  const opened = await tokensFor('mastodon', ctx);
-  if ('note' in opened) return { ok: false, note: opened.note };
-
-  const instance = ((ctx.env.MASTODON_INSTANCE_URL ?? '').trim() ||
-    (typeof opened.tokens.meta?.instanceUrl === 'string' ? opened.tokens.meta.instanceUrl.trim() : ''))
-    .replace(/\/+$/, '');
-  if (!instance) {
-    return { ok: false, note: 'No Mastodon instance is configured — set MASTODON_INSTANCE_URL and reconnect.' };
-  }
-  if (!opened.tokens.access_token) {
-    return { ok: false, note: 'The Mastodon connection has no access token — reconnect the account.' };
+  if (base && token) {
+    const outcome = await publishViaSharedEngine('mastodon', ctx, 'Mastodon');
+    if (storeUnreadable && outcome.ok) {
+      return {
+        ...outcome,
+        note: `${outcome.note} (Published with the legacy server token — the connection store could not be read.)`,
+      };
+    }
+    return outcome;
   }
 
-  return publishViaSharedEngine(
-    'mastodon',
-    {
-      ...ctx,
-      env: { ...ctx.env, MASTODON_API_URL: instance, MASTODON_ACCESS_TOKEN: opened.tokens.access_token },
-    },
-    'Mastodon',
-  );
+  return {
+    ok: false,
+    note: 'No Mastodon account is connected, and the legacy MASTODON_API_URL / MASTODON_ACCESS_TOKEN pair is not set.',
+  };
 }
 
 /* ── Tumblr: OAuth 1.0a text post to the connected blog ──────────────────── */

@@ -26,7 +26,7 @@ import {
   socialEnginePbEnabled,
 } from '@/lib/pocketbase/social-engine';
 import { openTokens, sealTokens, isSealedToken, TokenKeyMissingError, type SealedToken } from './crypto';
-import type { ConnectionInfo, ModuleId } from './types';
+import type { ConnectionInfo, ModuleId, TokenState } from './types';
 
 export const CONNECTIONS_COLLECTION = 'social_connections';
 
@@ -195,14 +195,28 @@ export async function openConnectionTokens(
   }
 }
 
-/** The public, token-free view of a record for the readiness dashboard. */
-export function toConnectionInfo(record: ConnectionRecord | null): ConnectionInfo {
+/**
+ * The public, token-free view of a record for the readiness dashboard.
+ *
+ * `expiry` comes from the DECRYPTED payload and is reduced to a timestamp and
+ * a classification before it is returned — the tokens themselves never leave
+ * this module, so an API response built from this object cannot leak one.
+ */
+export function toConnectionInfo(
+  record: ConnectionRecord | null,
+  expiry?: { state: TokenState; expiresAt?: string },
+): ConnectionInfo {
   if (!record) return { connected: false };
-  return {
+  const info: ConnectionInfo = {
     connected: record.status === 'connected',
     accountLabel: record.accountLabel,
     scopes: record.scopes,
     connectedAt: record.connectedAt,
     disconnectedAt: record.disconnectedAt,
   };
+  if (record.status === 'connected' && expiry) {
+    info.tokenState = expiry.state;
+    if (expiry.expiresAt) info.expiresAt = expiry.expiresAt;
+  }
+  return info;
 }

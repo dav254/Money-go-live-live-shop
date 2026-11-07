@@ -91,6 +91,35 @@ export interface TestRecord {
   scopes?: string[];
 }
 
+/**
+ * Token expiry, derived from the stored `expires_at` (epoch ms) at read time.
+ *
+ * `unknown` is the honest state for providers that issue tokens without a
+ * declared expiry (Bluesky sessions, env-level credentials): the dashboard
+ * must not invent a countdown for those.
+ */
+export type TokenState = 'valid' | 'expiring' | 'expired' | 'unknown';
+
+/** Seven days — the window in which a token is flagged as expiring soon. */
+export const TOKEN_EXPIRING_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+
+/**
+ * Pure expiry classification. No I/O, no clock (the caller passes `now`), so
+ * this is unit-tested directly. A missing/invalid timestamp is `unknown`,
+ * never `valid` — "we do not know" must never render as a green tick.
+ */
+export function tokenExpiryState(
+  expiresAt: unknown,
+  now: number = Date.now(),
+): { state: TokenState; expiresAt?: string } {
+  if (typeof expiresAt !== 'number' || !Number.isFinite(expiresAt) || expiresAt <= 0) {
+    return { state: 'unknown' };
+  }
+  const state: TokenState =
+    expiresAt <= now ? 'expired' : expiresAt - now <= TOKEN_EXPIRING_WINDOW_MS ? 'expiring' : 'valid';
+  return { state, expiresAt: new Date(expiresAt).toISOString() };
+}
+
 /** Account connection as stored server-side (tokens never leave encrypted). */
 export interface ConnectionInfo {
   connected: boolean;
@@ -99,6 +128,13 @@ export interface ConnectionInfo {
   scopes?: string[];
   connectedAt?: string;
   disconnectedAt?: string;
+  /**
+   * When the stored access token expires (ISO), if the provider declared it.
+   * Presence only — no token value, no refresh token, ever.
+   */
+  expiresAt?: string;
+  /** Classification of `expiresAt` for display and for "reconnect needed". */
+  tokenState?: TokenState;
 }
 
 /** Provider-approval gate (TikTok direct publish, Google consent verification). */

@@ -48,10 +48,19 @@ import {
   type ModuleReadiness,
   type TestKind,
   type TestRecord,
+  type TokenState,
+  tokenExpiryState,
 } from './types';
 import { MODULE_SPECS } from './modules';
 import { STATE_RANK, computeReadiness } from './readiness';
-import { connectionId, disconnectConnection, getConnection, toConnectionInfo } from './connections';
+import {
+  connectionId,
+  disconnectConnection,
+  getConnection,
+  openConnectionTokens,
+  toConnectionInfo,
+} from './connections';
+import { tokenKeyPresent } from './crypto';
 import { runDiagnostics, testRecordFromStep, type DiagnosticStep } from './diagnostics';
 import { publishTest } from './publishing';
 
@@ -366,6 +375,26 @@ function permissionVerdict(tests: ModuleTestDoc): { granted: boolean; note: stri
 }
 
 /**
+ * Reads when the stored access token expires, WITHOUT ever returning the
+ * token. Decryption is skipped entirely when no key is configured (the
+ * dashboard then shows "cannot decrypt", which is the truth) and every
+ * failure degrades to `unknown` rather than to a reassuring guess.
+ */
+async function readTokenExpiry(
+  module: ModuleId,
+  ctx: ReadinessContext,
+): Promise<{ state: TokenState; expiresAt?: string } | undefined> {
+  if (!tokenKeyPresent()) return { state: 'unknown' };
+  try {
+    const opened = await openConnectionTokens(module, ctx.caller.uid, ctx.caller);
+    if (!('tokens' in opened)) return { state: 'unknown' };
+    return tokenExpiryState(opened.tokens.expires_at);
+  } catch {
+    return { state: 'unknown' };
+  }
+}
+
+/**
  * Full readiness view for one module.
  *
  * Env values are never read into the result — only presence booleans — so a
@@ -378,7 +407,9 @@ export async function getModuleReadiness(module: ModuleId, ctx: ReadinessContext
   const missingEnvVars = env.filter((e) => e.required && !e.present).map((e) => e.name);
 
   const connectionRecord = await getConnection(module, ctx.caller.uid, ctx.caller);
-  const connection: ConnectionInfo = toConnectionInfo(connectionRecord);
+  const expiry =
+    connectionRecord?.status === 'connected' ? await readTokenExpiry(module, ctx) : undefined;
+  const connection: ConnectionInfo = toConnectionInfo(connectionRecord, expiry);
   const approval = await getApproval(module, ctx.caller.uid);
   const tests = await readTestDoc(module);
 
@@ -388,6 +419,7 @@ export async function getModuleReadiness(module: ModuleId, ctx: ReadinessContext
     connection,
     approval,
     tests,
+    tokenState: connection.tokenState,
   });
 
   const failure = latestFailure(tests);
