@@ -1,11 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import {
-  CONSENT_CHANGED_EVENT,
-  readConsent,
-  type CookieConsent,
-} from '@/lib/cookie-consent';
+import { CONSENT_CHANGED_EVENT, readConsent } from '@/lib/cookie-consent';
 
 const GA_MEASUREMENT_ID = 'G-S7TZ4F1JMR';
 
@@ -25,6 +21,12 @@ type GtagArgs = unknown[];
  *     measurement immediately;
  *   • if a visitor later declines via "Cookie settings", pushes a Consent
  *     Mode update so Google stops storing analytics for them.
+ *
+ * Analytics consent is independent of marketing consent (Meta Pixel, in
+ * `meta-pixel.tsx`): this gate reads ONLY the analytics cookie, so granting
+ * marketing or declining it never starts or stops Google Analytics. The event
+ * detail is deliberately ignored and the cookie re-read instead, because the
+ * banner can now dispatch either a single decision or a whole state object.
  *
  * Nothing about sign-in, Firestore or the app depends on this component —
  * declining leaves every feature untouched, which is what makes declining a
@@ -58,11 +60,11 @@ export function AnalyticsGate() {
   React.useEffect(() => {
     if (readConsent() === 'granted') loadAnalytics();
 
-    const onConsent = (event: Event) => {
-      const detail = (event as CustomEvent<CookieConsent | undefined>).detail;
-      if (detail === 'granted') {
+    const onConsent = () => {
+      const decision = readConsent();
+      if (decision === 'granted') {
         loadAnalytics();
-      } else if (detail === 'denied' && loaded.current) {
+      } else if (decision === 'denied' && loaded.current) {
         // Consent Mode update: the tag stays but stops collecting and storing.
         (window as Window & { gtag?: (...args: GtagArgs) => void }).gtag?.(
           'consent',

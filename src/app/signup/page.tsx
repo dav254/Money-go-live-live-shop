@@ -34,7 +34,8 @@ import {
 import { Separator } from '@/components/ui/separator';
 import Link from 'next/link';
 import { useAuth, useUser, useUserProfile, useFirestore } from '@/firebase';
-import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { registerWithVidnov } from '@/lib/auth/client';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
@@ -274,7 +275,17 @@ function SignupFormContent() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
+      // The account is created in PocketBase (see lib/auth/client.ts): the
+      // server owns email uniqueness, the password hash and the profile, then
+      // hands back a Firebase session for the same uid.
+      const userCredential = await registerWithVidnov(auth, {
+        email: values.email,
+        password: values.password,
+        fullName: values.fullName,
+        username: values.username,
+        phone: values.phone.trim() || undefined,
+        role: values.role,
+      });
       const signedUpUser = userCredential.user;
       const userDocRef = doc(firestore, "userProfiles", signedUpUser.uid);
       const phone = values.phone.trim();
@@ -298,7 +309,10 @@ function SignupFormContent() {
       // guarantee (server-side, both stores). A failed client write must
       // not strand the account with no profile.
       try {
-        await setDoc(userDocRef, profile);
+        // Merge, not overwrite: the server already created this profile when
+        // it created the account, and it may carry fields this screen does not
+        // know about.
+        await setDoc(userDocRef, profile, { merge: true });
       } catch (writeError) {
         console.error('[signup] client profile write failed:', writeError);
       }

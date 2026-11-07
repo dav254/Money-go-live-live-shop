@@ -28,7 +28,8 @@ import { Separator } from '@/components/ui/separator';
 import Link from 'next/link';
 import { useAuth, useFirestore, useSurface, useUser, useUserProfile } from '@/firebase';
 import { roleHomeFor, type AppRole } from '@/lib/auth/roles';
-import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { signInWithVidnov } from '@/lib/auth/client';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
@@ -138,7 +139,9 @@ export default function LoginPage() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
+      // PocketBase verifies the password (see lib/auth/client.ts); the session
+      // is still a Firebase one, so every screen keeps working unchanged.
+      const userCredential = await signInWithVidnov(auth, values.email, values.password);
       const loggedUser = userCredential.user;
 
       const userDocRef = doc(firestore, 'userProfiles', loggedUser.uid);
@@ -171,6 +174,11 @@ export default function LoginPage() {
         description = 'Too many attempts. Please wait a moment and try again.';
       } else if (error?.code === 'auth/network-request-failed') {
         description = 'Network error. Check your connection and try again.';
+      } else if (error?.name === 'VidnovAuthError' && error?.message) {
+        // Server-side identity failures ("identity store unavailable", a
+        // suspended account) already carry a precise sentence — show it rather
+        // than flattening every one of them into "unexpected error".
+        description = error.message;
       }
       toast({
         variant: 'destructive',

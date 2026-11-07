@@ -3,6 +3,7 @@ import { getAuth } from 'firebase-admin/auth';
 import { db } from '@/firebase/server';
 import { hashToken, logSecurityEvent } from '@/lib/notifications/server';
 import { sendPasswordChangedEmail } from '@/lib/notifications';
+import { applyNewPassword } from '@/lib/auth/identity';
 
 export const runtime = 'nodejs';
 
@@ -62,6 +63,15 @@ export async function POST(request: NextRequest) {
     } catch {
       return NextResponse.json({ ok: false, message: 'Could not update the password. Try again.' }, { status: 500 });
     }
+
+    // ---- Update the PocketBase credential too ----
+    // PocketBase is the account authority since the identity migration, so a
+    // reset that only touched Firebase would leave the account's real password
+    // unchanged — the user would be told the reset worked and then be unable
+    // to sign in. Runs after the Firebase write so a PocketBase hiccup cannot
+    // break the legacy credential; the failure is logged loudly instead of
+    // being reported as success.
+    await applyNewPassword(data.uid, newPassword);
 
     // ---- Single-use: burn the token ----
     await docSnap.ref.update({ usedAt: new Date() });

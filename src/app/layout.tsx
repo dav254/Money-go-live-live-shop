@@ -11,6 +11,8 @@ import { AppSurfaceFrame } from '@/components/app/app-surface-frame';
 import { SecurityShield } from '@/components/SecurityShield';
 import { CookieConsentBanner } from '@/components/cookie-consent-banner';
 import { AnalyticsGate } from '@/components/analytics-gate';
+import { MetaPixel } from '@/components/meta-pixel';
+import { MetaPixelNoscript } from '@/components/meta-pixel-noscript';
 import { ServiceWorkerRegistrar } from '@/components/service-worker-registrar';
 
 export const metadata: Metadata = {
@@ -46,7 +48,7 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
@@ -115,9 +117,15 @@ gtag('config', 'AW-18520240461');`,
             title="Google Tag Manager"
           />
         </noscript>
-        {/* Google Analytics loads only after the visitor accepts cookies —
+        {/* Google Analytics loads only after the visitor accepts analytics —
             see AnalyticsGate + lib/cookie-consent. */}
         <AnalyticsGate />
+        {/* Meta Pixel (28731676109830564) — loads nothing until the visitor
+            grants MARKETING consent; see components/meta-pixel.tsx. The
+            noscript fallback is server-rendered only for visitors who already
+            granted it, so a browser without JavaScript is never tracked. */}
+        <MetaPixel />
+        <MetaPixelNoscript />
         <meta name="theme-color" content="#FF4D2E" />
         <SecurityShield />
         <Providers>

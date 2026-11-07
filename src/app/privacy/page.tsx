@@ -62,12 +62,13 @@ export default function PrivacyPolicyPage() {
                         <p>We may update this Privacy Policy from time to time. We will notify you of any changes by posting the new policy on this page and updating the "Last updated" date.</p>
 
                         <h2 className="mb-4">9. Cookies</h2>
-                        <p>We use cookies and similar storage on vidnov.com in two categories:</p>
+                        <p>We use cookies and similar storage on vidnov.com in three categories:</p>
                         <ul>
                             <li><strong>Essential (always on):</strong> first-party cookies that keep you signed in, protect your account, remember your theme and language settings, and store this cookie choice. These do not require consent because the site cannot function without them.</li>
-                            <li><strong>Analytics (optional, Google Analytics):</strong> loaded only if you press “Accept” in the cookie banner. IP addresses are anonymised. If you press “Decline” — or never answer — this cookie is never set and no analytics script is loaded.</li>
+                            <li><strong>Analytics (optional, Google Analytics):</strong> loaded only if you allow it in the cookie banner. IP addresses are anonymised. If you decline — or never answer — no analytics script is loaded.</li>
+                            <li><strong>Marketing (optional, Meta Pixel):</strong> loaded only if you allow it in the cookie banner. The Meta Pixel (ID 28731676109830564) is provided by Meta Platforms and sets cookies that tell us and Meta which pages were visited after an advert or link on Facebook or Instagram. It is used to measure our advertising, never to sign you in or to change what Vidnov shows you. If you decline — or never answer — no Meta script or tracking image is loaded and no request is sent to Meta.</li>
                         </ul>
-                        <p>Your cookie choice is stored for 180 days and can be changed at any time via the “Cookie settings” link in the website footer, which reopens the banner. You can also clear stored cookies through your browser settings at any time.</p>
+                        <p>Each optional purpose is stored separately for 180 days, so you can allow analytics while refusing marketing and change either choice at any time via the “Cookie settings” link in the website footer, which reopens the banner. Declining optional cookies does not limit registration, sign-in, shopping or any other Vidnov feature. You can also clear stored cookies through your browser settings at any time.</p>
 
                         <h2 className="mb-4">10. Contact Us</h2>
                         <p>If you have any questions about this Privacy Policy, please contact us at: <a href="mailto:support@goearn.com">support@goearn.com</a>.</p>
