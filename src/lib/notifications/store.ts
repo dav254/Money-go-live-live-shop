@@ -228,7 +228,7 @@ export async function listNotifications(
       const [items, unread] = await Promise.all([
         pbListRecords('notifications', {
           filter: ownedBy(userId),
-          sort: '-created',
+          sort: '-createdAt',
           perPage: Math.min(Math.max(limit, 1), 200),
         }),
         countUnreadPb(userId),
