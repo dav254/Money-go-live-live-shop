@@ -118,47 +118,152 @@ function defaultRandom(size: number): Uint8Array {
  * login.
  */
 async function ensureAuthCollection(): Promise<boolean> {
-  const existing = await pbRequest(`/api/collections/${AUTH_COLLECTION}`);
-  if (existing.ok) {
+  const existing = await pbRequest(`/api/collections/${AUTH_COLLECTION}`).catch(() => null);
+  if (existing?.ok) {
     const detail = (await existing.json().catch(() => null)) as
-      | { passwordAuth?: { enabled?: boolean }; fields?: { name: string }[]; schema?: { name: string }[] }
+      | {
+          passwordAuth?: { enabled?: boolean };
+          options?: { allowEmailAuth?: boolean };
+          fields?: { name: string }[];
+          schema?: { name: string }[];
+        }
       | null;
     if (!detail) return true;
 
-    // Repair: password auth must be on, or every login fails with 400.
-    if (detail.passwordAuth?.enabled !== true) {
+    // Repair: password auth must be on, or every login fails with 400. Newer
+    // PocketBase exposes `passwordAuth`; older builds use `options.allowEmailAuth`.
+    const enabled =
+      detail.passwordAuth?.enabled === true || detail.options?.allowEmailAuth === true;
+    if (!enabled) {
+      for (const body of [
+        { passwordAuth: { enabled: true, identityFields: ['email'] } },
+        { options: { allowEmailAuth: true } },
+      ]) {
+        const res = await pbRequest(`/api/collections/${AUTH_COLLECTION}`, {
+          method: 'PATCH',
+          body: JSON.stringify(body),
+        });
+        if (res.ok) return true;
+        const why = await res.text().catch(() => '');
+        console.error(
+          `[pocketbase] could not enable password auth on "${AUTH_COLLECTION}" (${res.status}): ${why.slice(0, 200)}`,
+        );
+      }
+      return false;
+    }
+
+    // Repair: the canonical uid column must exist, or every account create is
+    // rejected with a validation error and nobody can register.
+    // (An empty array means the response carried no schema at all, not that the
+    // collection has no columns — nothing to repair against in that case.)
+    const fields = (detail.fields ?? detail.schema ?? []) as Array<{ name?: string }>;
+    if (fields.length > 0 && !fields.some((field) => field.name === 'appUid')) {
       const res = await pbRequest(`/api/collections/${AUTH_COLLECTION}`, {
         method: 'PATCH',
-        body: JSON.stringify({ passwordAuth: { enabled: true, identityFields: ['email'] } }),
+        body: JSON.stringify({
+          fields: [...fields, { name: 'appUid', type: 'text', required: true }],
+        }),
       });
       if (!res.ok) {
-        console.error(`[pocketbase] could not enable password auth on "${AUTH_COLLECTION}" (${res.status})`);
+        const why = await res.text().catch(() => '');
+        console.error(
+          `[pocketbase] could not add appUid to "${AUTH_COLLECTION}" (${res.status}): ${why.slice(0, 200)}`,
+        );
         return false;
       }
     }
     return true;
   }
 
-  const body = {
-    name: AUTH_COLLECTION,
-    type: 'auth',
-    // Locked to superusers: clients authenticate through our API, never here.
-    ...SUPERUSER_ONLY_RULES,
-    passwordAuth: { enabled: true, identityFields: ['email'] },
-    emailAuth: { enabled: true },
-    fields: AUTH_USER_FIELDS,
-  };
+  // Two shapes: current PocketBase uses `fields` + `passwordAuth`, older builds
+  // use `schema` + `options.allowEmailAuth`. A rejected create is logged with
+  // the server's reason, because a silent failure here makes EVERY signup and
+  // every first-time legacy login fail with an unrelated message.
+  const shapes: Array<Record<string, unknown>> = [
+    {
+      name: AUTH_COLLECTION,
+      type: 'auth',
+      // Locked to superusers: clients authenticate through our API, never here.
+      ...SUPERUSER_ONLY_RULES,
+      passwordAuth: { enabled: true, identityFields: ['email'] },
+      fields: AUTH_USER_FIELDS,
+    },
+    {
+      name: AUTH_COLLECTION,
+      type: 'auth',
+      ...SUPERUSER_ONLY_RULES,
+      options: { allowEmailAuth: true },
+      schema: AUTH_USER_FIELDS,
+    },
+  ];
 
-  for (const schemaKey of ['fields', 'schema'] as const) {
+  for (const shape of shapes) {
     const res = await pbRequest('/api/collections', {
       method: 'POST',
-      body: JSON.stringify({ ...body, [schemaKey]: AUTH_USER_FIELDS }),
+      body: JSON.stringify(shape),
     });
     if (res.ok) return true;
+    const why = await res.text().catch(() => '');
+    console.error(
+      `[pocketbase] auth collection create rejected (${res.status}): ${why.slice(0, 300)}`,
+    );
   }
   // A concurrent request may have won the race; anything else is a real error.
-  const retry = await pbRequest(`/api/collections/${AUTH_COLLECTION}`);
-  return retry.ok;
+  const retry = await pbRequest(`/api/collections/${AUTH_COLLECTION}`).catch(() => null);
+  return Boolean(retry?.ok);
+}
+
+/**
+ * Non-mutating report of the account store, for operators.
+ *
+ * Booleans and HTTP status codes only — no credentials, addresses or records —
+ * so it can be curled on a live server to tell "PocketBase is down" apart from
+ * "this email has no account" in one request.
+ */
+export interface PbAuthStoreHealth {
+  configured: boolean;
+  authenticated: boolean;
+  collectionStatus: number | null;
+  passwordAuth: 'enabled' | 'disabled' | 'unknown';
+  appUidField: boolean;
+}
+
+export async function checkAuthStore(): Promise<PbAuthStoreHealth> {
+  const empty: PbAuthStoreHealth = {
+    configured: false,
+    authenticated: false,
+    collectionStatus: null,
+    passwordAuth: 'unknown',
+    appUidField: false,
+  };
+  if (!getPocketBaseConfig()) return empty;
+
+  try {
+    const res = await pbRequest(`/api/collections/${AUTH_COLLECTION}`);
+    const detail = (await res.json().catch(() => null)) as
+      | {
+          passwordAuth?: { enabled?: boolean };
+          options?: { allowEmailAuth?: boolean };
+          fields?: { name: string }[];
+          schema?: { name: string }[];
+        }
+      | null;
+    const fields = detail?.fields ?? detail?.schema ?? [];
+    return {
+      configured: true,
+      authenticated: true,
+      collectionStatus: res.status,
+      passwordAuth:
+        detail?.passwordAuth?.enabled === true || detail?.options?.allowEmailAuth === true
+          ? 'enabled'
+          : detail
+            ? 'disabled'
+            : 'unknown',
+      appUidField: fields.some((field) => field.name === 'appUid'),
+    };
+  } catch {
+    return { ...empty, configured: true };
+  }
 }
 
 /** Looks an account up by email (case-insensitive). Null when absent. */
