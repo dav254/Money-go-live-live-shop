@@ -131,10 +131,24 @@ export function messageFor(error: unknown): string {
 /* ── Public catalog ──────────────────────────────────────────────────────── */
 
 export const catalog = {
-  search: (params: { q?: string; category?: string; limit?: number }) => {
+  /**
+   * `/api/search` already accepts `location` and `inStockOnly` — the website's
+   * search bar sends both. Passing them through here means the app filters on
+   * the server over the whole collection instead of filtering a page of 30
+   * results on the device.
+   */
+  search: (params: {
+    q?: string;
+    category?: string;
+    location?: string;
+    inStockOnly?: boolean;
+    limit?: number;
+  }) => {
     const qs = new URLSearchParams();
     if (params.q) qs.set('q', params.q);
     if (params.category) qs.set('category', params.category);
+    if (params.location) qs.set('location', params.location);
+    if (params.inStockOnly) qs.set('inStockOnly', '1');
     qs.set('limit', String(params.limit ?? 30));
     return apiRequest<{ products: any[]; sellers: any[] }>(`/api/search?${qs.toString()}`);
   },
@@ -160,10 +174,77 @@ export const catalog = {
     apiRequest<any>(`/api/public/business/${encodeURIComponent(sellerId)}`),
 };
 
+/* ── Nearby ──────────────────────────────────────────────────────────────── */
+
+/**
+ * Shops that serve the signed-in buyer's area. The server derives the area from
+ * the buyer's own profile — this client never sends coordinates, and the
+ * response only ever contains approximate locations.
+ */
+export interface NearbyBusiness {
+  id: string;
+  sellerId: string;
+  name: string;
+  slug?: string;
+  category?: string;
+  verificationStatus?: string;
+  rating?: number | null;
+  tier?: { label?: string; name?: string } | null;
+  completedTransactions?: number;
+  approximateLocation?: string | null;
+  distanceKm?: number | null;
+}
+
+export const nearby = {
+  list: (token: string, radiusKm?: number) => {
+    // Kept as concatenation rather than one template literal so the route is a
+    // plain string the API-contract test can resolve to `api/nearby/route.ts`.
+    const path = '/api/nearby' + (radiusKm ? `?radiusKm=${radiusKm}` : '');
+    return apiRequest<{
+      needsLocation: boolean;
+      message?: string;
+      yourArea?: string;
+      businesses: NearbyBusiness[];
+      listings: any[];
+    }>(path, { token, timeoutMs: 30_000 });
+  },
+};
+
+/* ── Reviews ─────────────────────────────────────────────────────────────── */
+
+export const reviews = {
+  /**
+   * One review per direction per order. The server decides whether the caller
+   * may review (must be a party to the order, order must be finished) — this
+   * call only carries the rating and the words.
+   */
+  create: (token: string, body: { orderId: string; rating: number; text: string }) =>
+    apiRequest<{ ok: boolean; side: 'byCustomer' | 'bySeller' }>('/api/reviews', {
+      method: 'POST',
+      body,
+      token,
+      timeoutMs: 30_000,
+    }),
+};
+
 /* ── Account ─────────────────────────────────────────────────────────────── */
 
 export const account = {
   profile: (token: string) => apiRequest<{ profile: any }>('/api/auth/profile', { token }),
+  /**
+   * Display name, phone, bio and avatar. The route is named for the seller
+   * surface but only requires a verified account, so buyers edit the same
+   * `userProfiles/{uid}` document the website writes — no second profile store.
+   */
+  updateProfile: (
+    token: string,
+    body: { fullName?: string; phoneNumber?: string; bio?: string; profilePictureUrl?: string },
+  ) =>
+    apiRequest<{ ok: boolean; profile: any }>('/api/mobile/seller/profile', {
+      method: 'PATCH',
+      body,
+      token,
+    }),
   ensureProfile: (token: string, body: { role: string; name?: string; phone?: string }) =>
     apiRequest<{ ok: boolean; profile: any }>('/api/auth/profile', { method: 'POST', body, token }),
   /** Records a dated deletion request — support performs the purge. */
@@ -247,6 +328,68 @@ export const commerce = {
     }),
   myRequests: (token: string) => apiRequest<{ requests: any[] }>('/api/requests?scope=mine', { token }),
   openRequests: (token: string) => apiRequest<{ requests: any[] }>('/api/requests?scope=open', { token }),
+
+  /* ── Buyer requests (the brief → offer → order flow) ─────────────────── */
+
+  /** One brief the caller posted, with its uploaded media references. */
+  request: (token: string, id: string) =>
+    apiRequest<{ request: any; media: any[]; mediaAuthorized: boolean }>(
+      `/api/requests?id=${encodeURIComponent(id)}`,
+      { token },
+    ),
+
+  /**
+   * Publish a brief. `mediaIds` are references the media pipeline already
+   * accepted — the same `mediaId` `/api/media/upload` returns, so an image
+   * cannot be attached unless the server actually stored it.
+   */
+  createRequest: (
+    token: string,
+    body: {
+      title: string;
+      description: string;
+      category?: string;
+      quantity?: number;
+      budgetMin?: number | null;
+      budgetMax?: number | null;
+      location?: string;
+      deadline?: string | null;
+      fulfilment?: 'delivery' | 'collection' | 'either';
+      mediaIds?: string[];
+    },
+  ) =>
+    apiRequest<{ request: any }>('/api/requests', {
+      method: 'POST',
+      body,
+      token,
+      timeoutMs: 30_000,
+    }),
+
+  /** Offers a seller sent on a brief — owner-only, enforced server-side. */
+  offersForRequest: (token: string, requestId: string) =>
+    apiRequest<{ offers: any[] }>(
+      `/api/requests/offers?requestId=${encodeURIComponent(requestId)}`,
+      { token },
+    ),
+
+  /** Accepting an offer is what creates the order — the server does both. */
+  acceptOffer: (token: string, requestId: string, offerId: string) =>
+    apiRequest<{ ok: boolean; orderId?: string }>(
+      `/api/requests?action=accept&id=${encodeURIComponent(requestId)}`,
+      { method: 'PATCH', body: { offerId }, token, timeoutMs: 30_000 },
+    ),
+
+  declineOffer: (token: string, requestId: string, offerId: string) =>
+    apiRequest<{ ok: boolean }>(
+      `/api/requests?action=decline&id=${encodeURIComponent(requestId)}`,
+      { method: 'PATCH', body: { offerId }, token },
+    ),
+
+  closeRequest: (token: string, requestId: string) =>
+    apiRequest<{ ok: boolean }>(
+      `/api/requests?action=close&id=${encodeURIComponent(requestId)}`,
+      { method: 'PATCH', token },
+    ),
 };
 
 /* ── Saved items ─────────────────────────────────────────────────────────── */

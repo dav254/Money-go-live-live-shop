@@ -43,6 +43,9 @@ const REQUIRED_ROUTES = [
   'mobile/chats',
   'mobile/saved',
   'account/delete-request',
+  // buyer discovery and order reviews
+  'nearby',
+  'reviews',
   // existing shared backend the app reuses
   'search',
   'home/live',

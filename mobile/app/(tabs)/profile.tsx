@@ -115,6 +115,7 @@ export default function ProfileScreen() {
             onPress={() => router.push('/offers')}
           />
           <ListRow icon="radio-outline" title="Live now" onPress={() => router.push('/live')} />
+          <ListRow icon="location-outline" title="Near you" onPress={() => router.push('/nearby')} />
         </View>
 
         <SectionHeader title="Account" />
@@ -126,6 +127,12 @@ export default function ProfileScreen() {
             onPress={() => {
               void refreshProfile();
             }}
+          />
+          <ListRow
+            icon="person-outline"
+            title="Edit profile"
+            detail="Name, phone, photo"
+            onPress={() => router.push('/profile/edit')}
           />
           <ListRow icon="settings-outline" title="Settings" onPress={() => router.push('/settings')} />
         </View>

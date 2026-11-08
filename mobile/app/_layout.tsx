@@ -94,6 +94,12 @@ export default function RootLayout() {
               <Stack.Screen name="onboarding/role" options={{ title: 'How you use Vidnov' }} />
               <Stack.Screen name="onboarding/business" options={{ title: 'Set up your shop' }} />
               <Stack.Screen name="listing/[id]" options={{ title: 'Listing' }} />
+              <Stack.Screen
+                name="request/new"
+                options={{ title: 'Post a request', presentation: 'modal' }}
+              />
+              <Stack.Screen name="request/[id]" options={{ title: 'Request' }} />
+              <Stack.Screen name="profile/edit" options={{ title: 'Edit profile' }} />
               <Stack.Screen name="shop/[sellerId]" options={{ title: 'Shop' }} />
               <Stack.Screen name="chat/[id]" options={{ title: 'Chat' }} />
               <Stack.Screen name="orders" options={{ title: 'My orders' }} />

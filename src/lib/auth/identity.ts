@@ -414,20 +414,35 @@ export async function signInAccount(input: {
     userRole: 'buyer',
   });
 
+  /** The record this login should use — the new one, or a raced winner. */
+  let migratedUser = migrated.ok ? migrated.value : null;
+
   if (!migrated.ok) {
     if (migrated.failure.kind === 'duplicate_email') {
-      // Someone registered the address between our lookup and this write.
+      // Two sign-ins of the same legacy account can race: the winner creates
+      // the record and the loser is told the email is taken. That is only the
+      // SAME account when the stored record carries this legacy uid — a record
+      // belonging to a different identity is never adopted, or two people's
+      // data would end up behind one login.
+      const raced = await pbFindAuthUserByEmail(email);
+      if (raced && raced.appUid === legacy.uid) {
+        const recheck = await pbVerifyPassword(email, input.password);
+        if (recheck.ok) migratedUser = recheck.value;
+      }
+      if (!migratedUser) {
+        throw new IdentityError(
+          'email_in_use',
+          'That email was just registered another way. Use password reset to set a new password.',
+          409,
+        );
+      }
+    } else {
       throw new IdentityError(
-        'email_in_use',
-        'That email was just registered another way. Use password reset to set a new password.',
-        409,
+        'identity_unavailable',
+        'Your account exists but could not be prepared for sign-in. Try again.',
+        503,
       );
     }
-    throw new IdentityError(
-      'identity_unavailable',
-      'Your account exists but could not be prepared for sign-in. Try again.',
-      503,
-    );
   }
 
   // The account's ROLE lives in its profile — never overwrite it with the
@@ -437,7 +452,7 @@ export async function signInAccount(input: {
     await pbUpdateAuthUserProfile(legacy.uid, { userRole: existingProfile.userRole });
   }
 
-  return sessionFor(migrated.value, { migrated: true });
+  return sessionFor(migratedUser!, { migrated: true });
 }
 
 /**

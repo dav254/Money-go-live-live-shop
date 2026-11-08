@@ -10,9 +10,10 @@ import { colors, spacing } from '../../src/theme';
 /**
  * TAB SHELL.
  *
- * Five destinations, all native: Home, Discover, Messages, Alerts, Profile.
- * There is no web view and no embedded browser anywhere in this app — every
- * tab is a React Native screen talking to the Vidnov API over HTTPS.
+ * Five destinations, all native: Home, Discover, Requests, Messages, Profile.
+ * Alerts keeps its route (the header bell opens it) but does not take a tab
+ * slot — the badge on the bell already shows when there is something new.
+ * There is no web view and no embedded browser anywhere in this app.
  */
 
 /** Poll the unread badge on the same interval the website header uses. */
@@ -118,6 +119,13 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="requests"
+        options={{
+          title: 'Requests',
+          tabBarIcon: tabIcon('document-text-outline', 'document-text'),
+        }}
+      />
+      <Tabs.Screen
         name="messages"
         options={{
           title: 'Messages',
@@ -127,16 +135,16 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="alerts"
         options={{
+          // Reachable from the header bell, deliberately not a tab.
+          href: null,
           title: 'Alerts',
-          tabBarBadge: unread > 0 ? (unread > 9 ? '9+' : unread) : undefined,
-          tabBarBadgeStyle: { backgroundColor: colors.primary, fontSize: 10 },
           tabBarIcon: tabIcon('notifications-outline', 'notifications'),
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
-          title: 'Profile',
+          title: 'Account',
           tabBarIcon: tabIcon('person-outline', 'person'),
         }}
       />

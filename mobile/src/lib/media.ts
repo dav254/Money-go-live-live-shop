@@ -1,7 +1,7 @@
 import type { ImagePickerAsset } from 'expo-image-picker';
 
 import { apiUrl } from './config';
-import { ApiError, apiUpload } from './api';
+import { ApiError, apiRequest, apiUpload } from './api';
 
 /**
  * MEDIA — one place that knows how a picture becomes a listing image.
@@ -60,6 +60,85 @@ export function fileNameFor(uri: string, mimeType?: string | null): string {
   const extension = (mimeType || '').split('/')[1] || uri.split('.').pop() || 'jpg';
   const safe = extension.replace(/[^a-z0-9]/gi, '').slice(0, 5) || 'jpg';
   return `vidnov-${Date.now()}.${safe}`;
+}
+
+/**
+ * BUYER REQUEST MEDIA.
+ *
+ * Request attachments are uploaded WITHOUT a folder, exactly like the
+ * website's marketplace uploader: the media pipeline stores them owned by the
+ * caller and unclaimed, and `POST /api/requests` then claims those media ids
+ * into the brief (which is what makes them private — only the owner and the
+ * matched business can read them). Passing a folder here would publish them.
+ *
+ * Images resolve synchronously. Videos transcode in the background, so the
+ * returned media id is polled through `/api/media/status` until it is READY.
+ */
+export interface RequestMediaAsset {
+  uri: string;
+  kind: 'image' | 'video';
+  mimeType?: string | null;
+  fileName?: string | null;
+}
+
+export interface UploadedRequestMedia {
+  mediaId: string;
+  url?: string;
+  thumbnailUrl?: string;
+}
+
+async function postRequestMedia(
+  token: string,
+  asset: RequestMediaAsset,
+): Promise<UploadedRequestMedia> {
+  const form = new FormData();
+  form.append('file', {
+    uri: asset.uri,
+    name: asset.fileName || fileNameFor(asset.uri, asset.mimeType),
+    type:
+      asset.mimeType ||
+      (asset.kind === 'video' ? 'video/mp4' : 'image/jpeg'),
+  } as unknown as Blob);
+
+  const result = await apiUpload<{
+    mediaId?: string;
+    url?: string;
+    thumbnailUrl?: string;
+  }>('/api/media/upload', form, token, 120_000);
+
+  if (!result?.mediaId) {
+    throw new ApiError(
+      'The upload finished without a media reference. Try again.',
+      0,
+      'missing_media_id',
+    );
+  }
+  return { mediaId: result.mediaId, url: result.url, thumbnailUrl: result.thumbnailUrl };
+}
+
+/** Upload one request attachment and wait until it is usable. */
+export async function uploadRequestMedia(
+  token: string,
+  asset: RequestMediaAsset,
+): Promise<UploadedRequestMedia> {
+  const uploaded = await postRequestMedia(token, asset);
+  if (asset.kind === 'image') return uploaded;
+
+  // A video is only attachable once the server has processed it; attaching a
+  // PROCESSING id would make the brief reference a file that does not exist yet.
+  for (let attempt = 0; attempt < 40; attempt += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    const status = await apiRequest<{ status?: string; url?: string; error?: string | null }>(
+      `/api/media/status?id=${encodeURIComponent(uploaded.mediaId)}`,
+    );
+    if (status.status === 'READY') {
+      return { ...uploaded, url: status.url ?? uploaded.url };
+    }
+    if (status.status === 'FAILED') {
+      throw new Error(status.error || 'That video could not be processed. Try another clip.');
+    }
+  }
+  throw new Error('That video is taking too long to process. Try a shorter clip.');
 }
 
 /**

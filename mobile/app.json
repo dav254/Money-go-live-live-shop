@@ -1,6 +1,7 @@
 {
   "expo": {
     "name": "Vidnov",
+    "owner": "vidnov",
     "slug": "vidnov",
     "version": "1.0.0",
     "scheme": "vidnov",
@@ -17,7 +18,18 @@
         "foregroundImage": "./assets/images/android-icon-foreground.png"
       },
       "permissions": ["android.permission.CAMERA", "android.permission.POST_NOTIFICATIONS"],
-      "edgeToEdgeEnabled": true
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            { "scheme": "https", "host": "vidnov.com", "pathPrefix": "/products" },
+            { "scheme": "https", "host": "vidnov.com", "pathPrefix": "/sellers" },
+            { "scheme": "https", "host": "vidnov.com", "pathPrefix": "/requests" }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
     },
     "ios": {
       "supportsTablet": false,
@@ -47,7 +59,10 @@
       "typedRoutes": true
     },
     "extra": {
-      "apiBaseUrl": "https://vidnov.com"
+      "apiBaseUrl": "https://vidnov.com",
+      "eas": {
+        "projectId": "2a82790d-2c5b-4265-8200-82b4924e9548"
+      }
     }
   }
 }

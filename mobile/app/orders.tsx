@@ -67,7 +67,13 @@ function OrderList() {
         contentContainerStyle={styles.list}
         refreshing={loading}
         onRefresh={reload}
-        renderItem={({ item }) => <OrderCard order={item} onOpenSeller={(id) => router.push(`/shop/${id}`)} />}
+        renderItem={({ item }) => (
+          <OrderCard
+            order={item}
+            onOpenSeller={(id) => router.push(`/shop/${id}`)}
+            onReview={() => router.push(`/review/${item.id}`)}
+          />
+        )}
         ListEmptyComponent={
           <EmptyState
             icon="receipt-outline"
@@ -87,7 +93,15 @@ function OrderList() {
   );
 }
 
-function OrderCard({ order, onOpenSeller }: { order: MobileOrder; onOpenSeller: (id: string) => void }) {
+function OrderCard({
+  order,
+  onOpenSeller,
+  onReview,
+}: {
+  order: MobileOrder;
+  onOpenSeller: (id: string) => void;
+  onReview: () => void;
+}) {
   const status = orderStatus(order.status);
   const firstLine = order.items[0];
 
@@ -150,6 +164,14 @@ function OrderCard({ order, onOpenSeller }: { order: MobileOrder; onOpenSeller: 
       ) : null}
 
       <View style={styles.actions}>
+        {/* `canReview` comes from the server: it already knows whether this
+            order is finished and whether this buyer has reviewed it. */}
+        {order.canReview ? (
+          <Pressable onPress={onReview} accessibilityRole="button" style={styles.actionLink}>
+            <Ionicons name="star-outline" size={15} color={colors.primary} />
+            <Text style={styles.actionText}>Rate this order</Text>
+          </Pressable>
+        ) : null}
         {order.sellerId ? (
           <Pressable
             onPress={() => onOpenSeller(order.sellerId as string)}
