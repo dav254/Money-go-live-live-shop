@@ -11,8 +11,9 @@
  * You · Products · Services · Businesses — it read as a second header) and
  * the account chip (the account lives in the shell header / bottom bar).
  *
- * What is left: the logo — the name, exactly where it was — and the
- * search/filters button, which opens the filter sheet (search lives there).
+ * What is left: the logo — the name, exactly where it was — the four account
+ * actions (notifications, saved, profile) and the search/filters button, which
+ * opens the filter sheet (search lives there).
  *
  * The accent is not hard-coded: it is `--vn-discovery-accent`, declared on
  * `.vn-discovery-scope` in `globals.css` (lime, the section's fixed identity) —
@@ -22,7 +23,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { Search } from 'lucide-react';
+import { Bell, Bookmark, Search, User } from 'lucide-react';
 
 import { Logo } from '@/components/logo';
 import { cn } from '@/lib/utils';
@@ -68,13 +69,40 @@ export function DiscoveryTopBar({
   const filterCount = activeFilterCount(filters);
 
   return (
-    <div className="vn-discovery-topbar relative z-40 shrink-0 border-b border-[rgba(0,229,255,0.15)] bg-[#050a16]/92 backdrop-blur-xl">
-      <div className="mx-auto flex w-full max-w-6xl items-center gap-2 px-3 py-2.5 sm:px-6">
+    <div className="vn-discovery-topbar relative z-40 shrink-0 border-b border-[#E8E8E8]/14 bg-[#0A0A0A]/92 backdrop-blur-xl">
+      <div className="mx-auto flex w-full max-w-6xl items-center gap-1.5 px-3 py-2.5 sm:px-6">
         <Link href="/" aria-label="Vidnov home" className="shrink-0 rounded-sm">
           <Logo className="text-[18px] leading-none sm:text-[22px]" />
         </Link>
 
         <div className="ml-auto flex shrink-0 items-center gap-1.5">
+          {/* The four account actions live beside the search button, exactly as
+              the Discovery spec requires — they are links, so they work with
+              the back button and can be opened in a new tab. */}
+          <Link
+            href="/app/buyer/notifications"
+            aria-label="Notifications"
+            title="Notifications"
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-white/12 bg-white/6 text-white transition hover:border-white/35 hover:bg-white/12"
+          >
+            <Bell className="h-4 w-4" />
+          </Link>
+          <Link
+            href="/buyer/wishlist"
+            aria-label="Saved items"
+            title="Saved items"
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-white/12 bg-white/6 text-white transition hover:border-white/35 hover:bg-white/12"
+          >
+            <Bookmark className="h-4 w-4" />
+          </Link>
+          <Link
+            href="/app/buyer/account"
+            aria-label="Your profile"
+            title="Your profile"
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-white/12 bg-white/6 text-white transition hover:border-white/35 hover:bg-white/12"
+          >
+            <User className="h-4 w-4" />
+          </Link>
           <IconButton
             label={
               filterCount

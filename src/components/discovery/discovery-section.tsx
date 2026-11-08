@@ -32,12 +32,72 @@ import { DiscoveryTopBar } from './discovery-header';
 import { ActiveFilterStrip, DiscoveryFilterSheet } from './discovery-filters';
 import { DiscoveryFeed } from './discovery-feed';
 import { DiscoveryBottomNav, type DiscoveryNavItem } from './discovery-nav';
+import { DiscoveryShop } from './discovery-shop';
+import { DiscoveryThemes, type ThemeSeed } from './discovery-themes';
 import {
   EMPTY_FILTERS,
   type DiscoveryCategoryId,
   type DiscoveryFilters,
 } from '@/lib/discovery';
 import { cn } from '@/lib/utils';
+
+export type DiscoveryTab = 'discover' | 'themes' | 'shop';
+
+const TABS: Array<{ id: DiscoveryTab; label: string }> = [
+  { id: 'discover', label: 'Discover' },
+  { id: 'themes', label: 'Themes' },
+  { id: 'shop', label: 'Shop' },
+];
+
+/**
+ * The section's three-way switch. Always visible, never a hamburger: the whole
+ * point of the original design is that browsing, exploring and buying are one
+ * gesture apart.
+ */
+function DiscoveryTabs({
+  tab,
+  onChange,
+}: {
+  tab: DiscoveryTab;
+  onChange: (next: DiscoveryTab) => void;
+}) {
+  return (
+    <div
+      role="tablist"
+      aria-label="Discovery sections"
+      className="relative z-30 shrink-0 border-b border-[#E8E8E8]/12 bg-[#0A0A0A]/92 backdrop-blur-xl"
+    >
+      <div className="mx-auto flex w-full max-w-6xl items-stretch gap-1 px-3 sm:px-6">
+        {TABS.map((entry) => {
+          const active = tab === entry.id;
+          return (
+            <button
+              key={entry.id}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              onClick={() => onChange(entry.id)}
+              className={cn(
+                'relative px-3 py-3 text-[11px] font-semibold uppercase tracking-[0.18em] transition sm:text-xs',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--vn-discovery-accent)]',
+                active ? 'text-white' : 'text-[#777777] hover:text-white/80',
+              )}
+            >
+              {entry.label}
+              <span
+                aria-hidden
+                className={cn(
+                  'absolute inset-x-2 bottom-0 h-[2px] rounded-full transition',
+                  active ? 'bg-[color:var(--vn-discovery-accent)]' : 'bg-transparent',
+                )}
+              />
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 export function DiscoverySection({
   nav,
@@ -71,6 +131,15 @@ export function DiscoverySection({
   const [filtersOpen, setFiltersOpen] = React.useState(false);
   const [resultCount, setResultCount] = React.useState(0);
 
+  /*
+   * DISCOVER · THEMES · SHOP — the three connected experiences. They are tabs
+   * of ONE section, not three destinations: the header, the account actions and
+   * the app's bottom bar stay put while the panel changes, which is what makes
+   * them feel like one place rather than a menu of pages.
+   */
+  const [tab, setTab] = React.useState<DiscoveryTab>('discover');
+  const [seed, setSeed] = React.useState<ThemeSeed | undefined>(undefined);
+
   const handleResultCount = React.useCallback((count: number) => {
     setResultCount(count);
   }, []);
@@ -80,7 +149,7 @@ export function DiscoverySection({
    * top bar is the header — hamburger, Vidnov name and the search button —
    * so this section renders no bar of its own there; stacking one under it
    * gave two headers and two hamburgers. The website route has no shell, so
-   * it keeps this bar (name + search, no hamburger, no account).
+   * it keeps this bar: name, search, notifications, saved and profile.
    *
    * The shell header's search button announces itself with this event, which
    * opens the filter sheet — search lives there.
@@ -105,16 +174,39 @@ export function DiscoverySection({
         />
       )}
 
-      <ActiveFilterStrip filters={filters} onChange={setFilters} />
+      <DiscoveryTabs tab={tab} onChange={setTab} />
 
-      <main className="flex min-h-0 flex-1 flex-col">
-        <DiscoveryFeed
-          category={category}
-          filters={filters}
-          onResultCount={handleResultCount}
-          ownCover={ownCover}
+      {tab === 'discover' ? (
+        <>
+          <ActiveFilterStrip filters={filters} onChange={setFilters} />
+          <main className="flex min-h-0 flex-1 flex-col">
+            <DiscoveryFeed
+              category={category}
+              filters={filters}
+              onResultCount={handleResultCount}
+              ownCover={ownCover}
+            />
+          </main>
+        </>
+      ) : null}
+
+      {tab === 'themes' ? (
+        <DiscoveryThemes
+          onExplore={(next) => {
+            setSeed(next);
+            setTab('shop');
+          }}
+          onOpenLive={() => {
+            window.location.href = '/live';
+          }}
         />
-      </main>
+      ) : null}
+
+      {tab === 'shop' ? (
+        <main className="flex min-h-0 flex-1 flex-col">
+          <DiscoveryShop seed={seed} />
+        </main>
+      ) : null}
 
       {!noBottomNav && nav?.length ? <DiscoveryBottomNav items={nav} /> : null}
 

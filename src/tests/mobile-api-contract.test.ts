@@ -58,8 +58,13 @@ const REQUIRED_ROUTES = [
   'notifications/[id]',
   'requests',
   'requests/offers',
+  // My sellers — the follow/unfollow write behind the buyer's follow list
+  'follow',
   'seller/orders',
   'seller/orders/[orderId]/status',
+  // seller growth centre — same endpoint the website's page calls, so both
+  // front doors write into one distribution queue
+  'seller/product-growth',
   'products/mine',
   'ai/generate',
   'ai/jobs',

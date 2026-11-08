@@ -50,6 +50,8 @@ export interface Profile {
   profilePictureUrl?: string;
   shopName?: string;
   location?: string;
+  /** The number couriers and buyers use; the profile route writes it. */
+  phoneNumber?: string;
 }
 
 export interface LiveRoom {

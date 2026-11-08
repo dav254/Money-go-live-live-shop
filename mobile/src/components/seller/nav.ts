@@ -1,12 +1,34 @@
 import type { Ionicons } from '@expo/vector-icons';
 
 /**
- * SELLER CENTRE MAP — one source of truth for the drawer and the dashboard.
+ * SELLER CENTRE MAP — the Android app's version of the website's
+ * `/app/seller` drawer.
  *
- * Every entry here is a route that exists. A nav item with no screen would be
- * a dead button in a business tool, which is worse than not offering it: a
- * seller taps it expecting their shop and gets nothing. Adding a row here means
- * adding the screen it points at.
+ * The first two groups are the website's, in the website's order:
+ *
+ *   Store               — Overview, Messages, Earnings, Payments
+ *   Create & broadcast   — Live studio, Discovery, AI Studio, Videos & posts, Requests
+ *   You                  — View my shop, Share & QR, My business, Notifications,
+ *                          Customer Care, Settings, Account
+ *
+ * One extra group, **Manage**, holds what the phone needs and the website's
+ * drawer does not carry: the catalogue, fulfilment, customers and analytics are
+ * the seller's daily work here, and hiding them behind a second screen to keep
+ * the group list identical would be tidier to read and worse to use.
+ *
+ * What is NOT copied from the website drawer, on purpose:
+ *
+ *   • **Classic Studio, Video Studio, Living Pictures** — full web editors. They
+ *     open from the website, and the app's own publishing path is Videos & posts
+ *     (`/seller/content`), which already hands off to the video studio for the
+ *     one job the phone cannot do.
+ *   • **AI Points** — the balance has no read endpoint; the app will not display
+ *     a number it cannot source.
+ *   • **Invite & earn** — same reason: no referral balance read route.
+ *
+ * Every entry here is a route that exists. A nav item with no screen would be a
+ * dead button in a business tool, which is worse than not offering it: a seller
+ * taps it expecting their shop and gets nothing.
  */
 export type SellerNavItem = {
   label: string;
@@ -22,47 +44,78 @@ export type SellerNavGroup = {
 
 export const SELLER_NAV: SellerNavGroup[] = [
   {
-    title: 'Business',
+    title: 'Store',
     items: [
-      { label: 'Dashboard', href: '/seller', icon: 'grid-outline', detail: 'Your shop at a glance' },
-      { label: 'My shop', href: '/seller/shop', icon: 'storefront-outline', detail: 'How buyers see you' },
+      { label: 'Overview', href: '/seller', icon: 'grid-outline', detail: 'Your shop at a glance' },
+      {
+        label: 'Messages',
+        href: '/seller/inquiries',
+        icon: 'chatbubbles-outline',
+        detail: 'Buyers who wrote to you',
+      },
+      { label: 'Earnings', href: '/seller/wallet', icon: 'stats-chart-outline', detail: 'Sales and payouts' },
+      { label: 'Payments', href: '/seller/transactions', icon: 'card-outline', detail: 'Money in and out' },
     ],
   },
   {
-    title: 'Sell & manage',
+    title: 'Create & broadcast',
     items: [
-      { label: 'Products & services', href: '/seller/products', icon: 'cube-outline', detail: 'Add, edit, publish' },
+      { label: 'Live studio', href: '/seller/live', icon: 'radio-outline', detail: 'Go live from your shop' },
+      {
+        label: 'Discovery',
+        href: '/seller/discovery',
+        icon: 'compass-outline',
+        detail: 'What buyers see right now',
+      },
+      {
+        label: 'Growth centre',
+        href: '/seller/growth',
+        icon: 'trending-up-outline',
+        detail: 'Free distribution and paid boosts',
+      },
+      { label: 'AI Studio', href: '/seller/ai', icon: 'sparkles-outline', detail: 'Generate listings and posts' },
       { label: 'Videos & posts', href: '/seller/content', icon: 'videocam-outline', detail: 'Show your work' },
-      { label: 'Live selling', href: '/seller/live', icon: 'radio-outline', detail: 'Go live from your shop' },
+      {
+        label: 'Requests',
+        href: '/seller/requests',
+        icon: 'pricetag-outline',
+        detail: 'Reply to buyer briefs',
+      },
+    ],
+  },
+  {
+    title: 'Manage',
+    items: [
+      {
+        label: 'Products & services',
+        href: '/seller/products',
+        icon: 'cube-outline',
+        detail: 'Add, edit, publish',
+      },
       { label: 'Orders', href: '/seller/orders', icon: 'receipt-outline', detail: 'Ship and fulfil' },
-      { label: 'Buyer inquiries', href: '/seller/inquiries', icon: 'chatbubbles-outline', detail: 'Messages from buyers' },
-      { label: 'Requests & offers', href: '/seller/requests', icon: 'pricetag-outline', detail: 'Reply to briefs' },
       { label: 'Customers', href: '/seller/customers', icon: 'people-outline', detail: 'People who bought' },
-    ],
-  },
-  {
-    title: 'Grow',
-    items: [
-      { label: 'Analytics', href: '/seller/analytics', icon: 'stats-chart-outline', detail: 'What is working' },
+      { label: 'Analytics', href: '/seller/analytics', icon: 'bar-chart-outline', detail: 'What is working' },
       { label: 'Marketing & promotions', href: '/seller/marketing', icon: 'megaphone-outline' },
-      { label: 'Reseller programme', href: '/seller/reseller', icon: 'git-network-outline' },
-      { label: 'AI business tools', href: '/seller/ai', icon: 'sparkles-outline' },
-    ],
-  },
-  {
-    title: 'Money',
-    items: [
-      { label: 'Wallet', href: '/seller/wallet', icon: 'wallet-outline', detail: 'Sales and payouts' },
-      { label: 'Transactions', href: '/seller/transactions', icon: 'swap-horizontal-outline' },
       { label: 'Invoices & receipts', href: '/seller/invoices', icon: 'document-text-outline' },
+      { label: 'Reseller programme', href: '/seller/reseller', icon: 'git-network-outline' },
     ],
   },
   {
-    title: 'Account',
+    title: 'You',
     items: [
-      { label: 'Shop settings', href: '/seller/settings', icon: 'settings-outline' },
-      { label: 'Seller profile', href: '/seller/profile', icon: 'person-circle-outline' },
-      { label: 'Help & support', href: '/seller/help', icon: 'help-buoy-outline' },
+      { label: 'View my shop', href: '/seller/shop', icon: 'storefront-outline', detail: 'How buyers see you' },
+      { label: 'Share & QR', href: '/seller/share', icon: 'qr-code-outline', detail: 'Get buyers to your shop' },
+      {
+        label: 'My business',
+        href: '/seller/business',
+        icon: 'location-outline',
+        detail: 'Area, hours, service areas',
+      },
+      { label: 'Notifications', href: '/alerts', icon: 'notifications-outline' },
+      { label: 'Customer Care', href: '/seller/help', icon: 'headset-outline', detail: 'Talk to the team' },
+      { label: 'Account', href: '/seller/profile', icon: 'person-circle-outline' },
+      // Shop settings is the drawer's footer row for this role, so it is not
+      // repeated in the group above.
     ],
   },
 ];

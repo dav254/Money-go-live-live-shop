@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   Bookmark, Heart, Loader2, MapPin, MessageCircle,
-  Pause, Play, Plus, Send, Share2, ShoppingBag, Store, Star, Truck,
+  Pause, Play, Plus, Send, Share2, ShoppingBag, Store, Star, Truck, Volume2, VolumeX,
 } from 'lucide-react';
 import {
   addDoc, arrayRemove, arrayUnion, collection, doc, increment,
@@ -165,6 +165,9 @@ export function DiscoveryVideoPost({
   const videoRef = React.useRef<HTMLVideoElement>(null);
   const [buffering, setBuffering] = React.useState(false);
   const [paused, setPaused] = React.useState(false);
+  /** Videos start silent (browsers block sound without a gesture); the buyer
+   *  turns sound on deliberately, and it stays on for the creative controls. */
+  const [muted, setMuted] = React.useState(true);
   const [progress, setProgress] = React.useState(0);
 
   React.useEffect(() => {
@@ -464,7 +467,7 @@ export function DiscoveryVideoPost({
    */
 
   return (
-    <section className="absolute inset-0 flex overflow-hidden bg-[#050a16]">
+    <section className="absolute inset-0 flex overflow-hidden bg-[#0A0A0A]">
       {/* Media */}
       <div className="absolute inset-0">
         {/*
@@ -507,7 +510,7 @@ export function DiscoveryVideoPost({
               ref={videoRef}
               src={current.url}
               poster={current.poster}
-              muted={true}
+              muted={muted}
               loop
               playsInline
               preload={active ? 'auto' : 'metadata'}
@@ -677,7 +680,7 @@ export function DiscoveryVideoPost({
             )}
             {/* Shown only when the streaming service reports a live session. */}
             {seller.isLive && (
-              <span className="flex shrink-0 items-center gap-1 rounded-full bg-[#FF0033] px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-white">
+              <span className="flex shrink-0 items-center gap-1 rounded-full bg-[color:var(--vn-discovery-accent)] px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-[#0A0A0A]">
                 <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white" aria-hidden />
                 Live
               </span>
@@ -749,7 +752,7 @@ export function DiscoveryVideoPost({
                   className={cn(
                     'relative h-12 w-12 shrink-0 overflow-hidden rounded-lg border-2 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white',
                     isActive
-                      ? 'border-[#FF0033] shadow-[0_0_10px_rgba(255,0,51,0.7)]'
+                      ? 'border-[color:var(--vn-discovery-accent)] shadow-[0_0_10px_rgba(200,255,0,0.55)]'
                       : 'border-white/20 opacity-70 hover:opacity-100',
                   )}
                 >
@@ -890,6 +893,22 @@ export function DiscoveryVideoPost({
           className="pointer-events-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--vn-discovery-accent)] disabled:cursor-default disabled:opacity-40"
         >
           {paused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            const el = videoRef.current;
+            const next = !muted;
+            setMuted(next);
+            if (el) el.muted = next;
+          }}
+          aria-label={muted ? 'Unmute video' : 'Mute video'}
+          aria-pressed={!muted}
+          disabled={current?.type !== 'video'}
+          className="pointer-events-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--vn-discovery-accent)] disabled:cursor-default disabled:opacity-40"
+        >
+          {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
         </button>
 
         <div

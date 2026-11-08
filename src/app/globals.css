@@ -480,18 +480,19 @@ html[data-vidnov-surface='app']:has(.vn-buyer-scope) body {
    * is never ambiguous. --vn-lime is kept as an alias so legacy `.vn-lime-ink`
    * rules stay readable; nothing should add new lime usages.
    */
-  --vn-lime: #ff0033;
-  --vn-discovery-accent: #ff0033;
-  --vn-discovery-accent-hover: #e0002c;
-  --vn-cyan: #00e5ff;
-  --vn-cyan-soft: rgba(0, 229, 255, 0.45);
-  --vn-midnight: #050a16;
+  --vn-lime: #c8ff00;
+  --vn-discovery-accent: #c8ff00;
+  --vn-discovery-accent-hover: #a8d800;
+  --vn-deep-lime: #a8d800;
+  --vn-cyan: #e8e8e8;
+  --vn-cyan-soft: rgba(232, 232, 232, 0.28);
+  --vn-midnight: #0a0a0a;
 
   font-family: 'Inter', system-ui, sans-serif;
   /* Midnight navy, always. The section's identity is the dark immersive
      surface a vertical feed lives on; a light theme would flip the one screen
      whose whole job is to be media-first. */
-  background: var(--vn-midnight, #050a16);
+  background: var(--vn-midnight, #0a0a0a);
   color: #ffffff;
   letter-spacing: -0.005em;
   color-scheme: dark;
@@ -543,15 +544,18 @@ html[data-vidnov-surface='app']:has(.vn-buyer-scope) body {
   border-color: rgba(255, 255, 255, 0.3);
 }
 .vn-discovery-chip[data-active='true'] {
-  background: var(--vn-discovery-accent, #ff0033);
-  border-color: var(--vn-discovery-accent, #ff0033);
-  color: #ffffff;
+  background: var(--vn-discovery-accent, #c8ff00);
+  border-color: var(--vn-discovery-accent, #c8ff00);
+  /* Lime is a fill. White ink on it is unreadable, so the active chip is
+     always black-on-lime. */
+  color: #0a0a0a;
 }
 
 .vn-discovery-card {
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.06);
-  border-radius: 1.25rem;
+  border: 1px solid rgba(232, 232, 232, 0.16);
+  background: rgba(255, 255, 255, 0.04);
+  /* Restrained corners: the editorial system does not do pill-shaped cards. */
+  border-radius: 0.75rem;
   overflow: hidden;
   transition: box-shadow 200ms ease, transform 200ms ease, border-color 200ms ease;
 }
@@ -564,18 +568,19 @@ html[data-vidnov-surface='app']:has(.vn-buyer-scope) body {
    soft cyan glow — the premium outline from the reference, scoped to the card
    class so no other page inherits it. */
 .vn-discovery-product-card {
-  background: linear-gradient(180deg, rgba(5, 10, 22, 0.88), rgba(5, 10, 22, 0.72));
-  border: 1px solid rgba(0, 229, 255, 0.4);
-  box-shadow: 0 0 22px -6px rgba(0, 229, 255, 0.35), 0 18px 40px -28px rgba(0, 0, 0, 0.95);
+  background: linear-gradient(180deg, rgba(10, 10, 10, 0.9), rgba(10, 10, 10, 0.74));
+  border: 1px solid rgba(232, 232, 232, 0.22);
+  box-shadow: 0 18px 40px -28px rgba(0, 0, 0, 0.95);
 }
 
 /* Raised centre tab (Create / Shop): a circular red glow, active or not. */
 .vn-discovery-raised {
-  box-shadow: 0 0 18px 0 rgba(255, 0, 51, 0.55);
+  box-shadow: 0 0 18px 0 rgba(200, 255, 0, 0.45);
 }
 .vn-discovery-raised-active {
-  background: var(--vn-discovery-accent, #ff0033);
-  box-shadow: 0 0 22px 2px rgba(255, 0, 51, 0.7);
+  background: var(--vn-discovery-accent, #c8ff00);
+  color: #0a0a0a;
+  box-shadow: 0 0 22px 2px rgba(200, 255, 0, 0.55);
 }
 
 /* Immersive posts snap on a phone so one product is one screen; on a desktop

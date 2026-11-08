@@ -37,7 +37,7 @@ export function DiscoveryBottomNav({ items }: { items: DiscoveryNavItem[] }) {
   return (
     <nav
       aria-label="App navigation"
-      className="relative z-40 shrink-0 border-t border-[rgba(0,229,255,0.18)] bg-[#050a16]/95 backdrop-blur-xl"
+      className="relative z-40 shrink-0 border-t border-[#E8E8E8]/14 bg-[#0A0A0A]/95 backdrop-blur-xl"
     >
       <div className="mx-auto flex max-w-md items-end justify-around px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2">
         {items.map((item) => {
@@ -53,15 +53,17 @@ export function DiscoveryBottomNav({ items }: { items: DiscoveryNavItem[] }) {
               aria-label={item.label}
               aria-current={isActive ? 'page' : undefined}
               className={cn(
-                'flex flex-1 flex-col items-center gap-1 px-1 py-1 transition',
-                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--vn-discovery-accent)]',
+                'flex flex-1 flex-col items-center gap-1 px-1 py-1 transition',                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--vn-discovery-accent)]',
+                  isActive && 'text-[color:var(--vn-discovery-accent)]',
               )}
             >
               <span
                 className={cn(
                   'flex h-9 w-9 items-center justify-center rounded-full transition',
+                  /* Lime is a fill, so the active icon is black on lime — white
+                     on #C8FF00 fails contrast and reads as a broken state. */
                   isActive
-                    ? 'bg-[color:var(--vn-discovery-accent)] text-white'
+                    ? 'bg-[color:var(--vn-discovery-accent)] text-[#0A0A0A]'
                     : 'text-white/60 group-hover:text-white',
                   /* The raised centre action (Create / Shop) keeps its circular
                      red glow whether it is active or not — the reference's one

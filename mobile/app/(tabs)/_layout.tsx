@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, View, type ColorValue } from 'react-native';
 import { Tabs, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
+import { AppDrawer, MenuButton } from '../../src/components/nav/app-drawer';
 import { useAuth } from '../../src/lib/auth';
 import { notifications } from '../../src/lib/api';
 import { colors, spacing } from '../../src/theme';
@@ -72,6 +73,7 @@ function HeaderBell({ count }: { count: number }) {
 
 export default function TabsLayout() {
   const unread = useUnreadBadge();
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const tabIcon =
     (name: keyof typeof Ionicons.glyphMap, focusedName: keyof typeof Ionicons.glyphMap) =>
@@ -85,11 +87,16 @@ export default function TabsLayout() {
     );
 
   return (
+    <>
+      {/* The drawer is the full marketplace map for the active role; the tab
+          bar below is the five everyday destinations from that map. */}
+      <AppDrawer visible={menuOpen} onClose={() => setMenuOpen(false)} />
     <Tabs
       screenOptions={{
         headerStyle: { backgroundColor: colors.background },
         headerTintColor: colors.text,
         headerShadowVisible: false,
+        headerLeft: () => <MenuButton onPress={() => setMenuOpen(true)} />,
         headerRight: () => <HeaderBell count={unread} />,
         tabBarStyle: {
           backgroundColor: colors.surface,
@@ -149,6 +156,7 @@ export default function TabsLayout() {
         }}
       />
     </Tabs>
+    </>
   );
 }
 

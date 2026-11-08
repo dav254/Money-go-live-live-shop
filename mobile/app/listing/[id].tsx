@@ -30,6 +30,7 @@ import { catalog, saved as savedApi } from '../../src/lib/api';
 import { apiUrl } from '../../src/lib/config';
 import { useAuth } from '../../src/lib/auth';
 import { money, shortDate } from '../../src/lib/format';
+import { recordView } from '../../src/lib/recent';
 import { useResource } from '../../src/lib/use-resource';
 import { colors, HIT, radius, spacing, type } from '../../src/theme';
 import type { Listing, SellerCard } from '../../src/lib/types';
@@ -47,7 +48,7 @@ export default function ListingScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { width } = useWindowDimensions();
-  const { status: authStatus } = useAuth();
+  const { status: authStatus, session } = useAuth();
 
   const { data, loading, error, reload } = useResource(
     () => catalog.listing(String(id)),
@@ -57,6 +58,13 @@ export default function ListingScreen() {
 
   const listing = (data?.listing ?? null) as Listing | null;
   const seller = (data?.seller ?? null) as SellerCard | null;
+
+  // Writing this device's history is the same act as opening the listing; it
+  // is fire-and-forget so a slow disk never delays the page.
+  React.useEffect(() => {
+    if (!listing?.id || !session?.uid) return;
+    void recordView(session.uid, listing);
+  }, [listing, session?.uid]);
 
   if (loading && !data) {
     return (

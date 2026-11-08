@@ -26,7 +26,7 @@ const COLUMNS: { title: string; links: { label: string; href: string }[] }[] = [
   {
     title: 'DISCOVER',
     links: [
-      { label: 'Discover everything', href: '/discover' },
+      { label: 'Discover everything', href: '/discovery' },
       { label: 'Explore businesses', href: '/discover?kind=businesses' },
       { label: 'Products', href: '/discover?kind=listings' },
       { label: 'Services', href: '/categories?type=services' },

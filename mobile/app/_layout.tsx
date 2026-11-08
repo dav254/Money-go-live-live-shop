@@ -105,7 +105,14 @@ export default function RootLayout() {
               <Stack.Screen name="orders" options={{ title: 'My orders' }} />
               <Stack.Screen name="offers" options={{ title: 'Requests & offers' }} />
               <Stack.Screen name="saved" options={{ title: 'Saved items' }} />
+              <Stack.Screen name="sellers" options={{ title: 'My sellers' }} />
+              <Stack.Screen name="recent" options={{ title: 'Recently viewed' }} />
               <Stack.Screen name="live" options={{ title: 'Live now' }} />
+              <Stack.Screen name="videos" options={{ title: 'Videos' }} />
+              <Stack.Screen name="nearby" options={{ title: 'Businesses around you' }} />
+              <Stack.Screen name="wallet" options={{ title: 'My wallet' }} />
+              <Stack.Screen name="addresses" options={{ title: 'My addresses' }} />
+              <Stack.Screen name="help" options={{ title: 'Help & support' }} />
               <Stack.Screen name="ai-studio" options={{ title: 'AI Studio' }} />
               {/* The seller centre owns its own stack and headers. */}
               <Stack.Screen name="seller" options={{ headerShown: false }} />

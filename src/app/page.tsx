@@ -521,7 +521,7 @@ function CategoryStrip() {
             Browse by category
           </h2>
           <Link
-            href="/discover"
+            href="/discovery"
             className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.16em] text-[#0B0B0C]/55 transition-colors hover:text-[#0B0B0C]"
           >
             All categories
@@ -1174,7 +1174,7 @@ function HowItWorksSection() {
       label: 'For customers',
       title: 'Find it, watch it, ask about it',
       points: ['Discover products and businesses', 'Watch live demonstrations', 'Contact sellers directly', 'Send an inquiry or request'],
-      href: '/discover',
+      href: '/discovery',
       cta: 'Start discovering',
       image: PHOTOS.phone,
     },
@@ -1386,7 +1386,7 @@ function FinalCta() {
             </p>
             <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
               <Link
-                href="/discover"
+                href="/discovery"
                 className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-[#FF4D2E] px-8 text-sm font-bold text-white transition-all hover:-translate-y-0.5 hover:bg-[#e63f21]"
               >
                 Explore Vidnov

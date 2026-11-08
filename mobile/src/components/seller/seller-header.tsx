@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
+import { AppDrawer } from '../nav/app-drawer';
 import { colors, HIT, spacing, type } from '../../theme';
 
 /**
@@ -25,6 +26,8 @@ export function SellerHeader({
   right?: React.ReactNode;
 }) {
   const router = useRouter();
+  // The drawer is the seller's sidebar on every screen of the workspace.
+  const [menuOpen, setMenuOpen] = useState(false);
 
   return (
     <View style={styles.wrap}>
@@ -54,7 +57,7 @@ export function SellerHeader({
       {right}
 
       <Pressable
-        onPress={() => router.push('/seller/menu')}
+        onPress={() => setMenuOpen(true)}
         accessibilityRole="button"
         accessibilityLabel="Open seller menu"
         hitSlop={10}
@@ -62,6 +65,8 @@ export function SellerHeader({
       >
         <Ionicons name="menu" size={22} color={colors.text} />
       </Pressable>
+
+      <AppDrawer visible={menuOpen} onClose={() => setMenuOpen(false)} />
     </View>
   );
 }

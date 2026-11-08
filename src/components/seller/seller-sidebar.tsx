@@ -26,6 +26,7 @@ import {
   QrCode,
   Wallet,
   Share2,
+  TrendingUp,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
@@ -208,6 +209,17 @@ export function SellerSidebar() {
               <Link href="/dashboard/seller/points" className="text-sidebar-foreground">
                 <Coins className="text-sidebar-foreground" />
                 <span className="text-sidebar-foreground">AI Points</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          </SectionNavItem>
+
+          <SectionNavItem href="/dashboard/seller/product-growth">
+          <SidebarMenuItem>
+            <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/product-growth')} className="text-sidebar-foreground">
+              <Link href="/dashboard/seller/product-growth" className="text-sidebar-foreground">
+                <TrendingUp className="text-sidebar-foreground" />
+                <span className="text-sidebar-foreground">Product Growth</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>

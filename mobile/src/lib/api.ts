@@ -392,6 +392,24 @@ export const commerce = {
     ),
 };
 
+/* ── Following ───────────────────────────────────────────────────────────── */
+
+/**
+ * `POST /api/follow` — the write side of `userProfiles/{uid}.following`.
+ *
+ * The read side needs no route: the field is already on the profile document
+ * `GET /api/auth/profile` returns, which is how the website's My sellers page
+ * builds its list too. One field, one source.
+ */
+export const following = {
+  set: (token: string, sellerId: string, action: 'follow' | 'unfollow') =>
+    apiRequest<{ success?: boolean }>('/api/follow', {
+      method: 'POST',
+      body: { sellerId, action },
+      token,
+    }),
+};
+
 /* ── Saved items ─────────────────────────────────────────────────────────── */
 
 /**
@@ -524,6 +542,122 @@ export const seller = {
         createdAt?: string | null;
       }>;
     }>('/api/mobile/seller/wallet', { token }),
+};
+
+/* ── Product Growth ──────────────────────────────────────────────────────── */
+
+/**
+ * The seller Growth Centre, served by `/api/seller/product-growth`.
+ *
+ * This is the same endpoint the website's `/dashboard/seller/product-growth`
+ * calls, so a campaign started on the phone and one started on the desktop are
+ * the same campaign in the same engine — not two lists that have to be kept in
+ * step. Free jobs go through the Core Engine; a paid boost is a points-priced
+ * request an administrator reviews, with the points held server-side.
+ */
+export interface GrowthProduct {
+  id: string;
+  name: string;
+  price: number | null;
+  currency: string | null;
+  imageUrl: string | null;
+  listingType: 'product' | 'service';
+  eligible: boolean;
+  reasons: string[];
+  publicPath: string | null;
+  suggestedCaption: string;
+}
+
+export interface GrowthDestination {
+  id: string;
+  label: string;
+  kind: string;
+  group: 'vidnov' | 'search' | 'commerce';
+  configured: boolean;
+  canSubmit: boolean;
+  quotas: { perRun: number; perDay: number };
+}
+
+export interface GrowthSocial {
+  id: string;
+  label: string;
+  connected: boolean;
+  accountLabel: string | null;
+  publishReady: boolean;
+  note: string;
+}
+
+export interface GrowthCampaign {
+  id: string;
+  productId: string | null;
+  channel: string | null;
+  status: string;
+  integrationStatus: string;
+  attempts: number;
+  lastError: { message: string; at: string | null } | null;
+  updatedAt: string | null;
+}
+
+export interface GrowthBoost {
+  id: string;
+  productId: string | null;
+  status: string;
+  pointsPaid: number;
+  durationDays: number | null;
+  caption: string;
+  rejectionReason: string | null;
+  createdAt: string | null;
+}
+
+export interface GrowthCentre {
+  points: { balance: number; perDay: number; minDays: number; maxDays: number };
+  products: GrowthProduct[];
+  destinations: GrowthDestination[];
+  social: GrowthSocial[];
+  campaigns: GrowthCampaign[];
+  boosts: GrowthBoost[];
+}
+
+export interface GrowthFreeResult {
+  productId: string;
+  channel: string;
+  ok: boolean;
+  status?: string;
+  duplicate?: boolean;
+  message?: string;
+}
+
+export const growth = {
+  centre: (token: string) =>
+    apiRequest<GrowthCentre>('/api/seller/product-growth', { token, timeoutMs: 45_000 }),
+  submitFree: (token: string, body: { productIds: string[]; channels: string[] }) =>
+    apiRequest<{ ok: boolean; submitted: number; skipped: number; results: GrowthFreeResult[]; note: string }>(
+      '/api/seller/product-growth',
+      { method: 'POST', body: { action: 'free', ...body }, token, timeoutMs: 60_000 },
+    ),
+  submitPaid: (
+    token: string,
+    body: {
+      productId: string;
+      durationDays: number;
+      caption?: string;
+      targeting?: { age?: string; counties?: string[]; interests?: string[] };
+    },
+  ) =>
+    apiRequest<{
+      ok: boolean;
+      boostId: string;
+      status: string;
+      costPoints: number;
+      remainingPoints: number;
+      days: number;
+      note: string;
+    }>('/api/seller/product-growth', {
+      method: 'POST',
+      body: { action: 'paid', ...body },
+      token,
+      timeoutMs: 60_000,
+    }),
 };
 
 /* ── Live ────────────────────────────────────────────────────────────────── */
