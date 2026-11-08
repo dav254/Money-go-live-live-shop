@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {
   AUTH_COLLECTION,
   generateAppUid,
+  isPocketBaseId,
   pbCreateAuthUser,
   pbFindAuthUserByEmail,
   pbSetPasswordByAppUid,
@@ -250,6 +251,34 @@ test('a password reset targets the record mapped from the app uid', async () => 
   assert.ok(patch.url.endsWith('/records/rec00000000000x'));
   assert.equal(patch.body?.password, 'brandnewpassword');
   assert.equal(patch.body?.passwordConfirm, 'brandnewpassword');
+});
+
+test('a legacy Firebase uid is never sent as the PocketBase record id', async () => {
+  // Regression: Firebase uids are 28 mixed-case characters, and PocketBase
+  // rejects anything but 15 [a-z0-9]. Sending it made every migrated account
+  // fail creation, which is the live "account exists but could not be prepared
+  // for sign-in" login error. The uid still travels as `appUid`.
+  const legacyUid = 'A1b2C3d4E5f6G7h8I9j0K1l2M3n4';
+  const created = await pbCreateAuthUser({
+    email: 'legacy@example.com',
+    password: 'longenoughpassword',
+    appUid: legacyUid,
+    userRole: 'buyer',
+  });
+
+  assert.equal(created.ok, true);
+  const create = calls
+    .filter(
+      (call) =>
+        call.url.endsWith(`/api/collections/${AUTH_COLLECTION}/records`) &&
+        call.init.method === 'POST',
+    )
+    .pop();
+  assert.ok(create);
+  assert.equal(create.body?.id, undefined, 'a 28-char uid is not a legal PocketBase id');
+  assert.equal(create.body?.appUid, legacyUid);
+  assert.equal(isPocketBaseId(legacyUid), false);
+  assert.equal(isPocketBaseId(generateAppUid()), true);
 });
 
 test('with no PocketBase configured every helper reports "not configured" instead of throwing', async () => {

@@ -83,6 +83,11 @@ function toAuthUser(record: PbRecord): PbAuthUser {
   };
 }
 
+/** True when a value is a legal PocketBase record id (15 chars, [a-z0-9]). */
+export function isPocketBaseId(value: string): boolean {
+  return /^[a-z0-9]{15}$/.test(value);
+}
+
 /**
  * A PocketBase record id: exactly 15 characters from `[a-z0-9]`. We generate it
  * ourselves so the app uid is known BEFORE the create and is therefore the same
@@ -210,7 +215,6 @@ export async function pbCreateAuthUser(input: {
 
     const email = input.email.trim().toLowerCase();
     const payload: Record<string, unknown> = {
-      id: input.appUid,
       appUid: input.appUid,
       email,
       password: input.password,
@@ -222,6 +226,14 @@ export async function pbCreateAuthUser(input: {
     if (input.username) payload.username = input.username;
     if (input.userRole) payload.userRole = input.userRole;
     if (input.phoneNumber) payload.phoneNumber = input.phoneNumber;
+
+    // The record id is OPTIONAL, and only a PocketBase id can be supplied here.
+    // PocketBase requires exactly 15 characters from [a-z0-9]; a legacy
+    // Firebase uid is 28 characters and mixed case, so sending it made EVERY
+    // migrated account fail creation — which surfaced as the live
+    // "Your account exists but could not be prepared for sign-in" error.
+    // The canonical identity lives in `appUid` regardless of the record id.
+    if (isPocketBaseId(input.appUid)) payload.id = input.appUid;
 
     const res = await pbRequest(`/api/collections/${AUTH_COLLECTION}/records`, {
       method: 'POST',
@@ -236,7 +248,16 @@ export async function pbCreateAuthUser(input: {
     if (res.status === 400 && /email/i.test(detail) && /(unique|already)/i.test(detail)) {
       return { ok: false, failure: { kind: 'duplicate_email' } };
     }
+    // A concurrent migration can win the race after our lookup. If the account
+    // now exists with this canonical uid, use it instead of failing the login.
+    if (res.status === 400 || res.status === 409) {
+      const existing = await pbFindAuthUserByAppUid(input.appUid);
+      if (existing) return { ok: true, value: existing };
+    }
     if (res.status === 429) return { ok: false, failure: { kind: 'rate_limited' } };
+    console.error(
+      `[pocketbase] auth create rejected (${res.status}): ${detail.slice(0, 300)}`,
+    );
     return { ok: false, failure: { kind: 'error', message: detail.slice(0, 300) || `create failed (${res.status})` } };
   } catch (error) {
     console.error('[pocketbase] auth create failed:', error);
