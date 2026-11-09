@@ -36,7 +36,12 @@ interface AuthValue {
   status: Status;
   session: FirebaseSession | null;
   profile: Profile | null;
-  signIn: (email: string, password: string) => Promise<void>;
+  /**
+   * Signs in and returns the profile the server just confirmed, so the caller
+   * can send a seller straight to the seller workspace instead of guessing
+   * from a role that has not loaded yet.
+   */
+  signIn: (email: string, password: string) => Promise<Profile | null>;
   signUp: (input: {
     email: string;
     password: string;
@@ -210,11 +215,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signIn = useCallback(
-    async (email: string, password: string) => {
+    async (email: string, password: string): Promise<Profile | null> => {
       const next = await signInWithPassword(email, password);
       await applySession(next);
       setStatus('signedIn');
-      await loadProfile(next.idToken);
+      // Returned, not just stored: the sign-in screen routes on this role, and
+      // reading `profile` from state right here would still be the old value.
+      return loadProfile(next.idToken);
     },
     [applySession, loadProfile],
   );

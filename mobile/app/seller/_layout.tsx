@@ -30,6 +30,12 @@ export default function SellerLayout() {
       <Stack.Screen name="discovery" />
       <Stack.Screen name="growth" />
       <Stack.Screen name="share" />
+      <Stack.Screen name="create" />
+      <Stack.Screen name="messages" />
+      <Stack.Screen name="notifications" />
+      <Stack.Screen name="points" />
+      <Stack.Screen name="rewards" />
+      <Stack.Screen name="account" />
       <Stack.Screen name="business" />
       <Stack.Screen name="products/index" />
       <Stack.Screen name="products/new" />

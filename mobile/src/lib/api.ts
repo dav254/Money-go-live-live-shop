@@ -392,6 +392,53 @@ export const commerce = {
     ),
 };
 
+/* ── Cart (read) ──────────────────────────────────────────────────────────── */
+
+/**
+ * `GET /api/cart` — the caller's own cart, VPS copy first, Firestore second.
+ *
+ * Read-only on purpose: the website changes cart lines from the browser and
+ * there is no cart-write route, so the app shows what is actually in the cart
+ * and says where it can be edited. An "Add" button here would have to invent a
+ * backend that does not exist.
+ */
+export interface CartLine {
+  id: string;
+  productId?: string;
+  name?: string;
+  title?: string;
+  price?: number;
+  quantity?: number;
+  imageUrl?: string;
+  currency?: string;
+  sellerId?: string;
+}
+
+export const cart = {
+  list: (token: string) =>
+    apiRequest<{ items: CartLine[]; source?: string }>('/api/cart', { token }),
+};
+
+/* ── Referrals ───────────────────────────────────────────────────────────── */
+
+/**
+ * Referral balance and redemptions.
+ *
+ * The balance and the invite slug are already on the profile document
+ * `GET /api/auth/profile` returns, so reading them needs no second endpoint —
+ * the app shows the same number the website shows. Redeeming is the server's
+ * transaction (`/api/referrals/redeem`), never a client-side decrement.
+ */
+export const referrals = {
+  redeem: (token: string, body: { redeem: 'live' | 'cash'; amount?: number; method?: string }) =>
+    apiRequest<{ ok: boolean; kind: string; balance: number }>('/api/referrals/redeem', {
+      method: 'POST',
+      body,
+      token,
+      timeoutMs: 30_000,
+    }),
+};
+
 /* ── Following ───────────────────────────────────────────────────────────── */
 
 /**

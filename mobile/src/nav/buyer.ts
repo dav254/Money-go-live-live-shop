@@ -12,14 +12,13 @@ import type { Ionicons } from '@expo/vector-icons';
  *   Live  — Live stream
  *   You   — Account, Notifications, Customer care, Settings
  *
- * Two website rows are deliberately NOT here, and the screens say why:
+ * Two rows now match the website and required their own screens:
  *
- *   • **Cart** — `GET /api/cart` can read a cart, but there is no cart-write
- *     route: the website changes cart lines straight from the browser and
- *     creates the order client-side. A native cart you could neither fill nor
- *     check out is worse than no cart, so it waits for a backend route.
- *   • **Invite & earn** — points and referral balances have no read endpoint;
- *     the app would have to invent a number.
+ *   • **Cart** (`/cart`) reads `GET /api/cart`. Editing and checkout still happen
+ *     on the website — there is no cart-write route — and the screen says so
+ *     rather than showing buttons that cannot work.
+ *   • **Invite & earn** (`/rewards`) reads `referralPoints` off the profile and
+ *     redeems through the server transaction, the same fields the website uses.
  *
  * Every `href` below is a route that exists. That rule is the reason this file
  * is exhaustive rather than aspirational: a nav row that opens nothing teaches
@@ -63,6 +62,7 @@ export const BUYER_NAV: BuyerNavGroup[] = [
   {
     title: 'Buy',
     items: [
+      { label: 'Cart', href: '/cart', icon: 'cart-outline', detail: 'Lines from the website' },
       { label: 'My orders', href: '/orders', icon: 'receipt-outline', badge: 'orders' },
       { label: 'Messages', href: '/messages', icon: 'chatbubbles-outline' },
       {
@@ -88,6 +88,7 @@ export const BUYER_NAV: BuyerNavGroup[] = [
   {
     title: 'You',
     items: [
+      { label: 'Invite & earn', href: '/rewards', icon: 'gift-outline', detail: 'Referral points' },
       { label: 'Account', href: '/profile', icon: 'person-outline' },
       { label: 'Notifications', href: '/alerts', icon: 'notifications-outline', badge: 'unread' },
       { label: 'Customer care', href: '/help', icon: 'help-buoy-outline', detail: 'Talk to the team' },

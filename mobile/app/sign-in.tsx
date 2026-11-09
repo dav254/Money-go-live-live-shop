@@ -18,7 +18,7 @@ import { colors, radius, spacing, type } from '../src/theme';
  */
 export default function SignInScreen() {
   const router = useRouter();
-  const { signIn } = useAuth();
+  const { signIn, setMode } = useAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -36,10 +36,22 @@ export default function SignInScreen() {
 
     setBusy(true);
     try {
-      await signIn(email.trim(), password);
-      // This screen is a modal over the welcome page, so "back" would land on
-      // the sign-in prompt again. Close the modal stack and open the product.
-      router.replace('/(tabs)');
+      const signedIn = await signIn(email.trim(), password);
+
+      // Sellers land in their own workspace, buyers in theirs. The workspace
+      // carries its own drawer, footer and screens — a seller must not open on
+      // the buyer home and then have to switch, which used to show seller
+      // navigation over a buyer screen.
+      const role = String(signedIn?.userRole ?? '').toLowerCase();
+      const sells = role === 'seller' || role === 'reseller' || role === 'admin';
+      if (sells) {
+        await setMode('seller');
+        router.replace('/seller');
+      } else {
+        // This screen is a modal over the welcome page, so "back" would land on
+        // the sign-in prompt again. Close the modal stack and open the product.
+        router.replace('/(tabs)');
+      }
     } catch (thrown) {
       setError(messageFor(thrown));
     } finally {

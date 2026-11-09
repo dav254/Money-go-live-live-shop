@@ -18,13 +18,10 @@ import type { Ionicons } from '@expo/vector-icons';
  *
  * What is NOT copied from the website drawer, on purpose:
  *
- *   • **Classic Studio, Video Studio, Living Pictures** — full web editors. They
- *     open from the website, and the app's own publishing path is Videos & posts
- *     (`/seller/content`), which already hands off to the video studio for the
- *     one job the phone cannot do.
- *   • **AI Points** — the balance has no read endpoint; the app will not display
- *     a number it cannot source.
- *   • **Invite & earn** — same reason: no referral balance read route.
+ *   • **Classic Studio, Video Studio, Living Pictures** — full browser editors.
+ *     There is no native implementation, and the app's own publishing path is
+ *     Videos & posts (`/seller/content`), which already hands off to the video
+ *     studio for the one job the phone cannot do.
  *
  * Every entry here is a route that exists. A nav item with no screen would be a
  * dead button in a business tool, which is worse than not offering it: a seller
@@ -47,12 +44,7 @@ export const SELLER_NAV: SellerNavGroup[] = [
     title: 'Store',
     items: [
       { label: 'Overview', href: '/seller', icon: 'grid-outline', detail: 'Your shop at a glance' },
-      {
-        label: 'Messages',
-        href: '/seller/inquiries',
-        icon: 'chatbubbles-outline',
-        detail: 'Buyers who wrote to you',
-      },
+      { label: 'Messages', href: '/seller/messages', icon: 'chatbubbles-outline', detail: 'Threads with buyers' },
       { label: 'Earnings', href: '/seller/wallet', icon: 'stats-chart-outline', detail: 'Sales and payouts' },
       { label: 'Payments', href: '/seller/transactions', icon: 'card-outline', detail: 'Money in and out' },
     ],
@@ -60,6 +52,7 @@ export const SELLER_NAV: SellerNavGroup[] = [
   {
     title: 'Create & broadcast',
     items: [
+      { label: 'Create', href: '/seller/create', icon: 'add-circle-outline', detail: 'Listing, live, AI, posts' },
       { label: 'Live studio', href: '/seller/live', icon: 'radio-outline', detail: 'Go live from your shop' },
       {
         label: 'Discovery',
@@ -93,6 +86,7 @@ export const SELLER_NAV: SellerNavGroup[] = [
         detail: 'Add, edit, publish',
       },
       { label: 'Orders', href: '/seller/orders', icon: 'receipt-outline', detail: 'Ship and fulfil' },
+      { label: 'Buyer inquiries', href: '/seller/inquiries', icon: 'mail-unread-outline', detail: 'Questions about a listing' },
       { label: 'Customers', href: '/seller/customers', icon: 'people-outline', detail: 'People who bought' },
       { label: 'Analytics', href: '/seller/analytics', icon: 'bar-chart-outline', detail: 'What is working' },
       { label: 'Marketing & promotions', href: '/seller/marketing', icon: 'megaphone-outline' },
@@ -111,9 +105,11 @@ export const SELLER_NAV: SellerNavGroup[] = [
         icon: 'location-outline',
         detail: 'Area, hours, service areas',
       },
-      { label: 'Notifications', href: '/alerts', icon: 'notifications-outline' },
+      { label: 'Notifications', href: '/seller/notifications', icon: 'notifications-outline' },
+      { label: 'AI points', href: '/seller/points', icon: 'ribbon-outline', detail: 'Balance and what it buys' },
+      { label: 'Invite & earn', href: '/seller/rewards', icon: 'gift-outline', detail: 'Referral points' },
       { label: 'Customer Care', href: '/seller/help', icon: 'headset-outline', detail: 'Talk to the team' },
-      { label: 'Account', href: '/seller/profile', icon: 'person-circle-outline' },
+      { label: 'Account', href: '/seller/account', icon: 'person-circle-outline' },
       // Shop settings is the drawer's footer row for this role, so it is not
       // repeated in the group above.
     ],

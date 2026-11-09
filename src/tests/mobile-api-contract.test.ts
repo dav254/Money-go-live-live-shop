@@ -60,6 +60,9 @@ const REQUIRED_ROUTES = [
   'requests/offers',
   // My sellers — the follow/unfollow write behind the buyer's follow list
   'follow',
+  // Cart (read) and referral redemption behind the /app-parity screens
+  'cart',
+  'referrals/redeem',
   'seller/orders',
   'seller/orders/[orderId]/status',
   // seller growth centre — same endpoint the website's page calls, so both

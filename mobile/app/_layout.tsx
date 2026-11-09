@@ -52,7 +52,7 @@ const headerOptions = {
  * the gate runs once, not on every navigation.
  */
 function LaunchGate() {
-  const { status } = useAuth();
+  const { status, mode, canSell } = useAuth();
   const segments = useSegments();
   const router = useRouter();
   const routed = useRef(false);
@@ -61,11 +61,26 @@ function LaunchGate() {
     if (status === 'loading' || routed.current) return;
     const first = (segments as string[])[0];
     const atRoot = !first || first === '(tabs)';
+
     if (status === 'signedOut' && atRoot) {
       routed.current = true;
       router.replace('/welcome');
+      return;
     }
-  }, [router, segments, status]);
+
+    /**
+     * A restored seller session belongs in the seller workspace. Waiting for
+     * `mode` (restored from secure storage, or derived from the profile role)
+     * is what keeps a seller out of the buyer home — otherwise the buyer
+     * screens render while the drawer, footer and rows are already the
+     * seller's. Buyer mode is untouched: a seller who switched to buying stays
+     * where they are.
+     */
+    if (status === 'signedIn' && mode === 'seller' && canSell && atRoot) {
+      routed.current = true;
+      router.replace('/seller');
+    }
+  }, [router, segments, status, mode, canSell]);
 
   return null;
 }
@@ -107,6 +122,8 @@ export default function RootLayout() {
               <Stack.Screen name="saved" options={{ title: 'Saved items' }} />
               <Stack.Screen name="sellers" options={{ title: 'My sellers' }} />
               <Stack.Screen name="recent" options={{ title: 'Recently viewed' }} />
+              <Stack.Screen name="cart" options={{ title: 'Cart' }} />
+              <Stack.Screen name="rewards" options={{ title: 'Invite & earn' }} />
               <Stack.Screen name="live" options={{ title: 'Live now' }} />
               <Stack.Screen name="videos" options={{ title: 'Videos' }} />
               <Stack.Screen name="nearby" options={{ title: 'Businesses around you' }} />
