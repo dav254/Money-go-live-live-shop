@@ -1,6 +1,7 @@
 import React from 'react';
 import { Linking, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 
 import { SellerHeader } from '../../src/components/seller/seller-header';
 import { Button, Muted, Notice, Screen, SectionHeader } from '../../src/components/ui';
@@ -26,6 +27,8 @@ export default function SellerMarketingScreen() {
 }
 
 function Marketing() {
+  const router = useRouter();
+
   return (
     <Screen>
       <SellerHeader title="Marketing & promotions" subtitle="Reach more buyers" showBack />
@@ -64,7 +67,7 @@ function Marketing() {
           label="Improve a listing"
           variant="outline"
           icon="cube-outline"
-          onPress={() => Linking.openURL(`${API_BASE_URL}/app/seller/products`)}
+          onPress={() => router.push('/seller/products')}
         />
         <Muted style={styles.hint}>
           Nothing on this screen is a promotion record. When campaign APIs are exposed to the

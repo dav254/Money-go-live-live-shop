@@ -29,8 +29,8 @@ export const ANDROID_PACKAGE_ID = 'com.vidnov.app';
 export const ANDROID_APP = {
   name: 'Vidnov',
   packageId: ANDROID_PACKAGE_ID,
-  versionName: '1.2.0',
-  versionCode: 4,
+  versionName: '1.2.1',
+  versionCode: 5,
   /**
    * Expo SDK 54+ raises the Android floor to API 24. Stated as a range people
    * recognise rather than an API number alone.

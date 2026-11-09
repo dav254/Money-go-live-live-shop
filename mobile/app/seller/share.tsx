@@ -1,6 +1,7 @@
 import React from 'react';
 import { Linking, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 
 import { SellerHeader } from '../../src/components/seller/seller-header';
 import {
@@ -48,6 +49,7 @@ function ShareShop() {
   const { session } = useAuth();
   const { data, loading, error, reload } = useAuthedResource((token) => seller.shop(token), []);
 
+  const router = useRouter();
   const sellerId = session?.uid ?? '';
   const shopLink = sellerId ? `${API_BASE_URL}/sellers/${sellerId}` : '';
   const shopName = data?.shop?.shopName || 'My shop';
@@ -105,9 +107,9 @@ function ShareShop() {
         <Button
           label="Preview my shop"
           variant="ghost"
-          icon="open-outline"
-          onPress={() => void Linking.openURL(shopLink)}
-          disabled={!shopLink}
+          icon="storefront-outline"
+          onPress={() => router.push(`/shop/${sellerId}`)}
+          disabled={!sellerId}
         />
 
         <Muted style={styles.footnote}>
