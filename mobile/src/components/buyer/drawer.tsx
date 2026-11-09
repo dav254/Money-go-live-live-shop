@@ -15,46 +15,29 @@ import { usePathname, useRouter } from 'expo-router';
 
 import { useAuth } from '../../lib/auth';
 import { useNavCounts } from '../../lib/nav-counts';
-import { BUYER_NAV, isActiveRoute, type BuyerNavGroup } from '../../nav/buyer';
-import { SELLER_NAV, type SellerNavGroup } from '../seller/nav';
+import { BUYER_NAV, isActiveRoute, type BuyerNavItem } from './nav';
 import { Avatar } from '../ui';
 import { colors, HIT, radius, spacing, type } from '../../theme';
 
 /**
- * THE VIDNOV DRAWER.
+ * THE BUYER DRAWER — the shopping side's own navigation panel.
  *
- * One component serves both roles and both sizes:
+ * It is deliberately NOT a mode-switching generic drawer. The buyer and the
+ * seller each have a drawer component of their own (`components/buyer/drawer`
+ * and `components/seller/drawer`) so that neither menu can borrow the other's
+ * rows, copy or footer by accident. What they share is the visual language and
+ * nothing else: midnight panel, Vidnov red active row, hairline separators.
  *
- *   • on a phone it slides in from the left over a scrim, like every Android
- *     marketplace the customer already knows;
- *   • on a wide screen (tablet, Android desktop window) it opens as a 320dp
- *     left sidebar instead of a full-width sheet, which is the only meaningful
- *     difference between the two layouts.
- *
- * It is the single navigation surface for the app. The routes come from
- * `nav/buyer.ts` and `seller/nav.ts` — the same lists the seller dashboard and
- * buyer screens use — so a destination cannot appear in one place and be
- * missing from the other.
- *
- * The role switcher does not swap accounts. It moves the SAME Vidnov identity
- * between its buying and selling workspace (`useAuth().setMode`), which is what
- * keeps orders, messages and reviews attached to one account.
+ * The footer is this side's account block — Shopping settings and the way into
+ * selling. The seller footer is a different set of rows in a different file.
  */
-
-type DrawerItem = {
-  label: string;
-  href: string;
-  icon: keyof typeof Ionicons.glyphMap;
-  detail?: string;
-  badge?: 'unread' | 'orders' | 'requests';
-};
 
 const PANEL_MAX = 340;
 
-export function AppDrawer({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+export function BuyerDrawer({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { profile, mode, setMode, canSell } = useAuth();
+  const { profile, setMode, canSell } = useAuth();
   const counts = useNavCounts();
 
   const [screenWidth, setScreenWidth] = useState(Dimensions.get('window').width);
@@ -78,14 +61,8 @@ export function AppDrawer({ visible, onClose }: { visible: boolean; onClose: () 
     }).start();
   }, [visible, slide]);
 
-  const groups: Array<BuyerNavGroup | SellerNavGroup> =
-    mode === 'seller' ? (SELLER_NAV as SellerNavGroup[]) : BUYER_NAV;
-
   const countFor = useMemo(
-    () => (item: DrawerItem): number => {
-      // Seller rows reuse the same counts; a seller's open orders are work.
-      if (item.href === '/seller/orders') return counts.sellerOrders;
-      if (item.href === '/seller/inquiries') return counts.unread;
+    () => (item: BuyerNavItem): number => {
       if (item.badge === 'unread') return counts.unread;
       if (item.badge === 'orders') return counts.orders;
       if (item.badge === 'requests') return counts.requests;
@@ -96,71 +73,18 @@ export function AppDrawer({ visible, onClose }: { visible: boolean; onClose: () 
 
   const go = (href: string) => {
     onClose();
-    // A short beat lets the drawer finish closing before the push, so the new
-    // screen animates in rather than appearing behind the panel.
     setTimeout(() => router.push(href as never), 120);
   };
 
-  const switchTo = async (next: 'buyer' | 'seller') => {
-    if (next === mode) return;
-    if (next === 'seller' && !canSell) {
+  const openSellerSide = async () => {
+    if (!canSell) {
       onClose();
       setTimeout(() => router.push('/onboarding/role'), 120);
       return;
     }
-    await setMode(next);
-    if (next === 'seller') go('/seller');
-    else go('/');
+    await setMode('seller');
+    go('/seller');
   };
-
-  /**
-   * THE FOOTER — the one part of the drawer the two roles never share.
-   *
-   * A seller's last two actions are the settings of the shop they run and the
-   * way back to buying; a buyer's are the settings of the account they own and
-   * the way into selling. Rendering one generic "Account settings" row for both
-   * was wrong twice over: it pointed a seller at the buyer's settings screen,
-   * and it carried a sign-out icon that only navigated.
-   *
-   * Every row below is a live destination or a live mode switch — `switchTo`
-   * sends a buyer without a shop to onboarding rather than to an empty
-   * workspace, so the row can never lead nowhere.
-   */
-  const footer: Array<{
-    label: string;
-    detail: string;
-    icon: keyof typeof Ionicons.glyphMap;
-    onPress: () => void;
-  }> =
-    mode === 'seller'
-      ? [
-          {
-            label: 'Shop settings',
-            detail: 'Shop profile, delivery, visibility',
-            icon: 'storefront-outline',
-            onPress: () => go('/seller/settings'),
-          },
-          {
-            label: 'Back to buying',
-            detail: 'Return to the shopping side',
-            icon: 'bag-handle-outline',
-            onPress: () => void switchTo('buyer'),
-          },
-        ]
-      : [
-          {
-            label: 'Shopping settings',
-            detail: 'Profile, alerts, sign out',
-            icon: 'settings-outline',
-            onPress: () => go('/settings'),
-          },
-          {
-            label: 'Become a seller',
-            detail: canSell ? 'Open your seller workspace' : 'Set up your shop',
-            icon: 'briefcase-outline',
-            onPress: () => void switchTo('seller'),
-          },
-        ];
 
   return (
     <Modal
@@ -180,17 +104,13 @@ export function AppDrawer({ visible, onClose }: { visible: boolean; onClose: () 
         >
           <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1 }}>
             <View style={styles.identity}>
-              <Avatar
-                uri={profile?.profilePictureUrl}
-                name={profile?.shopName || profile?.fullName}
-                size={44}
-              />
+              <Avatar uri={profile?.profilePictureUrl} name={profile?.fullName} size={44} />
               <View style={{ flex: 1, gap: 2 }}>
                 <Text style={styles.name} numberOfLines={1}>
-                  {mode === 'seller' ? profile?.shopName || 'Your shop' : profile?.fullName || 'Your account'}
+                  {profile?.fullName || 'Your account'}
                 </Text>
                 <Text style={styles.sub} numberOfLines={1}>
-                  {profile?.email || (mode === 'seller' ? 'Seller workspace' : 'Buyer workspace')}
+                  {profile?.email || 'Buyer account'}
                 </Text>
               </View>
               <Pressable
@@ -205,64 +125,31 @@ export function AppDrawer({ visible, onClose }: { visible: boolean; onClose: () 
             </View>
 
             <View style={styles.switcher}>
+              <View style={[styles.switchHalf, styles.switchHalfActive]}>
+                <Ionicons name="bag-handle-outline" size={15} color={colors.text} />
+                <Text style={[styles.switchText, styles.switchTextActive]}>Buying</Text>
+              </View>
               <Pressable
-                onPress={() => switchTo('buyer')}
+                onPress={openSellerSide}
                 accessibilityRole="button"
-                accessibilityState={{ selected: mode === 'buyer' }}
-                style={[styles.switchHalf, mode === 'buyer' && styles.switchHalfActive]}
+                accessibilityLabel="Switch to selling"
+                style={styles.switchHalf}
               >
-                <Ionicons
-                  name="bag-handle-outline"
-                  size={15}
-                  color={mode === 'buyer' ? colors.text : colors.textMuted}
-                />
-                <Text style={[styles.switchText, mode === 'buyer' && styles.switchTextActive]}>
-                  Buying
-                </Text>
-              </Pressable>
-              <Pressable
-                onPress={() => switchTo('seller')}
-                accessibilityRole="button"
-                accessibilityState={{ selected: mode === 'seller' }}
-                style={[styles.switchHalf, mode === 'seller' && styles.switchHalfActive]}
-              >
-                <Ionicons
-                  name="storefront-outline"
-                  size={15}
-                  color={mode === 'seller' ? colors.text : colors.textMuted}
-                />
-                <Text style={[styles.switchText, mode === 'seller' && styles.switchTextActive]}>
-                  Selling
-                </Text>
+                <Ionicons name="storefront-outline" size={15} color={colors.textMuted} />
+                <Text style={styles.switchText}>Selling</Text>
               </Pressable>
             </View>
-
-            {!canSell ? (
-              <Text style={styles.sellerHint}>
-                Seller tools unlock after shop setup — tap Selling to set up your shop.
-              </Text>
-            ) : null}
 
             <ScrollView
               style={{ flex: 1 }}
               contentContainerStyle={styles.list}
               showsVerticalScrollIndicator={false}
             >
-              {groups.map((group) => (
+              {BUYER_NAV.map((group) => (
                 <View key={group.title} style={{ gap: spacing.xs }}>
                   <Text style={styles.groupTitle}>{group.title.toUpperCase()}</Text>
-                  {group.items.map((raw) => {
-                    const item = raw as DrawerItem;
-                    // `/seller` is a prefix of every seller route, so the section
-                    // root is matched exactly and the rest by prefix. Tab routes
-                    // arrive with their `(tabs)` segment attached; stripping it
-                    // once here lets a seller row point at `/alerts` too.
-                    const here = pathname.replace(/^\/\(tabs\)/, '') || '/';
-                    const active =
-                      mode === 'seller'
-                        ? here === item.href ||
-                          (item.href !== '/seller' && here.startsWith(`${item.href}/`))
-                        : isActiveRoute(pathname, item.href);
+                  {group.items.map((item) => {
+                    const active = isActiveRoute(pathname, item.href);
                     const count = countFor(item);
 
                     return (
@@ -307,30 +194,37 @@ export function AppDrawer({ visible, onClose }: { visible: boolean; onClose: () 
               ))}
 
               <View style={styles.footer}>
-                <Text style={styles.groupTitle}>
-                  {mode === 'seller' ? 'THIS SHOP' : 'YOUR ACCOUNT'}
-                </Text>
-                {footer.map((row) => (
-                  <Pressable
-                    key={row.label}
-                    onPress={row.onPress}
-                    accessibilityRole="button"
-                    accessibilityLabel={`${row.label}. ${row.detail}`}
-                    style={({ pressed }) => [
-                      styles.row,
-                      pressed && { backgroundColor: colors.surfaceRaised },
-                    ]}
-                  >
-                    <Ionicons name={row.icon} size={19} color={colors.textMuted} />
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.rowLabel}>{row.label}</Text>
-                      <Text style={styles.rowDetail} numberOfLines={1}>
-                        {row.detail}
-                      </Text>
-                    </View>
-                    <Ionicons name="chevron-forward" size={16} color={colors.textFaint} />
-                  </Pressable>
-                ))}
+                <Text style={styles.groupTitle}>YOUR ACCOUNT</Text>
+                <Pressable
+                  onPress={() => go('/settings')}
+                  accessibilityRole="button"
+                  accessibilityLabel="Shopping settings. Profile, alerts, sign out"
+                  style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+                >
+                  <Ionicons name="settings-outline" size={19} color={colors.textMuted} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.rowLabel}>Shopping settings</Text>
+                    <Text style={styles.rowDetail}>Profile, alerts, sign out</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={16} color={colors.textFaint} />
+                </Pressable>
+                <Pressable
+                  onPress={openSellerSide}
+                  accessibilityRole="button"
+                  accessibilityLabel={
+                    canSell ? 'Become a seller. Open your seller workspace' : 'Become a seller. Set up your shop'
+                  }
+                  style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+                >
+                  <Ionicons name="briefcase-outline" size={19} color={colors.textMuted} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.rowLabel}>Become a seller</Text>
+                    <Text style={styles.rowDetail}>
+                      {canSell ? 'Open your seller workspace' : 'Set up your shop'}
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={16} color={colors.textFaint} />
+                </Pressable>
               </View>
             </ScrollView>
           </SafeAreaView>
@@ -347,7 +241,7 @@ export function AppDrawer({ visible, onClose }: { visible: boolean; onClose: () 
   );
 }
 
-/** Hamburger for a header — the one way into the drawer from any screen. */
+/** The buyer header's hamburger — the way into this drawer. */
 export function MenuButton({ onPress, tint = colors.text }: { onPress: () => void; tint?: string }) {
   return (
     <Pressable
@@ -382,7 +276,6 @@ const styles = StyleSheet.create({
   name: { ...type.bodyStrong, color: colors.text },
   sub: { ...type.caption, color: colors.textFaint },
   close: { padding: spacing.xs },
-
   switcher: {
     flexDirection: 'row',
     marginHorizontal: spacing.lg,
@@ -404,13 +297,6 @@ const styles = StyleSheet.create({
   switchHalfActive: { backgroundColor: colors.surfaceRaised },
   switchText: { ...type.caption, fontWeight: '700', color: colors.textMuted },
   switchTextActive: { color: colors.text },
-  sellerHint: {
-    ...type.caption,
-    color: colors.textFaint,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.sm,
-  },
-
   list: { padding: spacing.md, paddingBottom: spacing.xxl, gap: spacing.md },
   footer: {
     marginTop: spacing.sm,
@@ -436,6 +322,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     borderRadius: radius.md,
   },
+  rowPressed: { backgroundColor: colors.surfaceRaised },
   rowActive: { backgroundColor: colors.primarySoft },
   rowLabel: { ...type.body, color: colors.text },
   rowLabelActive: { color: colors.text, fontWeight: '700' },

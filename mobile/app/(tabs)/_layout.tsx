@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, View, type ColorValue } from 'react-native';
 import { Tabs, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
-import { AppDrawer, MenuButton } from '../../src/components/nav/app-drawer';
+import { BuyerDrawer, MenuButton } from '../../src/components/buyer/drawer';
 import { useAuth } from '../../src/lib/auth';
 import { notifications } from '../../src/lib/api';
 import { colors, spacing } from '../../src/theme';
@@ -90,7 +90,7 @@ export default function TabsLayout() {
     <>
       {/* The drawer is the full marketplace map for the active role; the tab
           bar below is the five everyday destinations from that map. */}
-      <AppDrawer visible={menuOpen} onClose={() => setMenuOpen(false)} />
+      <BuyerDrawer visible={menuOpen} onClose={() => setMenuOpen(false)} />
     <Tabs
       screenOptions={{
         headerStyle: { backgroundColor: colors.background },

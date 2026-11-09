@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
-import { AppDrawer } from '../nav/app-drawer';
+import { SellerDrawer } from './drawer';
 import { colors, HIT, spacing, type } from '../../theme';
 
 /**
@@ -66,7 +66,7 @@ export function SellerHeader({
         <Ionicons name="menu" size={22} color={colors.text} />
       </Pressable>
 
-      <AppDrawer visible={menuOpen} onClose={() => setMenuOpen(false)} />
+      <SellerDrawer visible={menuOpen} onClose={() => setMenuOpen(false)} />
     </View>
   );
 }
