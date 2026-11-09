@@ -125,6 +125,7 @@ export default function RootLayout() {
               <Stack.Screen name="cart" options={{ title: 'Cart' }} />
               <Stack.Screen name="rewards" options={{ title: 'Invite & earn' }} />
               <Stack.Screen name="live" options={{ title: 'Live now' }} />
+              <Stack.Screen name="live/[id]" options={{ headerShown: false }} />
               <Stack.Screen name="videos" options={{ title: 'Videos' }} />
               <Stack.Screen name="nearby" options={{ title: 'Businesses around you' }} />
               <Stack.Screen name="wallet" options={{ title: 'My wallet' }} />

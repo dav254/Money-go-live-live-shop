@@ -63,6 +63,11 @@ const REQUIRED_ROUTES = [
   // Cart (read) and referral redemption behind the /app-parity screens
   'cart',
   'referrals/redeem',
+  // Native live: create/end a stream, join a room, read and post comments
+  'live/create',
+  'live-session/token',
+  'live/[id]',
+  'live/[id]/chat',
   'seller/orders',
   'seller/orders/[orderId]/status',
   // seller growth centre — same endpoint the website's page calls, so both

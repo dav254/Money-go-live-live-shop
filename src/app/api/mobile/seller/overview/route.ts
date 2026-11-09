@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { auth, db } from '@/firebase/server';
 import { pbListOrdersByParty } from '@/lib/pocketbase/orders';
-import { pbListProductsBySeller } from '@/lib/pocketbase/products';
+import { loadSellerStock } from '@/lib/seller/stock';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -68,26 +68,15 @@ export async function GET(request: NextRequest) {
     let listings = 0;
     let outOfStock = 0;
 
-    const products = await pbListProductsBySeller(uid, 300);
-    if (products) {
-      listings = products.length;
-      outOfStock = products.filter((p) => typeof p.stock === 'number' && p.stock <= 0).length;
-    } else {
-      const snap = await db
-        .collection('products')
-        .where('sellerId', '==', uid)
-        .limit(300)
-        .get()
-        .catch(() => null);
-      const docs = (snap?.docs ?? []).filter(
-        (doc) => (doc.data() as Record<string, unknown>).status !== 'deleted',
-      );
-      listings = docs.length;
-      outOfStock = docs.filter((doc) => {
-        const stock = (doc.data() as Record<string, unknown>).stock;
-        return typeof stock === 'number' && stock <= 0;
-      }).length;
-    }
+    // Same union the stock screen uses: a listing uploaded on the website is
+    // real stock even if it has not reached the mirror yet, and a listing
+    // uploaded in the app is already in both stores.
+    const stock = await loadSellerStock(uid, 300);
+    const live = stock.products.filter((product) => product.status !== 'deleted');
+    listings = live.length;
+    outOfStock = live.filter(
+      (product) => typeof product.stock === 'number' && (product.stock as number) <= 0,
+    ).length;
 
     return NextResponse.json({
       orders: {

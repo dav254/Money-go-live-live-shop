@@ -709,9 +709,80 @@ export const growth = {
 
 /* ── Live ────────────────────────────────────────────────────────────────── */
 
+export type LiveSession = {
+  provider?: 'livekit';
+  stream?: { id: string; roomName?: string; title?: string; status?: string; sellerId?: string;
+    viewerCount?: number; featuredProductId?: string | null };
+  wsUrl?: string;
+  token?: string;
+  identity?: string;
+  id?: string;
+  roomName?: string;
+  title?: string;
+  status?: string;
+  [key: string]: unknown;
+};
+
 export const live = {
   /** Signed-in discovery feed — richer cards than the public strip. */
   streams: (token: string) => apiRequest<{ streams: any[] }>('/api/live', { token }),
+
+  /**
+   * Seller: create the LiveStream record and receive a PUBLISH token.
+   * The server decides the room name and the identity; the phone never does.
+   */
+  create: (
+    token: string,
+    body: {
+      title: string;
+      description?: string;
+      category?: string;
+      visibility?: 'PUBLIC' | 'FOLLOWERS' | 'CUSTOMERS' | 'PRIVATE';
+    },
+  ) => apiRequest<LiveSession>('/api/live/create', {
+    method: 'POST',
+    body,
+    token,
+    timeoutMs: 45_000,
+  }),
+
+  /** Stream detail + a viewer token, for a signed-in caller. */
+  detail: (token: string, id: string) =>
+    apiRequest<LiveSession & { token: string; wsUrl: string }>(
+      `/api/live/${encodeURIComponent(id)}`,
+      { token, timeoutMs: 30_000 },
+    ),
+
+  /**
+   * Public subscribe-only token for one session. Works signed out — the
+   * server mints an anonymous viewer identity when no bearer token is sent.
+   */
+  viewerToken: (sessionId: string, token?: string | null) =>
+    apiRequest<{ token: string; wsUrl: string; identity?: string; room?: string }>(
+      `/api/live-session/token?sessionId=${encodeURIComponent(sessionId)}`,
+      { token: token ?? undefined, timeoutMs: 30_000 },
+    ),
+
+  /** Host: mark the stream ended. Only the owner may call it. */
+  end: (token: string, id: string) =>
+    apiRequest<{ ok: boolean }>(`/api/live/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+      token,
+    }),
+
+  /** Live comments, oldest first. */
+  chat: (token: string, id: string) =>
+    apiRequest<{ messages: Array<{ id?: string; message: string; senderName?: string; uid?: string }> }>(
+      `/api/live/${encodeURIComponent(id)}/chat`,
+      { token, timeoutMs: 20_000 },
+    ),
+
+  sendChat: (token: string, id: string, message: string) =>
+    apiRequest<{ ok: boolean }>(`/api/live/${encodeURIComponent(id)}/chat`, {
+      method: 'POST',
+      body: { message },
+      token,
+    }),
 };
 
 /* ── AI Studio ───────────────────────────────────────────────────────────── */

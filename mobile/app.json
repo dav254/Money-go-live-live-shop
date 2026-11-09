@@ -3,7 +3,7 @@
     "name": "Vidnov",
     "owner": "vidnovs-team",
     "slug": "vidnov",
-    "version": "1.1.1",
+    "version": "1.2.0",
     "scheme": "vidnov",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
@@ -12,12 +12,18 @@
     "primaryColor": "#FF4D2E",
     "android": {
       "package": "com.vidnov.app",
-      "versionCode": 3,
+      "versionCode": 4,
       "adaptiveIcon": {
         "backgroundColor": "#0A0A0A",
         "foregroundImage": "./assets/images/android-icon-foreground.png"
       },
-      "permissions": ["android.permission.CAMERA", "android.permission.POST_NOTIFICATIONS"],
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.BLUETOOTH_CONNECT",
+        "android.permission.POST_NOTIFICATIONS"
+      ],
       "intentFilters": [
         {
           "action": "VIEW",
@@ -37,6 +43,7 @@
     },
     "plugins": [
       "expo-router",
+      "@livekit/react-native-expo-plugin",
       "expo-secure-store",
       "expo-image",
       [

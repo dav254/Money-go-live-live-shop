@@ -42,6 +42,7 @@ export default function SellerLayout() {
       <Stack.Screen name="products/[id]" />
       <Stack.Screen name="content" />
       <Stack.Screen name="live" />
+      <Stack.Screen name="live/broadcast" />
       <Stack.Screen name="orders" />
       <Stack.Screen name="inquiries" />
       <Stack.Screen name="requests" />

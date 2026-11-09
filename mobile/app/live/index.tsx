@@ -1,28 +1,21 @@
 import React from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
-import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
-import { Badge, Button, EmptyState, ErrorState, Loading, Muted, Screen } from '../src/components/ui';
-import { catalog } from '../src/lib/api';
-import { useAuth } from '../src/lib/auth';
-import { useResource } from '../src/lib/use-resource';
-import { colors, radius, spacing, type } from '../src/theme';
+import { Badge, Button, EmptyState, ErrorState, Loading, Muted, Screen } from '../../src/components/ui';
+import { catalog } from '../../src/lib/api';
+import { useAuth } from '../../src/lib/auth';
+import { useResource } from '../../src/lib/use-resource';
+import { colors, radius, spacing, type } from '../../src/theme';
 
 /**
  * LIVE DISCOVERY.
  *
- * The public "on air right now" strip the website puts on its landing page,
- * rendered natively: real sessions, real viewer counts, the same
- * `/api/home/live` endpoint (which itself reads the VPS store before
- * Firestore).
- *
- * PLAYBACK IS NOT CLAIMED. Watch parties run on LiveKit, whose React Native
- * client is a native module this build does not bundle. Rather than opening a
- * browser tab (forbidden — that is the website doing the work) or showing a
- * fake player, the screen states plainly that in-app live video is not in this
- * build yet. Discovery works; watching does not pretend to.
+ * The sessions running on Vidnov right now, from `/api/home/live` — the same
+ * public strip the website shows. Tapping a card opens the stream itself
+ * inside the app (`/live/[id]`), which connects to the same LiveKit room the
+ * website's player joins. No browser hand-off, no simulated viewer counts.
  */
 export default function LiveScreen() {
   const router = useRouter();
@@ -34,17 +27,33 @@ export default function LiveScreen() {
     sellerId: string;
     title: string;
     viewerCount: number;
+    sellerName?: string;
+    shopName?: string;
+    thumbnailUrl?: string;
   }>;
 
-  if (loading && !data) return <Loading label="Finding live sellers…" />;
-  if (error) return <ErrorState message={error} onRetry={reload} />;
+  if (loading && !data) {
+    return (
+      <Screen>
+        <Loading label="Finding live sellers…" />
+      </Screen>
+    );
+  }
+  if (error) {
+    return (
+      <Screen>
+        <ErrorState message={error} onRetry={reload} />
+      </Screen>
+    );
+  }
 
   return (
     <Screen>
       <View style={styles.intro}>
         <Muted>
-          Sellers broadcasting on Vidnov right now. Sessions are hosted by the same live
-          infrastructure the website uses.
+          Sellers broadcasting on Vidnov right now. Video plays in the app, from the same live
+          rooms the website uses.
+          {status === 'signedIn' ? '' : ' Sign in to comment or buy during the stream.'}
         </Muted>
       </View>
 
@@ -56,7 +65,12 @@ export default function LiveScreen() {
         onRefresh={reload}
         renderItem={({ item }) => (
           <Pressable
-            onPress={() => router.push(`/shop/${item.sellerId}`)}
+            onPress={() =>
+              router.push({
+                pathname: '/live/[id]',
+                params: { id: item.id, sellerId: item.sellerId, title: item.title ?? '' },
+              })
+            }
             accessibilityRole="button"
             accessibilityLabel={`${item.title || 'Live session'}, ${item.viewerCount} watching`}
             style={({ pressed }) => [styles.card, pressed && { opacity: 0.9 }]}
@@ -75,7 +89,7 @@ export default function LiveScreen() {
               <Text numberOfLines={2} style={styles.title}>
                 {item.title || 'Live session'}
               </Text>
-              <Muted>Tap to open the seller&apos;s shop</Muted>
+              <Muted>{item.shopName || item.sellerName || 'Tap to watch'}</Muted>
             </View>
           </Pressable>
         )}
@@ -94,14 +108,6 @@ export default function LiveScreen() {
           />
         }
       />
-
-      <View style={styles.notice}>
-        <Ionicons name="information-circle-outline" size={16} color={colors.textMuted} />
-        <Muted style={{ flex: 1 }}>
-          In-app live video needs the LiveKit native module, which is not bundled in this build.
-          Discovery, seller shops and live counts work{status === 'signedIn' ? '' : ' without an account'}.
-        </Muted>
-      </View>
     </Screen>
   );
 }
@@ -119,32 +125,26 @@ const styles = StyleSheet.create({
   media: { height: 150, backgroundColor: colors.surfaceRaised },
   mediaFallback: { backgroundColor: colors.primarySoft },
   mediaOverlay: {
-    flex: 1,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
-    padding: spacing.md,
+    padding: spacing.sm,
   },
   viewers: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: 'rgba(10,10,11,0.55)',
-    borderRadius: radius.pill,
     paddingHorizontal: spacing.sm,
-    paddingVertical: 3,
+    paddingVertical: 4,
+    borderRadius: radius.pill,
+    backgroundColor: 'rgba(0,0,0,0.6)',
   },
-  viewerText: { color: colors.text, fontSize: 11, fontWeight: '600' },
-  body: { padding: spacing.md, gap: 3 },
-  title: { color: colors.text, ...type.bodyStrong },
-  notice: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    alignItems: 'flex-start',
-    margin: spacing.lg,
-    marginTop: 0,
-    padding: spacing.md,
-    borderRadius: radius.md,
-    backgroundColor: colors.surface,
-  },
+  viewerText: { ...type.caption, color: colors.text },
+  body: { padding: spacing.md, gap: 4 },
+  title: { ...type.bodyStrong, color: colors.text },
 });
