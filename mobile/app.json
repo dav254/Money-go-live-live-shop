@@ -29,11 +29,26 @@
           "action": "VIEW",
           "autoVerify": true,
           "data": [
-            { "scheme": "https", "host": "vidnov.com", "pathPrefix": "/products" },
-            { "scheme": "https", "host": "vidnov.com", "pathPrefix": "/sellers" },
-            { "scheme": "https", "host": "vidnov.com", "pathPrefix": "/requests" }
+            {
+              "scheme": "https",
+              "host": "vidnov.com",
+              "pathPrefix": "/products"
+            },
+            {
+              "scheme": "https",
+              "host": "vidnov.com",
+              "pathPrefix": "/sellers"
+            },
+            {
+              "scheme": "https",
+              "host": "vidnov.com",
+              "pathPrefix": "/requests"
+            }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ]
     },
@@ -59,6 +74,14 @@
           "image": "./assets/images/splash-icon.png",
           "resizeMode": "contain",
           "backgroundColor": "#0A0A0A"
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "extraProguardRules": "-keep class livekit.** { *; }\n-dontwarn livekit.**\n-keep class org.webrtc.** { *; }\n-dontwarn org.webrtc.**\n-keep class com.oney.WebRTCModule.** { *; }\n-keep class com.livekit.** { *; }\n-dontwarn com.livekit.**"
+          }
         }
       ]
     ],
