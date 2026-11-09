@@ -29,6 +29,8 @@ export interface Product {
   listingType?: 'product' | 'service';
   priceMode?: 'quote' | 'hourly' | 'fixed';
   uploadDate?: unknown;
+  /** Public like counter written by the website's heart icon. */
+  likes?: number;
 }
 
 export interface Seller {
@@ -52,6 +54,10 @@ export interface Profile {
   location?: string;
   /** The number couriers and buyers use; the profile route writes it. */
   phoneNumber?: string;
+  /** Listing ids this account saved (the website's wishlist array). */
+  wishlist?: string[];
+  /** Seller ids this account follows — written by `POST /api/follow`. */
+  following?: string[];
 }
 
 export interface LiveRoom {
@@ -170,6 +176,7 @@ export interface Listing {
   listingType?: 'product' | 'service';
   priceMode?: 'quote' | 'hourly' | 'fixed';
   uploadedAt?: string | null;
+  likes?: number;
 }
 
 /** Four-field public seller card. */

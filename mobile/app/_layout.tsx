@@ -6,6 +6,18 @@ import { View } from 'react-native';
 import { DarkTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { useFonts } from 'expo-font';
+import {
+  Manrope_600SemiBold,
+  Manrope_700Bold,
+  Manrope_800ExtraBold,
+} from '@expo-google-fonts/manrope';
+import {
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+} from '@expo-google-fonts/inter';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 import { AuthProvider, useAuth } from '../src/lib/auth';
@@ -86,6 +98,23 @@ function LaunchGate() {
 }
 
 export default function RootLayout() {
+  /*
+   * Discovery's type families (Manrope for headings and prices, Inter for body
+   * copy) are bundled with the app rather than fetched, so the shop window
+   * never renders in a different font on a slow connection. Rendering starts
+   * before the swap completes and every style names a fallback, so a missing
+   * font changes weight, never layout.
+   */
+  useFonts({
+    Manrope_600SemiBold,
+    Manrope_700Bold,
+    Manrope_800ExtraBold,
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
+  });
+
   return (
     <SafeAreaProvider>
       <AuthProvider>

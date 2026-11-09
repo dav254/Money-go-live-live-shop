@@ -172,6 +172,125 @@ export const catalog = {
     ),
   business: (sellerId: string) =>
     apiRequest<any>(`/api/public/business/${encodeURIComponent(sellerId)}`),
+  /**
+   * The like button. The website increments `products/{id}.likes` from the
+   * browser; the app has no Firestore client, so the same field is written
+   * through a server route instead. Sending the intended end state (not a
+   * toggle) keeps a retry from double-counting.
+   */
+  like: (token: string, listingId: string, liked: boolean) =>
+    apiRequest<{ ok: boolean; liked: boolean; likes: number }>(
+      `/api/mobile/listing/${encodeURIComponent(listingId)}/like`,
+      { method: 'POST', body: { liked }, token },
+    ),
+  /** Public thread under a listing (`products/{id}/comments`). */
+  comments: (listingId: string) =>
+    apiRequest<{ comments: ListingComment[]; count: number }>(
+      `/api/mobile/listing/${encodeURIComponent(listingId)}/comments`,
+    ),
+  comment: (token: string, listingId: string, text: string) =>
+    apiRequest<{ ok: boolean; comment: ListingComment }>(
+      `/api/mobile/listing/${encodeURIComponent(listingId)}/comments`,
+      { method: 'POST', body: { text }, token },
+    ),
+};
+
+/** One line under a listing — the shape both the web and this route write. */
+export interface ListingComment {
+  id: string;
+  text: string;
+  userId: string;
+  userName: string;
+  userAvatar: string | null;
+  createdAt: string | null;
+}
+
+/* ── Discovery (the server query the website's Shop panel uses) ──────────── */
+
+export type DiscoverKind = 'all' | 'listings' | 'businesses';
+export type DiscoverSort = 'relevance' | 'newest' | 'nearby';
+
+export interface DiscoverListingItem {
+  kind: 'product' | 'service';
+  id: string;
+  name: string;
+  description?: string;
+  imageUrl?: string;
+  price?: number;
+  localPrice?: number;
+  localCurrency?: string;
+  priceMode?: 'quote' | 'hourly' | 'fixed';
+  category?: string;
+  location?: string;
+  availabilityState?: string;
+  availabilityLabel?: string;
+  availableNow: boolean;
+  sponsored: boolean;
+  sellerId: string;
+  sellerName?: string;
+  shopHref: string;
+  href: string;
+  distanceKm?: number;
+  score: number;
+}
+
+export interface DiscoverBusinessItem {
+  kind: 'business';
+  id: string;
+  name: string;
+  slug: string;
+  category?: string;
+  description?: string;
+  logoUrl?: string;
+  location?: string;
+  verificationStatus?: string;
+  verified: boolean;
+  distanceKm?: number;
+  shopHref: string;
+  score: number;
+}
+
+export type DiscoverItem = DiscoverListingItem | DiscoverBusinessItem;
+
+export interface DiscoverPage {
+  items: DiscoverItem[];
+  total: number;
+  businesses: number;
+  listings: number;
+  page: number;
+  limit: number;
+  hasMore: boolean;
+  scanned: number;
+  windowCapped: boolean;
+}
+
+/**
+ * `GET /api/discover` — the same ranked public query the website's Shop panel
+ * calls, so the app cannot rank the catalogue differently. Rate limited by the
+ * server; callers debounce.
+ */
+export const discover = {
+  search: (params: {
+    q?: string;
+    kind?: DiscoverKind;
+    category?: string;
+    location?: string;
+    availability?: 'any' | 'available';
+    sort?: DiscoverSort;
+    page?: number;
+    limit?: number;
+  }) => {
+    const qs = new URLSearchParams();
+    if (params.q) qs.set('q', params.q);
+    if (params.kind && params.kind !== 'all') qs.set('kind', params.kind);
+    if (params.category) qs.set('category', params.category);
+    if (params.location) qs.set('location', params.location);
+    if (params.availability === 'available') qs.set('availability', 'available');
+    if (params.sort && params.sort !== 'relevance') qs.set('sort', params.sort);
+    qs.set('page', String(params.page ?? 1));
+    qs.set('limit', String(params.limit ?? 24));
+    return apiRequest<DiscoverPage>(`/api/discover?${qs.toString()}`);
+  },
 };
 
 /* ── Nearby ──────────────────────────────────────────────────────────────── */

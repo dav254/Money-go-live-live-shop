@@ -2,48 +2,54 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
+import { CommentsSheet } from './comments-sheet';
 import { DiscoveryPost } from './post';
 import { catalog } from '../../lib/api';
 import { newestFirst } from '../../lib/discovery';
-import { useResource } from '../../lib/use-resource';
-import { colors, radius, spacing, type } from '../../theme';
+import { fonts, premium, radius, spacing } from '../../theme';
 import type { Product, SellerCard } from '../../lib/types';
 
 /**
  * THE FEED — one listing per screen, one gesture: up.
  *
- * A page of the real catalogue (`/api/search`, the same endpoint the website
- * reads), ordered newest-first on the device because `uploadDate` is written
- * by several generations of the upload form. Paging is disabled: the list
- * snaps a full cell at a time, so a flick lands on a listing and never between
- * two of them.
+ * The catalogue page is fetched by the section (so Themes can borrow a real
+ * cover from it) and handed here already sorted newest-first. Paging is
+ * full-cell: a flick lands on a listing, never between two.
  *
- * The seller card (shop name, verified mark, avatar) is not on the search
- * projection, so it is fetched for the post on screen only and cached — one
- * request per post actually seen, never fifty up front.
+ * Seller cards and live state are not on the search projection, so the visible
+ * post resolves its seller through `/api/mobile/listing/{id}` and caches the
+ * answer — one request per post actually seen, never fifty up front.
  */
-export function DiscoveryFeed({ query }: { query: string }) {
+export function DiscoveryFeed({
+  products,
+  loading,
+  error,
+  onRetry,
+  liveSellerIds,
+}: {
+  products: Product[];
+  loading: boolean;
+  error: string | null;
+  onRetry: () => void;
+  liveSellerIds: Set<string>;
+}) {
   const [viewport, setViewport] = useState(0);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [sellers, setSellers] = useState<Record<string, SellerCard | null>>({});
+  const [commentsFor, setCommentsFor] = useState<string | null>(null);
+  const [commentCounts, setCommentCounts] = useState<Record<string, number>>({});
   const resolved = useRef<Record<string, boolean>>({});
 
-  const { data, loading, error, reload } = useResource(
-    () => catalog.search({ q: query, limit: 50 }),
-    [query],
-  );
-
-  const items = useMemo<Product[]>(() => {
-    const raw: Product[] = Array.isArray(data?.products) ? data!.products : [];
-    return [...raw].sort(newestFirst);
-  }, [data]);
+  const items = useMemo(() => [...products].sort(newestFirst), [products]);
 
   useEffect(() => {
     if (items.length === 0) {
       setActiveId(null);
       return;
     }
-    setActiveId((current) => (current && items.some((item) => item.id === current) ? current : items[0].id));
+    setActiveId((current) =>
+      current && items.some((item) => item.id === current) ? current : items[0].id,
+    );
   }, [items]);
 
   useEffect(() => {
@@ -57,7 +63,7 @@ export function DiscoveryFeed({ query }: { query: string }) {
         setSellers((prev) => ({ ...prev, [activeId]: (result?.seller ?? null) as SellerCard | null }));
       })
       .catch(() => {
-        // The post renders without a shop card rather than failing the feed.
+        // A post without a shop card still renders; the feed does not fail.
         if (alive) setSellers((prev) => ({ ...prev, [activeId]: null }));
       });
     return () => {
@@ -65,8 +71,6 @@ export function DiscoveryFeed({ query }: { query: string }) {
     };
   }, [activeId]);
 
-  // FlatList's own callback type is not exported by this React Native
-  // version, so the shape it passes is described here instead.
   const onViewable = useRef(
     (info: { viewableItems: Array<{ isViewable?: boolean | null; item?: unknown }> }) => {
       const first = info.viewableItems.find((entry) => entry.isViewable);
@@ -84,9 +88,13 @@ export function DiscoveryFeed({ query }: { query: string }) {
         seller={sellers[item.id]}
         active={item.id === activeId}
         height={viewport}
+        likes={item.likes}
+        isLive={!!item.sellerId && liveSellerIds.has(item.sellerId)}
+        commentCount={commentCounts[item.id]}
+        onOpenComments={() => setCommentsFor(item.id)}
       />
     ),
-    [activeId, sellers, viewport],
+    [activeId, commentCounts, liveSellerIds, sellers, viewport],
   );
 
   return (
@@ -94,35 +102,34 @@ export function DiscoveryFeed({ query }: { query: string }) {
       style={styles.root}
       onLayout={(event) => setViewport(Math.round(event.nativeEvent.layout.height))}
     >
-      {loading && !data ? (
+      {loading && products.length === 0 ? (
         <View style={styles.center}>
-          <ActivityIndicator color={colors.primary} />
-          <Text style={styles.centerLabel}>Loading the feed</Text>
+          <ActivityIndicator color={premium.brand} />
+          <Text style={styles.centerLabel}>LOADING THE FEED</Text>
         </View>
       ) : error ? (
         <View style={styles.center}>
-          <Ionicons name="alert-circle-outline" size={26} color={colors.textFaint} />
+          <Ionicons name="alert-circle-outline" size={26} color={premium.textMuted} />
           <Text style={styles.centerTitle}>Discovery could not load</Text>
           <Text style={styles.centerBody}>
             The listings did not come through. Nothing is wrong with your account — try again.
           </Text>
-          <Pressable onPress={reload} style={styles.retry} accessibilityRole="button">
-            <Ionicons name="refresh" size={14} color={colors.background} />
-            <Text style={styles.retryLabel}>Retry</Text>
+          <Pressable onPress={onRetry} style={styles.retry} accessibilityRole="button">
+            <Ionicons name="refresh" size={14} color={premium.text} />
+            <Text style={styles.retryLabel}>RETRY</Text>
           </Pressable>
         </View>
       ) : items.length === 0 ? (
         <View style={styles.center}>
-          <Ionicons name="compass-outline" size={26} color={colors.textFaint} />
-          <Text style={styles.centerTitle}>{query.trim() ? 'No matches' : 'Nothing here yet'}</Text>
+          <Ionicons name="compass-outline" size={26} color={premium.textMuted} />
+          <Text style={styles.centerTitle}>Nothing here yet</Text>
           <Text style={styles.centerBody}>
-            {query.trim()
-              ? `Nothing matches “${query.trim()}”. Try a different word or clear the search.`
-              : 'Once sellers publish listings, they appear here straight away.'}
+            Once sellers publish listings, they appear here straight away. Try Shop to search the
+            catalogue, or Themes to browse a collection.
           </Text>
-          <Pressable onPress={reload} style={styles.retry} accessibilityRole="button">
-            <Ionicons name="refresh" size={14} color={colors.background} />
-            <Text style={styles.retryLabel}>Refresh</Text>
+          <Pressable onPress={onRetry} style={styles.retry} accessibilityRole="button">
+            <Ionicons name="refresh" size={14} color={premium.text} />
+            <Text style={styles.retryLabel}>REFRESH</Text>
           </Pressable>
         </View>
       ) : viewport > 0 ? (
@@ -140,28 +147,55 @@ export function DiscoveryFeed({ query }: { query: string }) {
           windowSize={3}
           initialNumToRender={1}
           maxToRenderPerBatch={2}
-          removeClippedSubviews
+          removeClippedSubviews={false}
         />
       ) : null}
+
+      <CommentsSheet
+        listingId={commentsFor}
+        visible={!!commentsFor}
+        onClose={() => setCommentsFor(null)}
+        onCount={(count) =>
+          setCommentCounts((prev) => (commentsFor ? { ...prev, [commentsFor]: count } : prev))
+        }
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.background },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl, gap: spacing.sm },
-  centerLabel: { color: colors.textMuted, fontSize: 11, letterSpacing: 2, textTransform: 'uppercase' },
-  centerTitle: { color: colors.text, ...type.heading, textAlign: 'center' },
-  centerBody: { color: colors.textMuted, ...type.caption, textAlign: 'center', maxWidth: 300, lineHeight: 18 },
+  root: { flex: 1, backgroundColor: premium.background },
+  center: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing.xl,
+    gap: spacing.sm,
+  },
+  centerLabel: {
+    color: premium.textMuted,
+    fontFamily: fonts.bodyMedium,
+    fontSize: 10.5,
+    letterSpacing: 2.2,
+  },
+  centerTitle: { color: premium.text, fontFamily: fonts.heading, fontSize: 17, textAlign: 'center' },
+  centerBody: {
+    color: premium.textMuted,
+    fontFamily: fonts.body,
+    fontSize: 12.5,
+    textAlign: 'center',
+    maxWidth: 300,
+    lineHeight: 19,
+  },
   retry: {
     marginTop: spacing.sm,
     height: 40,
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.xl,
     borderRadius: radius.pill,
-    backgroundColor: colors.primary,
+    backgroundColor: premium.brand,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
   },
-  retryLabel: { color: colors.background, fontSize: 12, fontWeight: '800' },
+  retryLabel: { color: premium.text, fontFamily: fonts.bodyBold, fontSize: 11.5, letterSpacing: 1 },
 });

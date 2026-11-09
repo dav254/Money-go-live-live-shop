@@ -31,6 +31,11 @@ import { colors, HIT, radius, spacing, type } from '../../theme';
  *
  * The Store / Create & broadcast / Manage / You groups come from
  * `seller/nav.ts`, and every row there is a route that exists.
+ *
+ * There is no role switcher in this panel: it is the seller workspace and
+ * lists seller destinations only. A seller who wants to shop uses the system
+ * back gesture, which returns to the shopping side without having to be shown
+ * the buyer's menu from inside their own.
  */
 
 const PANEL_MAX = 340;
@@ -38,7 +43,7 @@ const PANEL_MAX = 340;
 export function SellerDrawer({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { profile, setMode } = useAuth();
+  const { profile } = useAuth();
   const counts = useNavCounts();
 
   const [screenWidth, setScreenWidth] = useState(Dimensions.get('window').width);
@@ -74,11 +79,6 @@ export function SellerDrawer({ visible, onClose }: { visible: boolean; onClose: 
   const go = (href: string) => {
     onClose();
     setTimeout(() => router.push(href as never), 120);
-  };
-
-  const backToBuying = async () => {
-    await setMode('buyer');
-    go('/');
   };
 
   /** Seller routes are absolute; tab routes arrive with `(tabs)` attached. */
@@ -126,22 +126,6 @@ export function SellerDrawer({ visible, onClose }: { visible: boolean; onClose: 
               >
                 <Ionicons name="close" size={20} color={colors.textMuted} />
               </Pressable>
-            </View>
-
-            <View style={styles.switcher}>
-              <Pressable
-                onPress={backToBuying}
-                accessibilityRole="button"
-                accessibilityLabel="Switch to buying"
-                style={styles.switchHalf}
-              >
-                <Ionicons name="bag-handle-outline" size={15} color={colors.textMuted} />
-                <Text style={styles.switchText}>Buying</Text>
-              </Pressable>
-              <View style={[styles.switchHalf, styles.switchHalfActive]}>
-                <Ionicons name="storefront-outline" size={15} color={colors.text} />
-                <Text style={[styles.switchText, styles.switchTextActive]}>Selling</Text>
-              </View>
             </View>
 
             <ScrollView
@@ -212,19 +196,6 @@ export function SellerDrawer({ visible, onClose }: { visible: boolean; onClose: 
                   </View>
                   <Ionicons name="chevron-forward" size={16} color={colors.textFaint} />
                 </Pressable>
-                <Pressable
-                  onPress={backToBuying}
-                  accessibilityRole="button"
-                  accessibilityLabel="Back to buying. Return to the shopping side"
-                  style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
-                >
-                  <Ionicons name="bag-handle-outline" size={19} color={colors.textMuted} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.rowLabel}>Back to buying</Text>
-                    <Text style={styles.rowDetail}>Return to the shopping side</Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={16} color={colors.textFaint} />
-                </Pressable>
               </View>
             </ScrollView>
           </SafeAreaView>
@@ -261,27 +232,6 @@ const styles = StyleSheet.create({
   name: { ...type.bodyStrong, color: colors.text },
   sub: { ...type.caption, color: colors.textFaint },
   close: { padding: spacing.xs },
-  switcher: {
-    flexDirection: 'row',
-    marginHorizontal: spacing.lg,
-    padding: 3,
-    borderRadius: radius.pill,
-    backgroundColor: colors.surface,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-  },
-  switchHalf: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 8,
-    borderRadius: radius.pill,
-  },
-  switchHalfActive: { backgroundColor: colors.surfaceRaised },
-  switchText: { ...type.caption, fontWeight: '700', color: colors.textMuted },
-  switchTextActive: { color: colors.text },
   list: { padding: spacing.md, paddingBottom: spacing.xxl, gap: spacing.md },
   footer: {
     marginTop: spacing.sm,

@@ -37,7 +37,7 @@ const PANEL_MAX = 340;
 export function BuyerDrawer({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { profile, setMode, canSell } = useAuth();
+  const { profile, canSell } = useAuth();
   const counts = useNavCounts();
 
   const [screenWidth, setScreenWidth] = useState(Dimensions.get('window').width);
@@ -76,16 +76,6 @@ export function BuyerDrawer({ visible, onClose }: { visible: boolean; onClose: (
     setTimeout(() => router.push(href as never), 120);
   };
 
-  const openSellerSide = async () => {
-    if (!canSell) {
-      onClose();
-      setTimeout(() => router.push('/onboarding/role'), 120);
-      return;
-    }
-    await setMode('seller');
-    go('/seller');
-  };
-
   return (
     <Modal
       visible={visible}
@@ -121,22 +111,6 @@ export function BuyerDrawer({ visible, onClose }: { visible: boolean; onClose: (
                 style={styles.close}
               >
                 <Ionicons name="close" size={20} color={colors.textMuted} />
-              </Pressable>
-            </View>
-
-            <View style={styles.switcher}>
-              <View style={[styles.switchHalf, styles.switchHalfActive]}>
-                <Ionicons name="bag-handle-outline" size={15} color={colors.text} />
-                <Text style={[styles.switchText, styles.switchTextActive]}>Buying</Text>
-              </View>
-              <Pressable
-                onPress={openSellerSide}
-                accessibilityRole="button"
-                accessibilityLabel="Switch to selling"
-                style={styles.switchHalf}
-              >
-                <Ionicons name="storefront-outline" size={15} color={colors.textMuted} />
-                <Text style={styles.switchText}>Selling</Text>
               </Pressable>
             </View>
 
@@ -208,23 +182,29 @@ export function BuyerDrawer({ visible, onClose }: { visible: boolean; onClose: (
                   </View>
                   <Ionicons name="chevron-forward" size={16} color={colors.textFaint} />
                 </Pressable>
-                <Pressable
-                  onPress={openSellerSide}
-                  accessibilityRole="button"
-                  accessibilityLabel={
-                    canSell ? 'Become a seller. Open your seller workspace' : 'Become a seller. Set up your shop'
-                  }
-                  style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
-                >
-                  <Ionicons name="briefcase-outline" size={19} color={colors.textMuted} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.rowLabel}>Become a seller</Text>
-                    <Text style={styles.rowDetail}>
-                      {canSell ? 'Open your seller workspace' : 'Set up your shop'}
-                    </Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={16} color={colors.textFaint} />
-                </Pressable>
+                {/* Only offered to accounts that cannot sell yet: this is how
+                    a buyer joins, not a doorway into the seller menu. An
+                    account that already sells switches sides from its own
+                    account screen, so the buyer drawer never lists a single
+                    seller destination. */}
+                {canSell ? null : (
+                  <Pressable
+                    onPress={() => {
+                      onClose();
+                      setTimeout(() => router.push('/onboarding/role'), 120);
+                    }}
+                    accessibilityRole="button"
+                    accessibilityLabel="Become a seller. Set up your shop"
+                    style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+                  >
+                    <Ionicons name="briefcase-outline" size={19} color={colors.textMuted} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.rowLabel}>Become a seller</Text>
+                      <Text style={styles.rowDetail}>Set up your shop</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={16} color={colors.textFaint} />
+                  </Pressable>
+                )}
               </View>
             </ScrollView>
           </SafeAreaView>
@@ -276,27 +256,6 @@ const styles = StyleSheet.create({
   name: { ...type.bodyStrong, color: colors.text },
   sub: { ...type.caption, color: colors.textFaint },
   close: { padding: spacing.xs },
-  switcher: {
-    flexDirection: 'row',
-    marginHorizontal: spacing.lg,
-    padding: 3,
-    borderRadius: radius.pill,
-    backgroundColor: colors.surface,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-  },
-  switchHalf: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 8,
-    borderRadius: radius.pill,
-  },
-  switchHalfActive: { backgroundColor: colors.surfaceRaised },
-  switchText: { ...type.caption, fontWeight: '700', color: colors.textMuted },
-  switchTextActive: { color: colors.text },
   list: { padding: spacing.md, paddingBottom: spacing.xxl, gap: spacing.md },
   footer: {
     marginTop: spacing.sm,

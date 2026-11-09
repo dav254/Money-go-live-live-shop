@@ -3,7 +3,7 @@
     "name": "Vidnov",
     "owner": "vidnovs-team",
     "slug": "vidnov",
-    "version": "1.2.1",
+    "version": "1.3.0",
     "scheme": "vidnov",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
@@ -12,7 +12,7 @@
     "primaryColor": "#FF4D2E",
     "android": {
       "package": "com.vidnov.app",
-      "versionCode": 5,
+      "versionCode": 6,
       "adaptiveIcon": {
         "backgroundColor": "#0A0A0A",
         "foregroundImage": "./assets/images/android-icon-foreground.png"

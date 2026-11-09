@@ -30,6 +30,10 @@ const ROOT = process.cwd();
 const REQUIRED_ROUTES = [
   // added for the mobile client
   'mobile/listing/[id]',
+  // Discovery: the like counter and the comment thread under a listing.
+  // Both reuse the fields/collection the website already writes.
+  'mobile/listing/[id]/like',
+  'mobile/listing/[id]/comments',
   'mobile/catalog',
   'mobile/orders',
   'mobile/seller/overview',
@@ -46,6 +50,8 @@ const REQUIRED_ROUTES = [
   // buyer discovery and order reviews
   'nearby',
   'reviews',
+  // the ranked public catalogue query the Shop panel shares with the website
+  'discover',
   // existing shared backend the app reuses
   'search',
   'home/live',

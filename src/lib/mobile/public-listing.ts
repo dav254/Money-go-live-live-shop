@@ -39,6 +39,8 @@ export interface PublicListing {
   priceMode?: 'quote' | 'hourly' | 'fixed';
   /** ISO 8601, or null when the document has no usable timestamp. */
   uploadedAt?: string | null;
+  /** Public like counter — read-only, the same field the website writes. */
+  likes?: number;
 }
 
 function str(value: unknown): string | undefined {
@@ -156,6 +158,7 @@ export function projectListing(id: string, data: Record<string, unknown> | null 
     listingType,
     priceMode,
     uploadedAt: toIso(d.uploadDate) ?? toIso(d.createdAt),
+    likes: num(d.likes),
   };
 }
 

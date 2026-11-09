@@ -51,5 +51,45 @@ export const type = {
   caption: { fontSize: 12.5, fontWeight: '500' as const },
 } as const;
 
+/**
+ * PREMIUM MIDNIGHT — the Discovery section's design system.
+ *
+ * Discovery is the shop window: near-black page, raised content surfaces and
+ * a single brand red used only for the actions that matter (BUY, the selected
+ * tab, a live dot). Red is never a background wash here. These are separate
+ * from `colors` above so restyling the shop window cannot quietly restyle the
+ * seller's tools.
+ */
+export const premium = {
+  background: '#101010',
+  surface: '#191919',
+  raised: '#252525',
+  brand: '#F04438',
+  brandPressed: '#D93A2E',
+  brandSoft: 'rgba(240, 68, 56, 0.16)',
+  text: '#FFFFFF',
+  textMuted: '#A3A3A3',
+  border: '#353535',
+  live: '#FF3030',
+  success: '#27C982',
+  scrimStrong: 'rgba(16,16,16,0.92)',
+  scrimSoft: 'rgba(16,16,16,0.35)',
+} as const;
+
+/**
+ * Type families. Manrope carries headings and prices, Inter carries body copy
+ * and buttons — both loaded once in `app/_layout.tsx`. A family that failed to
+ * load falls back to the system font, which is why every style keeps working
+ * with `undefined`. */
+export const fonts = {
+  headingExtra: 'Manrope_800ExtraBold',
+  heading: 'Manrope_700Bold',
+  headingMedium: 'Manrope_600SemiBold',
+  body: 'Inter_400Regular',
+  bodyMedium: 'Inter_500Medium',
+  bodySemi: 'Inter_600SemiBold',
+  bodyBold: 'Inter_700Bold',
+} as const;
+
 /** Consistent hit target for every tappable element (Android guideline 48dp). */
 export const HIT = 48;

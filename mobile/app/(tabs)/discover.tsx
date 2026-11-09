@@ -1,19 +1,21 @@
 import React from 'react';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { DiscoverySection } from '../../src/components/discovery/section';
-import { Screen } from '../../src/components/ui';
+import { premium } from '../../src/theme';
 
 /**
  * DISCOVER (buyer tab).
  *
- * The website's `/app/buyer/discovery` rendered natively: one section with
- * three panels — the full-screen listing feed, the themed collections and the
- * catalogue — over the same `/api/search` the website reads.
+ * The website's discovery section natively: one place with DISCOVER, THEMES
+ * and SHOP inside it, over the same `/api/search` and `/api/discover` the
+ * website reads. The section owns its own compact header, so this screen only
+ * supplies the safe area.
  */
 export default function DiscoverScreen() {
   return (
-    <Screen>
-      <DiscoverySection />
-    </Screen>
+    <SafeAreaView edges={['top', 'left', 'right']} style={{ flex: 1, backgroundColor: premium.background }}>
+      <DiscoverySection showHeader />
+    </SafeAreaView>
   );
 }

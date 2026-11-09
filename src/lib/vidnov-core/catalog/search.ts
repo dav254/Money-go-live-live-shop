@@ -56,6 +56,12 @@ export interface SearchProductDoc {
   videoUrl?: string;
   videoUrls?: string[];
   imageUrls?: string[];
+  /**
+   * The public like counter — the same `likes` field the website's heart
+   * increments. Exposed read-only so a feed can show a real number instead of
+   * an invented one.
+   */
+  likes?: number;
 }
 
 export interface SearchInput {
@@ -172,6 +178,7 @@ function mapDoc(id: string, data: Record<string, unknown>): SearchProductDoc {
     videoUrl: str(data.videoUrl),
     videoUrls: strList(data.videoUrls),
     imageUrls: strList(data.imageUrls),
+    likes: num(data.likes),
   };
 }
 

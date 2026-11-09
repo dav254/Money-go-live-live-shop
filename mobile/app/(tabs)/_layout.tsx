@@ -4,6 +4,7 @@ import { Tabs, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 import { BuyerDrawer, MenuButton } from '../../src/components/buyer/drawer';
+import { subscribeBuyerMenu } from '../../src/lib/menu-bus';
 import { useAuth } from '../../src/lib/auth';
 import { notifications } from '../../src/lib/api';
 import { colors, spacing } from '../../src/theme';
@@ -75,6 +76,10 @@ export default function TabsLayout() {
   const unread = useUnreadBadge();
   const [menuOpen, setMenuOpen] = useState(false);
 
+  /* The Discovery header shows its own menu button (the tab header is hidden
+     there), so it announces through this bus instead of duplicating state. */
+  useEffect(() => subscribeBuyerMenu(() => setMenuOpen(true)), []);
+
   const tabIcon =
     (name: keyof typeof Ionicons.glyphMap, focusedName: keyof typeof Ionicons.glyphMap) =>
     ({ color, focused, size }: { color: ColorValue | null; focused: boolean; size: number }) => (
@@ -122,6 +127,10 @@ export default function TabsLayout() {
         name="discover"
         options={{
           title: 'Discover',
+          /* The section renders its own compact bar (logo, DISCOVER, search,
+             bell, menu). Two stacked headers would cost the feed a row of
+             height and show two different menu buttons. */
+          headerShown: false,
           tabBarIcon: tabIcon('search-outline', 'search'),
         }}
       />

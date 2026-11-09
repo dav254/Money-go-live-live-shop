@@ -62,10 +62,36 @@ test('the drawers end in different footers', () => {
 
   assert.match(seller, /THIS SHOP/);
   assert.match(seller, /Shop settings/);
-  assert.match(seller, /Back to buying/);
 
   assert.doesNotMatch(buyer, /Back to buying/, 'buyer footer carried a seller row');
   assert.doesNotMatch(seller, /Become a seller|Shopping settings/, 'seller footer carried a buyer row');
+});
+
+test('neither drawer offers the other side as a mode switch', () => {
+  const buyer = readFileSync(buyerDrawer, 'utf8');
+  const seller = readFileSync(sellerDrawer, 'utf8');
+
+  /*
+   * The first version carried a Buying | Selling segmented control at the top
+   * of BOTH panels. That put the other role's name, icon and destination one
+   * tap away inside each menu — a seller opening their own drawer could read
+   * and enter the buyer's navigation, and the reverse. The two sides are
+   * reached through navigation (Android back returns a seller to the shop), so
+   * neither panel may advertise the other's mode.
+   */
+  for (const [role, source] of [
+    ['buyer', buyer],
+    ['seller', seller],
+  ] as const) {
+    assert.doesNotMatch(source, /Switch to (buying|selling)/, `${role} drawer kept a mode switch`);
+    assert.doesNotMatch(source, /Back to buying/, `${role} drawer kept a back-to-buying row`);
+    assert.doesNotMatch(source, /setMode\(/, `${role} drawer switched roles from the menu`);
+  }
+
+  // The buyer panel may still advertise how to start selling (that is signup),
+  // but it must never render the seller drawer's destinations.
+  assert.doesNotMatch(buyer, /SellerDrawer|SELLER_NAV/);
+  assert.doesNotMatch(seller, /BuyerDrawer|BUYER_NAV/);
 });
 
 test('headers open the drawer that belongs to their side', () => {
