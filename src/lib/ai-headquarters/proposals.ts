@@ -172,6 +172,78 @@ export async function createProposal(
   return record;
 }
 
+export interface AdminProposalInput {
+  uid: string;
+  title: unknown;
+  summary: unknown;
+  action: unknown;
+}
+
+/**
+ * Founder-authored proposal. Unlike an agent proposal this does not need an
+ * agent token, but it still freezes the exact action into a digest and still
+ * executes nothing on approval. OpenCode task creation checks the approved
+ * digest again before starting a session.
+ */
+export async function createAdminProposal(
+  db: Firestore,
+  input: AdminProposalInput,
+): Promise<ProposalRecord> {
+  const title = cleanText(input.title, HQ_LIMITS.titleMax);
+  const summary = cleanText(input.summary, HQ_LIMITS.summaryMax);
+  if (title.length < 3) throw new ProposalError('invalid_input', 'A proposal needs a short title.');
+
+  const rawAction = (input.action ?? {}) as { type?: unknown; params?: unknown };
+  if (rawAction.type !== 'opencode_task' || !isProposalAction(rawAction.type)) {
+    throw new ProposalError('invalid_input', 'Admin proposals may only prepare an OpenCode task.');
+  }
+  const params =
+    rawAction.params && typeof rawAction.params === 'object' && !Array.isArray(rawAction.params)
+      ? (rawAction.params as Record<string, unknown>)
+      : {};
+  assertNoSecrets(params);
+  const action: ProposalAction = { type: 'opencode_task', params };
+  if (JSON.stringify(action).length > HQ_LIMITS.actionBytesMax) {
+    throw new ProposalError('invalid_input', 'That task is too large — shorten the plan or prompt.');
+  }
+
+  const now = new Date();
+  const ref = db.collection(PROPOSALS_COLLECTION).doc();
+  const record: ProposalRecord = {
+    id: ref.id,
+    kind: 'investigation',
+    title,
+    summary,
+    action,
+    actionDigest: digestAction(action),
+    requestedBy: {
+      agentId: 'vidnov-intelligence',
+      name: 'Vidnov Intelligence',
+      department: 'engineering',
+    },
+    status: 'pending',
+    createdAt: now.toISOString(),
+  };
+
+  await ref.set(record);
+  await writeAudit(db, {
+    action: 'proposal_created',
+    actor: input.uid,
+    agentId: 'vidnov-intelligence',
+    proposalId: record.id,
+    outcome: 'ok',
+    note: `opencode task: ${title}`,
+  });
+
+  return record;
+}
+
+export async function getProposal(db: Firestore, id: string): Promise<ProposalRecord | null> {
+  if (!id) return null;
+  const snap = await db.collection(PROPOSALS_COLLECTION).doc(id).get();
+  return snap.exists ? (snap.data() as ProposalRecord) : null;
+}
+
 export async function decideProposal(
   db: Firestore,
   params: {

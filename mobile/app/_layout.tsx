@@ -146,14 +146,16 @@ export default function RootLayout() {
               <Stack.Screen name="profile/edit" options={{ title: 'Edit profile' }} />
               <Stack.Screen name="shop/[sellerId]" options={{ title: 'Shop' }} />
               <Stack.Screen name="chat/[id]" options={{ title: 'Chat' }} />
-              <Stack.Screen name="orders" options={{ title: 'My orders' }} />
+              {/* Orders and Saved moved into the tab group, so they are no
+                  longer children of this stack — their URLs did not change. */}
               <Stack.Screen name="offers" options={{ title: 'Requests & offers' }} />
-              <Stack.Screen name="saved" options={{ title: 'Saved items' }} />
+              <Stack.Screen name="location" options={{ title: 'My location' }} />
               <Stack.Screen name="sellers" options={{ title: 'My sellers' }} />
               <Stack.Screen name="recent" options={{ title: 'Recently viewed' }} />
               <Stack.Screen name="cart" options={{ title: 'Cart' }} />
               <Stack.Screen name="rewards" options={{ title: 'Invite & earn' }} />
-              <Stack.Screen name="live" options={{ title: 'Live now' }} />
+              {/* Live discovery is a buyer tab now; the viewer stays a
+                  full-screen route outside the tab chrome. */}
               <Stack.Screen name="live/[id]" options={{ headerShown: false }} />
               <Stack.Screen name="videos" options={{ title: 'Videos' }} />
               <Stack.Screen name="nearby" options={{ title: 'Businesses around you' }} />
@@ -163,6 +165,8 @@ export default function RootLayout() {
               <Stack.Screen name="ai-studio" options={{ title: 'AI Studio' }} />
               {/* The seller centre owns its own stack and headers. */}
               <Stack.Screen name="seller" options={{ headerShown: false }} />
+              {/* Admin Command Centre — admin-only, enforced by the API. */}
+              <Stack.Screen name="admin" options={{ headerShown: false }} />
               <Stack.Screen name="settings" options={{ title: 'Settings' }} />
               <Stack.Screen name="+not-found" options={{ title: 'Not found' }} />
             </Stack>

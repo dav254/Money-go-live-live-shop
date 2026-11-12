@@ -116,6 +116,12 @@ export default function ProfileScreen() {
           />
           <ListRow icon="radio-outline" title="Live now" onPress={() => router.push('/live')} />
           <ListRow icon="location-outline" title="Near you" onPress={() => router.push('/nearby')} />
+          <ListRow
+            icon="navigate-outline"
+            title="My location"
+            detail="Private point, and sharing it in chat"
+            onPress={() => router.push('/location')}
+          />
         </View>
 
         <SectionHeader title="Account" />
@@ -134,6 +140,16 @@ export default function ProfileScreen() {
             detail="Name, phone, photo"
             onPress={() => router.push('/profile/edit')}
           />
+          {/* Shown only to a verified admin profile. The API re-checks the role
+              on every request, so this row is a shortcut, not a permission. */}
+          {role === 'admin' ? (
+            <ListRow
+              icon="shield-checkmark-outline"
+              title="Admin Command Centre"
+              detail="Users, marketplace, finance, safety and AI"
+              onPress={() => router.push('/admin')}
+            />
+          ) : null}
           <ListRow icon="settings-outline" title="Settings" onPress={() => router.push('/settings')} />
         </View>
 

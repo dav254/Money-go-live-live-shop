@@ -171,6 +171,8 @@ export const PROPOSAL_ACTIONS = [
   'manual_campaign_brief',
   /** A technical investigation brief for the engineering agent/owner. */
   'technical_investigation',
+  /** A coding task for OpenCode, executable only after founder approval. */
+  'opencode_task',
 ] as const;
 export type ProposalActionType = (typeof PROPOSAL_ACTIONS)[number];
 
