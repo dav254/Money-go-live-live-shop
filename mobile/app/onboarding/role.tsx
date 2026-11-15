@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import { Button, Display, Muted, Notice } from '../../src/components/ui';
 import { useAuth } from '../../src/lib/auth';
@@ -21,8 +21,10 @@ type Choice = 'seller' | 'buyer' | 'both';
 export default function RoleSelectionScreen() {
   const router = useRouter();
   const { enableSelling } = useAuth();
+  /** "I'm here to sell" on the welcome screen pre-selects the seller answer. */
+  const { intent } = useLocalSearchParams<{ intent?: string }>();
 
-  const [choice, setChoice] = useState<Choice>('both');
+  const [choice, setChoice] = useState<Choice>(intent === 'seller' ? 'seller' : 'both');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

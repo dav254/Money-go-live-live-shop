@@ -10,7 +10,7 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import { Button, Display, Field, Muted } from '../src/components/ui';
 import { useAuth } from '../src/lib/auth';
@@ -39,6 +39,12 @@ type Errors = Partial<Record<'name' | 'email' | 'phone' | 'password' | 'confirm'
 export default function SignUpScreen() {
   const router = useRouter();
   const { signUp } = useAuth();
+  /**
+   * The welcome screen can arrive here through "I'm here to sell". The intent
+   * is carried to role selection so the seller is not asked the same question
+   * twice — the account itself still starts as a buyer either way.
+   */
+  const { intent } = useLocalSearchParams<{ intent?: string }>();
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -84,7 +90,11 @@ export default function SignUpScreen() {
         phone: clean(phone) || undefined,
         role: 'buyer',
       });
-      router.replace('/onboarding/role');
+      router.replace(
+        intent === 'seller'
+          ? { pathname: '/onboarding/role', params: { intent: 'seller' } }
+          : '/onboarding/role',
+      );
     } catch (thrown) {
       setFailure(messageFor(thrown));
     } finally {

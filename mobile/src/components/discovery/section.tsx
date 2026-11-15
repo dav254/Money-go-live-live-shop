@@ -29,15 +29,18 @@ import type { Product } from '../../lib/types';
 export function DiscoverySection({
   showHeader = false,
   hint,
+  initialQuery,
 }: {
   /** Buyer surface: this component owns the top bar (the tab header is hidden). */
   showHeader?: boolean;
   hint?: string;
+  /** A term to open with — used by the welcome screen's category entry points. */
+  initialQuery?: string;
 }) {
   const [tab, setTab] = useState<DiscoveryTab>('discover');
   const [seed, setSeed] = useState<ThemeSeed | undefined>(undefined);
-  const [query, setQuery] = useState('');
-  const [searchOpen, setSearchOpen] = useState(false);
+  const [query, setQuery] = useState(initialQuery ?? '');
+  const [searchOpen, setSearchOpen] = useState(Boolean(initialQuery));
   const [liveSellerIds, setLiveSellerIds] = useState<Set<string>>(new Set());
   const debounced = useDebounced(query, 350);
 
